@@ -56,6 +56,16 @@ export default function Header() {
     { to: '/contact',    label: 'Contact' },
   ];
 
+  const [isMobile, setIsMobile] = React.useState(() =>
+    typeof window !== 'undefined' && window.innerWidth < 768
+  );
+  React.useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const h = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', h);
+    return () => mq.removeEventListener('change', h);
+  }, []);
+
   return (
     <header style={{
       position: 'sticky', top: 0, zIndex: 1000,
@@ -65,12 +75,15 @@ export default function Header() {
       boxShadow: '0 2px 16px rgba(43,159,216,0.08)',
       height: 'var(--header-h)',
       display: 'flex', alignItems: 'center',
-      padding: '0 5%', gap: 20,
+      padding: '0 5%', gap: isMobile ? 10 : 20,
+      overflow: 'hidden',
     }}>
-      {/* Hamburger */}
+      {/* Hamburger — hide on mobile when search is open */}
+      {(!isMobile || !searchOpen) && (
       <button onClick={() => setMenuOpen(v => !v)} style={{
         display: 'flex', flexDirection: 'column', gap: 5,
         background: 'none', border: 'none', cursor: 'pointer', zIndex: 1001,
+        flexShrink: 0,
       }}>
         {[0,1,2].map(i => (
           <motion.span key={i} style={{
@@ -82,17 +95,27 @@ export default function Header() {
           />
         ))}
       </button>
+      )}
 
-      {/* Logo */}
-      <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
-        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.5rem', color: 'var(--primary)', letterSpacing: '-0.5px' }}>
+      {/* Logo — hide on mobile when search is open */}
+      {(!isMobile || !searchOpen) && (
+      <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800,
+          fontSize: isMobile ? '1.1rem' : '1.5rem',
+          color: 'var(--primary)', letterSpacing: '-0.5px', whiteSpace: 'nowrap' }}>
           CALVAC
         </span>
-        <img src="https://ik.imagekit.io/yocxectr4/logos/logo.png?tr=w-50,h-50,f-webp" alt="" style={{ height: 44, width: 'auto' }} />
+        <img src="https://ik.imagekit.io/yocxectr4/logos/logo.png?tr=w-50,h-50,f-webp" alt=""
+          style={{ height: isMobile ? 32 : 44, width: 'auto', flexShrink: 0 }} />
       </Link>
+      )}
 
-      {/* Search */}
-      <div ref={searchRef} style={{ position: 'relative', flexShrink: 0 }}>
+      {/* Search — full width on mobile when open */}
+      <div ref={searchRef} style={{
+        position: 'relative',
+        flexShrink: isMobile && searchOpen ? 0 : 0,
+        flex: isMobile && searchOpen ? 1 : undefined,
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <motion.input
             type="text"
@@ -101,19 +124,20 @@ export default function Header() {
             onFocus={() => setSearchOpen(true)}
             onChange={e => handleSearch(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && submitSearch()}
-            animate={{ width: searchOpen ? 220 : 36 }}
+            animate={{ width: searchOpen ? (isMobile ? '100%' : 220) : 36 }}
             transition={{ duration: 0.35 }}
             style={{
               padding: '8px 34px 8px 12px',
               border: '1.5px solid var(--border)',
               borderRadius: 20,
-              fontSize: '0.85rem',
+              fontSize: isMobile ? '0.78rem' : '0.85rem',
               outline: 'none',
               background: 'var(--bg)',
               color: 'var(--text)',
               fontFamily: 'var(--font-body)',
               overflow: 'hidden',
               borderColor: searchOpen ? 'var(--primary)' : 'var(--border)',
+              width: searchOpen ? (isMobile ? 'calc(100vw - 80px)' : 220) : 36,
             }}
           />
           <button onClick={submitSearch} style={{

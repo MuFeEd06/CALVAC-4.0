@@ -128,9 +128,12 @@ export async function fetchSiteSettings(): Promise<SiteSettings> {
       lsSet(cacheKey, data);
       return { ...DEFAULT_SETTINGS, ...data };
     })
-    .catch(() => DEFAULT_SETTINGS);
+    .catch(() => {
+      _settingsPromise = null; // reset so next navigation retries
+      return DEFAULT_SETTINGS;
+    });
 
-  return _settingsPromise;
+  return _settingsPromise!;
 }
 
 // ── Offer (5hr) ──────────────────────────────────────────────────────

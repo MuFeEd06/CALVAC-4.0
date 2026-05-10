@@ -251,7 +251,7 @@ export default function ProductPage() {
       {similar.length > 0 && (
         <section style={{ padding: '20px 5% 60px', maxWidth: 1300, margin: '0 auto' }}>
           <h2 style={{ fontFamily: 'var(--font-display)', textAlign: 'center', color: 'var(--primary)', margin: '0 0 24px', fontSize: '1.6rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px' }}>You May Also Like</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px,45vw),1fr))', gap: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px,44vw),1fr))', gap: 24 }}>
             {similar.map(p => <ProductCard key={p.id} product={p} />)}
           </div>
         </section>

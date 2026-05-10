@@ -89,7 +89,7 @@ export default function ShopPage() {
 
       {/* Grid */}
       {loading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px,45vw),1fr))', gap: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px,44vw),1fr))', gap: 24 }}>
           {Array(8).fill(0).map((_, i) => (
             <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, height: 340, animation: 'pulse 1.5s ease-in-out infinite' }} />
           ))}
@@ -103,7 +103,7 @@ export default function ShopPage() {
       ) : (
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}
-          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px,45vw),1fr))', gap: 24 }}>
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px,44vw),1fr))', gap: 24 }}>
           {products.map(p => <ProductCard key={p.id} product={p} />)}
         </motion.div>
       )}

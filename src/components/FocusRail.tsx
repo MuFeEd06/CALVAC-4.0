@@ -65,6 +65,15 @@ export function FocusRail({
   const [active, setActive] = React.useState(initialIndex);
   const [isHovering, setIsHovering] = React.useState(false);
   const [isDragging, setIsDragging] = React.useState(false);
+  const [isMobile, setIsMobile] = React.useState(
+    typeof window !== 'undefined' && window.innerWidth < 768
+  );
+  React.useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const h = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', h);
+    return () => mq.removeEventListener('change', h);
+  }, []);
   const lastWheelTime = React.useRef<number>(0);
 
   const count = items.length;
@@ -174,7 +183,7 @@ export function FocusRail({
       position: "relative" as const,
       margin: "0 auto",
       display: "flex",
-      height: 360,
+      height: isMobile ? 220 : 360,
       width: "100%",
       maxWidth: 1100,
       alignItems: "center",
@@ -184,7 +193,7 @@ export function FocusRail({
     },
     card: (isCenter: boolean): React.CSSProperties => ({
       position: "absolute" as const,
-      width: 260,
+      width: isMobile ? 155 : 260,
       aspectRatio: "3/4",
       borderRadius: 16,
       borderTop: "1px solid rgba(255,255,255,0.18)",
@@ -267,7 +276,7 @@ export function FocusRail({
       textAlign: "left" as const,
       height: 120,
       justifyContent: "center",
-      minWidth: 200,
+      minWidth: isMobile ? 120 : 200,
     },
     metaTag: {
       fontSize: "0.72rem",

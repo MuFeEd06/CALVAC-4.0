@@ -47,7 +47,7 @@ export default function HomePage() {
         </h2>
 
         {loading ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px,1fr))', gap: 24, padding: '20px 0' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px,45vw),1fr))', gap: 24, padding: '20px 0' }}>
             {Array(8).fill(0).map((_, i) => (
               <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, height: 320 }}>
                 <div style={{ background: 'var(--surface-2)', borderRadius: 8, height: 160, marginBottom: 12, animation: 'pulse 1.5s ease-in-out infinite' }} />

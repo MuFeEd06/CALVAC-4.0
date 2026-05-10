@@ -2,6 +2,24 @@ import os, json
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 from urllib.request import Request, urlopen
+import base64, time
+
+def _auth(h):
+    """Verify Supabase JWT by decoding payload — no HTTP call needed."""
+    a=h.get("Authorization","")
+    if not a.startswith("Bearer "): return False
+    try:
+        token=a.split(" ",1)[1]
+        parts=token.split(".")
+        if len(parts)!=3: return False
+        pad=parts[1]+"="*(-len(parts[1])%4)
+        payload=json.loads(base64.urlsafe_b64decode(pad))
+        sb_url=os.environ.get("SUPABASE_URL","").rstrip("/")
+        if payload.get("iss")!=f"{sb_url}/auth/v1": return False
+        if payload.get("exp",0)<time.time(): return False
+        return bool(payload.get("sub"))
+    except: return False
+
 
 def _sb_url(): return os.environ.get("SUPABASE_URL","").rstrip("/")
 def _sb_key(): return os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_KEY","")
@@ -23,13 +41,6 @@ def _cors(o="*"):
 def _ok_origin(h):
     o=h.get("Origin","")
     return o if o in {"https://calvac.in","https://calvac-4-0.vercel.app","http://localhost:5173"} else "*"
-def _auth(h):
-    a=h.get("Authorization","")
-    if not a.startswith("Bearer "): return False
-    try:
-        req=Request(f"{_sb_url()}/auth/v1/user",headers={"apikey":_sb_key(),"Authorization":a})
-        with urlopen(req,timeout=10) as r: return bool(json.loads(r.read()).get("id"))
-    except: return False
 
 class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):

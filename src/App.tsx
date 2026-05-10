@@ -5,6 +5,7 @@ import { AdminAuthProvider } from '@/context/AdminAuthContext';
 import Layout from '@/components/Layout';
 import AdminLayout from '@/components/admin/AdminLayout';
 import AdminRoute from '@/components/admin/AdminRoute';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import HomePage from '@/pages/HomePage';
 import ShopPage from '@/pages/ShopPage';
 import ProductPage from '@/pages/ProductPage';
@@ -25,6 +26,7 @@ export default function App() {
       <AdminAuthProvider>
         <CartProvider>
           <ToastProvider>
+            <ErrorBoundary>
             <Routes>
               {/* ── Admin routes (obscured path) ── */}
               <Route path={`${ADMIN_BASE}/login`} element={<AdminLoginPage />} />
@@ -65,6 +67,7 @@ export default function App() {
                 <Route path="*"         element={<NotFound />} />
               </Route>
             </Routes>
+            </ErrorBoundary>
           </ToastProvider>
         </CartProvider>
       </AdminAuthProvider>
