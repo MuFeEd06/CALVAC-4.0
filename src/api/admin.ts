@@ -56,8 +56,26 @@ export async function updateOrderNotes(orderId: number, notes: string) {
 }
 
 /* ── Products ── */
+function parseF<T>(v: unknown, fb: T): T {
+  if (v === null || v === undefined) return fb;
+  if (typeof v === 'string') { try { return JSON.parse(v) as T; } catch { return fb; } }
+  return v as T;
+}
+
+function sanitizeProduct(p: any): any {
+  return {
+    ...p,
+    sizes:  Array.isArray(p.sizes)  ? p.sizes  : parseF<string[]>(p.sizes,  []),
+    colors: Array.isArray(p.colors) ? p.colors : parseF<any[]>(p.colors, []),
+    stock:  (typeof p.stock === 'object' && p.stock !== null && !Array.isArray(p.stock))
+      ? p.stock
+      : parseF<Record<string,number>>(p.stock, {}),
+  };
+}
+
 export async function fetchAdminProducts(): Promise<Product[]> {
-  return fetchAdmin<Product[]>('/api/x9k2/products');
+  const raw = await fetchAdmin<Product[]>('/api/x9k2/products');
+  return Array.isArray(raw) ? raw.map(sanitizeProduct) : [];
 }
 export async function createAdminProduct(payload: AdminProductPayload) {
   return fetchAdmin<{ success?: boolean; product?: Product; error?: string }>(

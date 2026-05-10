@@ -653,9 +653,18 @@ export default function AdminProductsPage() {
   const openCreate = () => { setEditing(null); setDraft(emptyDraft()); setModalOpen(true); };
   const openEdit   = (p:Product) => {
     setEditing(p);
+    // Parse JSON string fields that may come from older cache/API
+    const parseFld = <T,>(v: unknown, fb: T): T => {
+      if (Array.isArray(v) || (typeof v === 'object' && v !== null)) return v as T;
+      if (typeof v === 'string') { try { return JSON.parse(v) as T; } catch {} }
+      return fb;
+    };
     setDraft({ name:p.name, brand:p.brand, price:p.price, original_price:p.original_price||0,
       image:p.image, tag:p.tag||'', category:p.category||'',
-      sizes:p.sizes||[], colors:p.colors||[], specs:p.specs||'', stock:p.stock||{} });
+      sizes:  parseFld<string[]>(p.sizes, []),
+      colors: parseFld<any[]>(p.colors, []),
+      specs:  p.specs||'',
+      stock:  parseFld<Record<string,number>>(p.stock, {}) });
     setModalOpen(true);
   };
   const closeModal = () => { setModalOpen(false); setTimeout(()=>{setEditing(null);setDraft(emptyDraft());},250); };
@@ -756,7 +765,7 @@ export default function AdminProductsPage() {
                     </span></>
                   )}
                 </div>
-                {p.sizes?.length>0&&<p style={{ fontSize:'0.68rem',color:'#9badb8',marginBottom:4 }}>{p.sizes.slice(0,4).join(' · ')}{p.sizes.length>4?'…':''}</p>}
+                {Array.isArray(p.sizes)&&p.sizes.length>0&&<p style={{ fontSize:'0.68rem',color:'#9badb8',marginBottom:4 }}>{p.sizes.slice(0,4).join(' · ')}{p.sizes.length>4?'…':''}</p>}
                 <div className="admin-card-actions">
                   <button type="button" onClick={()=>openEdit(p)}>✏️ Edit</button>
                   <button type="button" className="danger" onClick={()=>remove(p)}>Delete</button>
