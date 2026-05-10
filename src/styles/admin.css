@@ -1,0 +1,514 @@
+.admin-shell {
+  min-height: 100vh;
+  background: #f4f8fb;
+  color: #1a1a2e;
+}
+
+.admin-header {
+  height: 64px;
+  background: #fff;
+  border-bottom: 1px solid #d0e6f5;
+  padding: 0 5%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
+
+.admin-brand {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #2b9fd8;
+}
+
+.admin-brand span {
+  font-size: 0.85rem;
+  color: #5a6a7a;
+  margin-left: 6px;
+}
+
+.admin-nav {
+  display: flex;
+  gap: 10px;
+}
+
+.admin-nav a {
+  text-decoration: none;
+  color: #5a6a7a;
+  border: 1px solid #d0e6f5;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+}
+
+.admin-nav a.active {
+  background: #2b9fd8;
+  border-color: #2b9fd8;
+  color: #fff;
+}
+
+.admin-logout {
+  border: 1px solid #fed7d7;
+  background: #fff;
+  color: #e53e3e;
+  padding: 7px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.admin-page-wrap {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 30px 5% 80px;
+}
+
+.admin-panel {
+  background: #fff;
+  border: 1px solid #d0e6f5;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.admin-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.admin-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.admin-filters button,
+.admin-primary-btn {
+  border: 1px solid #d0e6f5;
+  background: #fff;
+  color: #5a6a7a;
+  border-radius: 999px;
+  padding: 7px 14px;
+  cursor: pointer;
+}
+
+.admin-filters button.active,
+.admin-primary-btn {
+  background: #2b9fd8;
+  color: #fff;
+  border-color: #2b9fd8;
+}
+
+.admin-orders {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-order-card {
+  border: 1px solid #d0e6f5;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.admin-order-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.order-id {
+  font-size: 0.76rem;
+  color: #9badb8;
+}
+
+.order-address {
+  margin-top: 8px;
+  color: #5a6a7a;
+  font-size: 0.86rem;
+}
+
+.admin-order-controls {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+.admin-order-controls select,
+.admin-order-controls input,
+.admin-search,
+.admin-form input,
+.admin-form select,
+.admin-form textarea {
+  border: 1px solid #d0e6f5;
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-size: 0.88rem;
+}
+
+.admin-order-controls input {
+  flex: 1;
+}
+
+.admin-search {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.admin-product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.admin-product-card {
+  border: 1px solid #d0e6f5;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.admin-product-card img {
+  width: 100%;
+  height: 130px;
+  object-fit: contain;
+  background: #f4f8fb;
+  border-radius: 8px;
+}
+
+.admin-product-card h3 {
+  margin-top: 8px;
+  font-size: 0.92rem;
+}
+
+.admin-product-card p {
+  color: #5a6a7a;
+  font-size: 0.82rem;
+}
+
+.admin-card-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+}
+
+.admin-card-actions button {
+  flex: 1;
+  border: 1px solid #d0e6f5;
+  background: #fff;
+  border-radius: 8px;
+  padding: 7px;
+  cursor: pointer;
+}
+
+.admin-card-actions button.danger {
+  border-color: #fed7d7;
+  color: #e53e3e;
+}
+
+.admin-form {
+  border-top: 1px solid #eaf3fa;
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
+.admin-form h3 {
+  margin-bottom: 12px;
+}
+
+.admin-helper {
+  color: #5a6a7a;
+  font-size: 0.86rem;
+  margin-bottom: 12px;
+}
+
+.admin-subtitle {
+  margin: 8px 0 10px;
+  color: #2b9fd8;
+  font-size: 0.92rem;
+}
+
+.admin-hero-preview {
+  position: relative;
+  min-height: 340px;
+  border: 1px solid #d0e6f5;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f4f8fb;
+  margin-bottom: 14px;
+}
+
+.hero-studio-form {
+  border-top: 0;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.hero-studio-main {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 16px;
+}
+
+.hero-studio-right {
+  border: 1px solid #d0e6f5;
+  border-radius: 14px;
+  padding: 12px;
+  background: #fff;
+}
+
+.hero-inspector-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hero-visibility-btn {
+  border: 1px solid #d0e6f5;
+  background: #fff;
+  color: #5a6a7a;
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.hero-element-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+
+.hero-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #d0e6f5;
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.hero-chip.active {
+  border-color: #2b9fd8;
+  color: #2b9fd8;
+  background: #eaf3fa;
+}
+
+.hero-chip-eye {
+  font-size: 0.8rem;
+}
+
+.admin-hero-preview-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.admin-hero-preview-shoe {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(640px, 80%);
+  transform: translate(-50%, -50%);
+  object-fit: contain;
+  opacity: 0.9;
+}
+
+.admin-hero-preview-intro {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: calc(100% - 32px);
+  z-index: 2;
+  cursor: pointer;
+}
+
+.admin-hero-preview-intro p {
+  font-size: 0.66rem;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+.admin-hero-preview-intro h4 {
+  font-size: clamp(1.3rem, 4vw, 2.4rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.admin-hero-preview-intro span {
+  display: inline-block;
+  margin-top: 8px;
+  max-width: 520px;
+  font-size: 0.8rem;
+}
+
+.admin-hero-preview-left,
+.admin-hero-preview-right {
+  position: absolute;
+  z-index: 2;
+  cursor: pointer;
+}
+
+.admin-hero-preview-left p,
+.admin-hero-preview-right p {
+  font-size: 0.56rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+}
+
+.admin-hero-preview-left h5,
+.admin-hero-preview-right h5 {
+  margin-top: 4px;
+  font-size: clamp(1.05rem, 2.2vw, 1.8rem);
+  line-height: 1.06;
+}
+
+.admin-hero-preview-right {
+  text-align: right;
+}
+
+.admin-hero-preview-prompt {
+  position: absolute;
+  transform: translateX(-50%);
+  z-index: 2;
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: #2b9fd8;
+  cursor: pointer;
+}
+
+.admin-hero-preview-intro.selected,
+.admin-hero-preview-left.selected,
+.admin-hero-preview-right.selected,
+.admin-hero-preview-prompt.selected {
+  outline: 1.5px dashed #ff8a4c;
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+
+.admin-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.admin-form-grid .full {
+  grid-column: 1 / -1;
+}
+
+.admin-form textarea {
+  min-height: 90px;
+}
+
+.admin-check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+
+.admin-login-page,
+.admin-loading-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #e8f5fd 0%, #f4f8fb 100%);
+}
+
+.admin-login-card {
+  width: min(420px, 94vw);
+  background: #fff;
+  border-radius: 20px;
+  border: 1px solid #d0e6f5;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-login-card h1 {
+  color: #2b9fd8;
+}
+
+.admin-lock {
+  font-size: 2rem;
+}
+
+.admin-login-card input,
+.admin-login-card button {
+  border: 1px solid #d0e6f5;
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-size: 0.94rem;
+}
+
+.admin-login-card button {
+  background: #2b9fd8;
+  border-color: #2b9fd8;
+  color: #fff;
+  cursor: pointer;
+}
+
+.admin-error {
+  color: #b91c1c;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.85rem;
+}
+
+.admin-status {
+  margin: 8px 0 14px;
+  color: #2b6cb0;
+  font-weight: 600;
+}
+
+.settings-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.settings-tabs button {
+  border: 1px solid #d0e6f5;
+  background: #fff;
+  color: #5a6a7a;
+  border-radius: 999px;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.settings-tabs button.active {
+  background: #2b9fd8;
+  border-color: #2b9fd8;
+  color: #fff;
+}
+
+@media (max-width: 900px) {
+  .admin-header {
+    height: auto;
+    padding: 12px 4%;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .admin-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .hero-studio-main {
+    grid-template-columns: 1fr;
+  }
+}
+
