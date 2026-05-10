@@ -15,13 +15,16 @@ export function NewArrivals({ products }: { products: Product[] }) {
   /* Map Product → FocusRailItem */
   const railItems: FocusRailItem[] = newProducts.map(p => {
     const deal = getDeal(p.price, p.original_price);
+    // Guard: sizes/colors might be strings from old cache
+    const safeColors = Array.isArray(p.colors) ? p.colors : [];
+    const safeSizes  = Array.isArray(p.sizes)  ? p.sizes  : [];
     return {
       id:          p.id,
       title:       p.name,
-      description: p.colors?.length
-        ? `Available in ${p.colors.length} colour${p.colors.length > 1 ? 's' : ''} · Sizes ${p.sizes?.slice(0, 3).join(', ')}${p.sizes?.length > 3 ? '…' : ''}`
-        : p.sizes?.length
-          ? `Available in sizes ${p.sizes.slice(0, 4).join(', ')}${p.sizes.length > 4 ? '…' : ''}`
+      description: safeColors.length
+        ? `Available in ${safeColors.length} colour${safeColors.length > 1 ? 's' : ''} · Sizes ${safeSizes.slice(0, 3).join(', ')}${safeSizes.length > 3 ? '…' : ''}`
+        : safeSizes.length
+          ? `Available in sizes ${safeSizes.slice(0, 4).join(', ')}${safeSizes.length > 4 ? '…' : ''}`
           : 'Premium quality sneaker',
       imageSrc:    ikResize(p.image, 600, 80) || 'https://placehold.co/300x400/1a1a1a/2B9FD8?text=👟',
       href:        `/product/${p.id}`,

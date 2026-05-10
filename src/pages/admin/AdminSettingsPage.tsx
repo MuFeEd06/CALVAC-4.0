@@ -1,5 +1,6 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { fetchAdminOffer, fetchAdminSettings, saveAdminOffer, saveAdminSettings } from '@/api/admin';
+import { clearSettingsCache, clearProductsCache } from '@/api';
 import { BRANDS } from '@/utils';
 
 /* ═══════════════════════════════════════════════════════
@@ -1042,24 +1043,27 @@ export default function AdminSettingsPage() {
     const payload: S = {};
     hero_keys.forEach(k => { payload[k] = settings[k] ?? undefined; });
     const res = await saveAdminSettings(payload);
-    flash(res.success ? 'Hero Studio saved!' : (res.error||'Save failed'));
+    if (res.success) clearSettingsCache();
+    flash(res.success ? 'Hero Studio saved! ✓' : (res.error||'Save failed'));
   };
 
   const saveStore = async () => {
     const payload: S = { show_new_arrivals:settings.show_new_arrivals!==false, show_categories:settings.show_categories!==false, show_brands_section:settings.show_brands_section!==false, hidden_brands:settings.hidden_brands||'' };
     CAT_SLUGS.forEach(slug => { payload[`cat_${slug}`] = settings[`cat_${slug}`]!==false; });
     const res = await saveAdminSettings(payload);
-    flash(res.success?'Store settings saved!':(res.error||'Save failed'));
+    if (res.success) clearSettingsCache();
+    flash(res.success?'Store settings saved! ✓':(res.error||'Save failed'));
   };
 
   const saveOffer = async () => {
     const res = await saveAdminOffer(offer);
-    flash(res.success?'Offer ribbon saved!':(res.error||'Save failed'));
+    flash(res.success?'Offer ribbon saved! ✓':(res.error||'Save failed'));
   };
 
   const savePolicies = async () => {
     const res = await saveAdminSettings({ policy_privacy:settings.policy_privacy||'', policy_return:settings.policy_return||'', policy_shipping:settings.policy_shipping||'' });
-    flash(res.success?'Policies saved!':(res.error||'Save failed'));
+    if (res.success) clearSettingsCache();
+    flash(res.success?'Policies saved! ✓':(res.error||'Save failed'));
   };
 
   const hiddenBrands = new Set(String(settings.hidden_brands||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean));

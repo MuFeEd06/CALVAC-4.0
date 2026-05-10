@@ -10,7 +10,7 @@ const OFFER_TTL    =  5 * 60 * 60 * 1000;
 const PRODUCT_TTL  =  8 * 60 * 60 * 1000;
 
 // ── Cache key version — bump to invalidate all stale browser caches ──
-const V = 'v3';
+const V = 'v4'; // bump clears all stale caches
 
 function ikResize(url: string, width: number, quality: number): string {
   if (!url || !url.includes('ik.imagekit.io')) return url;
@@ -33,16 +33,34 @@ function fixImage(img: string | undefined): string {
   return '';
 }
 
+/** Parse a field that might be a JSON string, array, or object */
+function parseJsonField<T>(v: unknown, fallback: T): T {
+  if (v === null || v === undefined) return fallback;
+  if (typeof v === 'string') {
+    try { return JSON.parse(v) as T; } catch { return fallback; }
+  }
+  return v as T;
+}
+
 function fixProducts(list: unknown[]): Product[] {
   if (!Array.isArray(list)) return [];
-  return list.map((p: any) => ({
-    ...p,
-    name:   String(p.name  || '').slice(0, 200),
-    brand:  String(p.brand || '').slice(0, 100),
-    price:  Math.max(0, Number(p.price) || 0),
-    image:  fixImage(p.image),
-    colors: (Array.isArray(p.colors) ? p.colors : []).map((c: any) => ({ ...c, image: fixImage(c.image) })),
-  }));
+  return list.map((p: any) => {
+    const sizes  = parseJsonField<string[]>(p.sizes, []);
+    const colors = parseJsonField<any[]>(p.colors, []);
+    const stock  = parseJsonField<Record<string,number>>(p.stock, {});
+    return {
+      ...p,
+      name:   String(p.name  || '').slice(0, 200),
+      brand:  String(p.brand || '').slice(0, 100),
+      price:  Math.max(0, Number(p.price) || 0),
+      image:  fixImage(p.image),
+      sizes:  Array.isArray(sizes) ? sizes : [],
+      colors: Array.isArray(colors)
+        ? colors.map((c: any) => ({ ...c, image: fixImage(c.image) }))
+        : [],
+      stock: typeof stock === 'object' && stock !== null ? stock : {},
+    };
+  });
 }
 
 // ── Safe localStorage ────────────────────────────────────────────────
@@ -98,6 +116,11 @@ export async function fetchProducts(): Promise<Product[]> {
 export function clearProductsCache(): void {
   _productsPromise = null;
   lsDel(`calvac_products_${V}`);
+}
+
+export function clearSettingsCache(): void {
+  _settingsPromise = null;
+  lsDel(`calvac_settings_${V}`);
 }
 
 // ── Site settings (12hr) ─────────────────────────────────────────────
