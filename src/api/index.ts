@@ -15,20 +15,26 @@ const V = 'v4'; // bump clears all stale caches
 function ikResize(url: string, width: number, quality: number): string {
   if (!url || !url.includes('ik.imagekit.io')) return url;
   const base = url.split('?')[0];
-  return `${base}?tr=w-${width},q-${quality},f-webp,c-at_max,pr-true`;
+  // f-webp: modern format, 40-60% smaller than JPEG
+  // q: quality 1-100
+  // c-at_max: never upscale (saves bandwidth on small images)
+  // pr-true: progressive — shows blurred preview while loading
+  // dpr-2: serve 2× pixels for retina screens
+  return `${base}?tr=w-${width},q-${quality},f-webp,c-at_max,pr-true,dpr-2`;
 }
 
 export function ikSrcSet(url: string, quality = 75): string {
   if (!url || !url.includes('ik.imagekit.io')) return '';
   const base = url.split('?')[0];
-  return [320, 480, 640, 800, 1080, 1280]
+  // Responsive srcset — browser picks the right size for the screen
+  return [320, 480, 640, 800, 1080, 1440]
     .map(w => `${base}?tr=w-${w},q-${quality},f-webp,c-at_max,pr-true ${w}w`)
     .join(', ');
 }
 
 function fixImage(img: string | undefined): string {
   if (!img) return '';
-  if (img.startsWith('http')) return ikResize(img, 400, 75);
+  if (img.startsWith("http")) return ikResize(img, 220, 75);
   if (img.startsWith('/static/')) return img;
   return '';
 }

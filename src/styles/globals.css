@@ -135,3 +135,32 @@ button { font-family: inherit; cursor: pointer; border: none; }
   border-color: var(--primary);
   color: #fff;
 }
+
+/* ── Responsive product grid ───────────────────────────────────────
+   Always 2 columns on mobile, auto-fill ≥220px on wider screens.
+   Use className="product-grid" on every product listing container.
+──────────────────────────────────────────────────────────────────── */
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  padding: 16px 0;
+}
+@media (min-width: 480px) {
+  .product-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
+    padding: 20px 0;
+  }
+}
+@media (min-width: 768px) {
+  .product-grid {
+    gap: 24px;
+  }
+}
+
+/* Skeleton pulse animation */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}

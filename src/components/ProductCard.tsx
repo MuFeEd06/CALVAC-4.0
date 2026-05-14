@@ -50,12 +50,19 @@ export default function ProductCard({ product }: { product: Product }) {
       }}
       onClick={() => !oos && navigate(`/product/${product.id}`)}
     >
-      {/* Image */}
+      {/* Image — lazy load + srcset for responsive delivery */}
       <div style={{ position: 'relative', background: 'var(--surface-2)', aspectRatio: '4/3', overflow: 'hidden' }}>
         <img
           src={product.image || 'https://placehold.co/280x210/eaf3fa/2B9FD8?text=No+Image'}
+          srcSet={product.image?.includes('ik.imagekit.io')
+            ? [220,300,400].map(w =>
+                `${product.image!.split('?')[0]}?tr=w-${w},q-75,f-webp,c-at_max,pr-true ${w}w`
+              ).join(', ')
+            : undefined}
+          sizes="(max-width:767px) 44vw, 220px"
           alt={product.name}
           loading="lazy"
+          decoding="async"
           onError={e => { (e.target as HTMLImageElement).src = 'https://placehold.co/280x210/eaf3fa/2B9FD8?text=No+Image'; }}
           style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 12, transition: 'transform 0.4s' }}
         />

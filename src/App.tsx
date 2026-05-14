@@ -6,6 +6,7 @@ import Layout from '@/components/Layout';
 import AdminLayout from '@/components/admin/AdminLayout';
 import AdminRoute from '@/components/admin/AdminRoute';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import ScrollToTop from '@/components/ScrollToTop';
 import HomePage from '@/pages/HomePage';
 import ShopPage from '@/pages/ShopPage';
 import ProductPage from '@/pages/ProductPage';
@@ -26,6 +27,7 @@ export default function App() {
       <AdminAuthProvider>
         <CartProvider>
           <ToastProvider>
+            <ScrollToTop />
             <ErrorBoundary>
             <Routes>
               {/* ── Admin routes (obscured path) ── */}

@@ -94,7 +94,13 @@ export default function ProductPage() {
                 initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
                 src={mainImg || 'https://placehold.co/400x300/eaf3fa/2B9FD8'}
+                srcSet={mainImg?.includes('ik.imagekit.io')
+                  ? [400,600,800,1080].map(w=>`${mainImg.split('?')[0]}?tr=w-${w},q-85,f-webp,c-at_max,pr-true ${w}w`).join(', ')
+                  : undefined}
+                sizes="(max-width:768px) 100vw, 50vw"
                 alt={product.name}
+                loading="eager"
+                decoding="async"
                 onError={e => { (e.target as HTMLImageElement).src = 'https://placehold.co/400x300/eaf3fa/2B9FD8'; }}
                 style={{ width: '100%', borderRadius: 14, background: 'var(--surface-2)', padding: 16 }} />
             </AnimatePresence>
@@ -251,7 +257,7 @@ export default function ProductPage() {
       {similar.length > 0 && (
         <section style={{ padding: '20px 5% 60px', maxWidth: 1300, margin: '0 auto' }}>
           <h2 style={{ fontFamily: 'var(--font-display)', textAlign: 'center', color: 'var(--primary)', margin: '0 0 24px', fontSize: '1.6rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px' }}>You May Also Like</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px,44vw),1fr))', gap: 24 }}>
+          <div className="product-grid">
             {similar.map(p => <ProductCard key={p.id} product={p} />)}
           </div>
         </section>

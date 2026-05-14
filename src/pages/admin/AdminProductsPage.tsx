@@ -52,32 +52,90 @@ function ImageUploader({ value, onChange }: { value:string; onChange:(url:string
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState('');
   const [err, setErr] = useState('');
 
+  /** Compress image client-side to ≤200KB using canvas + WebP */
+  const compress = (file: File): Promise<Blob> => new Promise((resolve, reject) => {
+    const MAX_KB  = 190;   // target < 200KB
+    const MAX_DIM = 800;   // max width or height in pixels
+
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let { width, height } = img;
+      // Scale down if larger than MAX_DIM
+      if (width > MAX_DIM || height > MAX_DIM) {
+        const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+        width  = Math.round(width  * ratio);
+        height = Math.round(height * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width  = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Try WebP first, reduce quality until ≤ MAX_KB
+      let quality = 0.85;
+      const tryEncode = () => {
+        canvas.toBlob(blob => {
+          if (!blob) { reject(new Error('Canvas toBlob failed')); return; }
+          if (blob.size <= MAX_KB * 1024 || quality <= 0.30) {
+            resolve(blob);
+          } else {
+            quality -= 0.10;
+            tryEncode();
+          }
+        }, 'image/webp', quality);
+      };
+      tryEncode();
+    };
+    img.onerror = () => reject(new Error('Could not load image'));
+    img.src = objectUrl;
+  });
+
   const upload = async (file: File) => {
-    if (file.size > 5 * 1024 * 1024) { setErr('File exceeds 5 MB limit'); return; }
-    if (!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)) {
-      setErr('Only JPG, PNG, WEBP or GIF allowed'); return;
+    if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
+      setErr('Only JPG, PNG or WEBP allowed (no GIF — use a still image)'); return;
     }
     setErr(''); setUploading(true);
     try {
+      if (file.size > 10 * 1024 * 1024) {
+        setErr('File too large (max 10MB raw). Use a smaller image.'); setUploading(false); return;
+      }
+      setProgress('Compressing…');
+      const blob = await compress(file);
+      const sizeKB = Math.round(blob.size / 1024);
+      setProgress(`Uploading ${sizeKB}KB…`);
+
       const fd = new FormData();
-      fd.append('image', file);
-      // Try Flask backend upload endpoint (works when deployed on calvac.in)
+      fd.append('image', blob, 'product.webp');
+
+      // Get auth token for the upload endpoint
+      let authHeader: Record<string,string> = {};
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i) || '';
+          if (k.includes('-auth-token') || k.startsWith('sb-')) {
+            const v = JSON.parse(localStorage.getItem(k) || 'null');
+            const t = v?.access_token ?? v?.session?.access_token ?? null;
+            if (t) { authHeader = { 'Authorization': `Bearer ${t}` }; break; }
+          }
+        }
+      } catch {}
+
       const res = await fetch('/api/x9k2/upload', {
-        method:'POST', credentials:'include', body:fd,
+        method: 'POST', body: fd, headers: authHeader,
       });
-      if (!res.ok) throw new Error(`${res.status}`);
       const data = await res.json();
-      onChange(data.url || data.image_url || data.path || '');
-    } catch {
-      // Fallback: convert to base64 data URL for preview only
-      const reader = new FileReader();
-      reader.onload = () => {
-        setErr('⚠️ Direct upload unavailable locally — image shown as preview. Deploy to Vercel for real uploads, or paste an ImageKit URL below.');
-        onChange(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      if (!res.ok) throw new Error(data.error || `Upload failed (${res.status})`);
+      onChange(data.url || '');
+      setProgress('');
+    } catch (e: any) {
+      setErr(e.message || 'Upload failed');
+      setProgress('');
     } finally {
       setUploading(false);
     }
@@ -126,6 +184,7 @@ function ImageUploader({ value, onChange }: { value:string; onChange:(url:string
               }}>✕</button>
           </div>
         ) : uploading ? (
+              progress ||
           <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:8, color:'#5a6a7a' }}>
             <div style={{ width:28,height:28,border:'3px solid #d0e6f5',borderTopColor:'#2B9FD8',borderRadius:'50%',animation:'spin 0.8s linear infinite' }}/>
             <span style={{ fontSize:'0.82rem' }}>Uploading…</span>
@@ -152,6 +211,7 @@ function ImageUploader({ value, onChange }: { value:string; onChange:(url:string
         onChange={e => onChange(e.target.value)}
         style={inp()}
       />
+      {progress && <p style={{ fontSize:'0.74rem', color:'#2B9FD8', margin:0 }}>{progress}</p>}
       {err && <p style={{ fontSize:'0.74rem', color:'#f59e0b', margin:0 }}>{err}</p>}
     </div>
   );

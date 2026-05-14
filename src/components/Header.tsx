@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '@/context/CartContext';
@@ -6,36 +6,35 @@ import { searchProducts } from '@/api';
 import { formatPrice } from '@/utils';
 import type { Product } from '@/types';
 
+const navLinks = [
+  { to: '/shop',              label: 'All Shoes' },
+  { to: '/shop?tag=new',      label: 'New Arrivals' },
+  { to: '/shop?tag=trending', label: 'Trending' },
+  { to: '/shop?tag=sale',     label: 'Sale' },
+  { to: '/contact',           label: 'Contact' },
+];
+
 export default function Header() {
   const { totalItems } = useCart();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const navigate   = useNavigate();
+  const location   = useLocation();
   const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQ, setSearchQ] = useState('');
-  const [results, setResults] = useState<Product[]>([]);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [searchQ,    setSearchQ]    = useState('');
+  const [results,    setResults]    = useState<Product[]>([]);
+  const [menuOpen,   setMenuOpen]   = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const inputRef  = useRef<HTMLInputElement>(null);
+  const timerRef  = useRef<ReturnType<typeof setTimeout>>();
 
-  const handleSearch = useCallback(async (q: string) => {
-    setSearchQ(q);
-    clearTimeout(timerRef.current);
-    if (q.trim().length < 2) { setResults([]); return; }
-    timerRef.current = setTimeout(async () => {
-      const data = await searchProducts(q.trim());
-      setResults(data.slice(0, 6));
-    }, 220);
-  }, []);
-
-  const submitSearch = () => {
-    const q = searchQ.trim();
-    if (!q) return;
+  /* Close search when navigating */
+  useEffect(() => {
+    setMenuOpen(false);
     setSearchOpen(false);
     setSearchQ('');
     setResults([]);
-    navigate(`/shop?q=${encodeURIComponent(q)}`);
-  };
+  }, [location.pathname, location.search]);
 
+  /* Click-outside closes search */
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
@@ -47,205 +46,219 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  useEffect(() => { setMenuOpen(false); }, [location]);
-
-  const navLinks = [
-    { to: '/',           label: 'Home' },
-    { to: '/#collections', label: 'Collections' },
-    { to: '/shop',       label: 'Shop' },
-    { to: '/contact',    label: 'Contact' },
-  ];
-
-  const [isMobile, setIsMobile] = React.useState(() =>
-    typeof window !== 'undefined' && window.innerWidth < 768
-  );
-  React.useEffect(() => {
-    const mq = window.matchMedia('(max-width: 767px)');
-    const h = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener('change', h);
-    return () => mq.removeEventListener('change', h);
+  const handleSearch = useCallback(async (q: string) => {
+    setSearchQ(q);
+    clearTimeout(timerRef.current);
+    if (!q.trim()) { setResults([]); return; }
+    timerRef.current = setTimeout(async () => {
+      const res = await searchProducts(q);
+      setResults(res.slice(0, 5));
+    }, 320);
   }, []);
 
+  const submitSearch = () => {
+    if (searchQ.trim()) {
+      navigate(`/shop?q=${encodeURIComponent(searchQ.trim())}`);
+      setSearchOpen(false);
+      setResults([]);
+    }
+  };
+
   return (
-    <header style={{
-      position: 'sticky', top: 0, zIndex: 1000,
-      background: 'rgba(255,255,255,0.88)',
-      backdropFilter: 'blur(20px)',
-      borderBottom: '1px solid var(--border)',
-      boxShadow: '0 2px 16px rgba(43,159,216,0.08)',
-      height: 'var(--header-h)',
-      display: 'flex', alignItems: 'center',
-      padding: '0 5%', gap: isMobile ? 10 : 20,
-      overflow: 'hidden',
-    }}>
-      {/* Hamburger — hide on mobile when search is open */}
-      {(!isMobile || !searchOpen) && (
-      <button onClick={() => setMenuOpen(v => !v)} style={{
-        display: 'flex', flexDirection: 'column', gap: 5,
-        background: 'none', border: 'none', cursor: 'pointer', zIndex: 1001,
-        flexShrink: 0,
+    <>
+      <header style={{
+        position: 'sticky', top: 0, zIndex: 1000,
+        background: 'rgba(255,255,255,0.92)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderBottom: '1px solid var(--border)',
+        boxShadow: '0 2px 16px rgba(43,159,216,0.08)',
+        height: 'var(--header-h)',
+        display: 'flex', alignItems: 'center',
+        padding: '0 5%', gap: 12,
       }}>
-        {[0,1,2].map(i => (
-          <motion.span key={i} style={{
-            display: 'block', width: 25, height: 3,
-            background: 'var(--primary)', borderRadius: 2,
+        {/* ── Hamburger — always visible ── */}
+        <button
+          type="button"
+          onClick={() => setMenuOpen(v => !v)}
+          aria-label="Open menu"
+          aria-expanded={menuOpen}
+          style={{
+            display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5,
+            background: 'none', border: 'none', cursor: 'pointer',
+            zIndex: 1001, flexShrink: 0, padding: '4px 2px', height: 40, width: 32,
           }}
-          animate={menuOpen ? (i === 0 ? { rotate: 45, y: 8 } : i === 1 ? { opacity: 0 } : { rotate: -45, y: -8 }) : { rotate: 0, y: 0, opacity: 1 }}
-          transition={{ duration: 0.25 }}
-          />
-        ))}
-      </button>
-      )}
-
-      {/* Logo — hide on mobile when search is open */}
-      {(!isMobile || !searchOpen) && (
-      <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800,
-          fontSize: isMobile ? '1.1rem' : '1.5rem',
-          color: 'var(--primary)', letterSpacing: '-0.5px', whiteSpace: 'nowrap' }}>
-          CALVAC
-        </span>
-        <img src="https://ik.imagekit.io/yocxectr4/logos/logo.png?tr=w-50,h-50,f-webp" alt=""
-          style={{ height: isMobile ? 32 : 44, width: 'auto', flexShrink: 0 }} />
-      </Link>
-      )}
-
-      {/* Search — full width on mobile when open */}
-      <div ref={searchRef} style={{
-        position: 'relative',
-        flexShrink: isMobile && searchOpen ? 0 : 0,
-        flex: isMobile && searchOpen ? 1 : undefined,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <motion.input
-            type="text"
-            placeholder="Search sneakers…"
-            value={searchQ}
-            onFocus={() => setSearchOpen(true)}
-            onChange={e => handleSearch(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && submitSearch()}
-            animate={{ width: searchOpen ? (isMobile ? '100%' : 220) : 36 }}
-            transition={{ duration: 0.35 }}
-            style={{
-              padding: '8px 34px 8px 12px',
-              border: '1.5px solid var(--border)',
-              borderRadius: 20,
-              fontSize: isMobile ? '0.78rem' : '0.85rem',
-              outline: 'none',
-              background: 'var(--bg)',
-              color: 'var(--text)',
-              fontFamily: 'var(--font-body)',
-              overflow: 'hidden',
-              borderColor: searchOpen ? 'var(--primary)' : 'var(--border)',
-              width: searchOpen ? (isMobile ? 'calc(100vw - 80px)' : 220) : 36,
+        >
+          {[0, 1, 2].map(i => (
+            <motion.span key={i} style={{
+              display: 'block', width: 24, height: 2.5,
+              background: 'var(--primary)', borderRadius: 2, originX: 0.5,
             }}
+            animate={menuOpen
+              ? (i===0 ? {rotate:45,y:7.5} : i===1 ? {opacity:0,scaleX:0} : {rotate:-45,y:-7.5})
+              : {rotate:0, y:0, opacity:1, scaleX:1}}
+            transition={{ duration: 0.22 }}
+            />
+          ))}
+        </button>
+
+        {/* ── Logo ── */}
+        <Link to="/" style={{ display:'flex', alignItems:'center', gap:8, flex:1, minWidth:0, textDecoration:'none' }}>
+          <span style={{
+            fontFamily: 'var(--font-display)', fontWeight: 800,
+            fontSize: 'clamp(1rem, 2.5vw, 1.5rem)',
+            color: 'var(--primary)', letterSpacing: '-0.5px', whiteSpace: 'nowrap',
+          }}>CALVAC</span>
+          <img
+            src="https://ik.imagekit.io/yocxectr4/logos/logo.png?tr=w-50,h-50,f-webp"
+            alt="" loading="lazy"
+            style={{ height: 'clamp(28px,4vw,44px)', width: 'auto', flexShrink: 0 }}
           />
-          <button onClick={submitSearch} style={{
-            position: 'absolute', right: 10,
-            background: 'none', border: 'none', fontSize: '0.9rem',
-            color: 'var(--text-muted)', lineHeight: 1,
-          }}>🔍</button>
-        </div>
+        </Link>
 
-        <AnimatePresence>
-          {searchOpen && results.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: -8, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.97 }}
-              transition={{ duration: 0.18 }}
-              style={{
-                position: 'absolute', top: 'calc(100% + 8px)', left: 0,
-                width: 320, background: 'var(--surface)',
-                border: '1px solid var(--border)', borderRadius: 12,
-                boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
-                zIndex: 2000, overflow: 'hidden',
-              }}
-            >
-              {results.map(p => (
-                <button key={p.id} onClick={() => { navigate(`/product/${p.id}`); setSearchOpen(false); setSearchQ(''); setResults([]); }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '10px 14px', width: '100%', background: 'none',
-                    border: 'none', borderBottom: '1px solid var(--border)',
-                    cursor: 'pointer', textAlign: 'left', transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                >
-                  <img src={p.image || 'https://placehold.co/40x40'} alt={p.name}
-                    style={{ width: 40, height: 40, objectFit: 'contain', borderRadius: 6, background: 'var(--surface-2)' }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{p.name}</div>
-                    <div style={{ fontSize: '0.74rem', color: 'var(--text-light)' }}>{p.brand}</div>
-                  </div>
-                  <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--primary)' }}>{formatPrice(p.price)}</span>
-                </button>
-              ))}
-              <button onClick={submitSearch} style={{
-                width: '100%', padding: '10px 14px', background: 'var(--surface-2)',
-                border: 'none', color: 'var(--primary)', fontWeight: 700,
-                fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'var(--font-body)',
-              }}>
-                See all results →
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Cart */}
-      <Link to="/cart" style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4, color: 'var(--primary)', fontWeight: 700, fontSize: '1.15rem', flexShrink: 0 }}>
-        🛒
-        <AnimatePresence>
-          {totalItems > 0 && (
-            <motion.span
-              key={totalItems}
-              initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
-              style={{
-                position: 'absolute', top: -6, right: -8,
-                background: 'var(--primary)', color: '#fff',
-                borderRadius: '50%', width: 18, height: 18,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '0.65rem', fontWeight: 800,
-              }}
-            >
-              {totalItems}
-            </motion.span>
-          )}
-        </AnimatePresence>
-      </Link>
-
-      {/* Mobile Nav Overlay */}
-      <AnimatePresence>
-        {menuOpen && (
-          <motion.nav
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.25 }}
+        {/* ── Search ── */}
+        <div ref={searchRef} style={{ position: 'relative', flexShrink: 0 }}>
+          <motion.div
+            animate={{ width: searchOpen ? 'clamp(140px, 30vw, 240px)' : 36 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
             style={{
-              position: 'fixed', top: 'var(--header-h)', left: 0, right: 0,
-              background: 'var(--surface)', borderBottom: '1px solid var(--border)',
-              padding: '12px 0', zIndex: 999,
-              boxShadow: '0 8px 24px rgba(43,159,216,0.10)',
+              display: 'flex', alignItems: 'center',
+              border: `1.5px solid ${searchOpen ? 'var(--primary)' : 'var(--border)'}`,
+              borderRadius: 20, overflow: 'hidden', height: 36,
+              background: 'var(--bg)',
             }}
           >
-            {navLinks.map(({ to, label }) => (
-              <Link key={to} to={to} style={{
-                display: 'block', padding: '14px 5%', fontSize: '1.05rem',
-                fontWeight: 600, color: 'var(--text)', transition: 'color 0.2s',
-                fontFamily: 'var(--font-display)',
+            <button
+              type="button"
+              onClick={() => {
+                setSearchOpen(v => !v);
+                if (!searchOpen) setTimeout(() => inputRef.current?.focus(), 50);
               }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--primary)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text)')}
+              style={{ background:'none', border:'none', cursor:'pointer',
+                padding:'0 8px', flexShrink:0, display:'flex', alignItems:'center', color:'var(--primary)' }}
+              aria-label="Search"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              </svg>
+            </button>
+            {searchOpen && (
+              <input
+                ref={inputRef}
+                type="text"
+                placeholder="Search…"
+                value={searchQ}
+                onChange={e => handleSearch(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && submitSearch()}
+                style={{
+                  flex: 1, border: 'none', outline: 'none', background: 'transparent',
+                  fontSize: '0.85rem', color: 'var(--text)', fontFamily: 'var(--font-body)',
+                  paddingRight: 8, minWidth: 0,
+                }}
+              />
+            )}
+          </motion.div>
+
+          {/* Search results dropdown */}
+          <AnimatePresence>
+            {searchOpen && results.length > 0 && (
+              <motion.div
+                initial={{ opacity:0, y:6 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:6 }}
+                style={{
+                  position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                  background: 'var(--surface)', border: '1px solid var(--border)',
+                  borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+                  zIndex: 2000, overflow: 'hidden', width: 'clamp(240px, 40vw, 320px)',
+                }}
               >
-                {label}
-              </Link>
-            ))}
-          </motion.nav>
+                {results.map(p => (
+                  <Link key={p.id} to={`/product/${p.id}`}
+                    onClick={() => { setSearchOpen(false); setResults([]); }}
+                    style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px',
+                      textDecoration:'none', color:'var(--text)',
+                      borderBottom:'1px solid var(--border)', transition:'background 0.15s' }}
+                    onMouseEnter={e=>(e.currentTarget.style.background='var(--surface-2)')}
+                    onMouseLeave={e=>(e.currentTarget.style.background='transparent')}
+                  >
+                    <img src={p.image||'https://placehold.co/40x40/eaf3fa/2B9FD8?text=👟'}
+                      alt="" style={{ width:40, height:40, borderRadius:8, objectFit:'contain',
+                        background:'var(--surface-2)', flexShrink:0 }} />
+                    <div style={{ minWidth:0 }}>
+                      <div style={{ fontSize:'0.82rem', fontWeight:600, overflow:'hidden',
+                        textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name}</div>
+                      <div style={{ fontSize:'0.74rem', color:'var(--text-muted)' }}>
+                        {p.brand} · {formatPrice(p.price)}
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+                <button type="button" onClick={submitSearch}
+                  style={{ width:'100%', padding:'10px 14px', background:'none', border:'none',
+                    cursor:'pointer', color:'var(--primary)', fontSize:'0.8rem', fontWeight:700,
+                    textAlign:'center', fontFamily:'var(--font-body)' }}>
+                  See all results →
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* ── Cart ── */}
+        <Link to="/cart" aria-label={`Cart, ${totalItems} items`}
+          style={{ position:'relative', display:'flex', alignItems:'center',
+            color:'var(--primary)', fontWeight:700, fontSize:'1.15rem', flexShrink:0 }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <path d="M16 10a4 4 0 01-8 0"/>
+          </svg>
+          {totalItems > 0 && (
+            <span style={{
+              position:'absolute', top:-6, right:-8,
+              background:'var(--primary)', color:'#fff',
+              borderRadius:'50%', width:18, height:18,
+              fontSize:'0.65rem', fontWeight:800,
+              display:'flex', alignItems:'center', justifyContent:'center',
+            }}>{totalItems}</span>
+          )}
+        </Link>
+      </header>
+
+      {/* ── Slide-down menu ── */}
+      <AnimatePresence>
+        {menuOpen && (
+          <>
+            <motion.div
+              initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+              onClick={() => setMenuOpen(false)}
+              style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.18)',
+                zIndex:998, top:'var(--header-h)' }}
+            />
+            <motion.nav
+              initial={{opacity:0, y:-12}} animate={{opacity:1, y:0}} exit={{opacity:0, y:-12}}
+              transition={{ duration:0.22 }}
+              style={{
+                position:'fixed', top:'var(--header-h)', left:0, right:0,
+                background:'var(--surface)', borderBottom:'1px solid var(--border)',
+                padding:'8px 0 16px', zIndex:999,
+                boxShadow:'0 8px 24px rgba(43,159,216,0.10)',
+              }}
+            >
+              {navLinks.map(({ to, label }) => (
+                <Link key={to} to={to} onClick={() => setMenuOpen(false)}
+                  style={{ display:'block', padding:'14px 5%', fontSize:'1.05rem',
+                    fontWeight:600, color:'var(--text)', textDecoration:'none',
+                    fontFamily:'var(--font-display)', transition:'color 0.15s',
+                    borderBottom:'1px solid var(--border)' }}
+                  onMouseEnter={e=>(e.currentTarget.style.color='var(--primary)')}
+                  onMouseLeave={e=>(e.currentTarget.style.color='var(--text)')}
+                >{label}</Link>
+              ))}
+            </motion.nav>
+          </>
         )}
       </AnimatePresence>
-    </header>
+    </>
   );
 }
