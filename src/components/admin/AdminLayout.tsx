@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 
-const BASE = '/admin';
+const BASE = '/manage-store-x9k2';
 
 export default function AdminLayout() {
   const navigate = useNavigate();

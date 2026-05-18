@@ -19,7 +19,7 @@ import AdminProductsPage from '@/pages/admin/AdminProductsPage';
 import AdminSettingsPage from '@/pages/admin/AdminSettingsPage';
 
 /* ── Admin base path — obscured, matches old Flask convention ── */
-const ADMIN_BASE = '/admin';
+const ADMIN_BASE = '/manage-store-x9k2';
 
 export default function App() {
   return (
@@ -45,13 +45,6 @@ export default function App() {
                 <Route path="products"  element={<AdminProductsPage />} />
                 <Route path="settings"  element={<AdminSettingsPage />} />
               </Route>
-
-              {/* Legacy /admin redirect → new path */}
-              <Route path="/admin/login"     element={<Navigate to={`${ADMIN_BASE}/login`}     replace />} />
-              <Route path="/admin/dashboard" element={<Navigate to={`${ADMIN_BASE}/dashboard`} replace />} />
-              <Route path="/admin/products"  element={<Navigate to={`${ADMIN_BASE}/products`}  replace />} />
-              <Route path="/admin/settings"  element={<Navigate to={`${ADMIN_BASE}/settings`}  replace />} />
-              <Route path="/admin"           element={<Navigate to={ADMIN_BASE}               replace />} />
 
               {/* ── Public routes ── */}
               <Route element={<Layout />}>
