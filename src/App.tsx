@@ -19,7 +19,7 @@ import AdminProductsPage from '@/pages/admin/AdminProductsPage';
 import AdminSettingsPage from '@/pages/admin/AdminSettingsPage';
 
 /* ── Admin base path — obscured, matches old Flask convention ── */
-const ADMIN_BASE = '/manage-store-x9k2';
+const ADMIN_BASE = '/admin';
 
 export default function App() {
   return (

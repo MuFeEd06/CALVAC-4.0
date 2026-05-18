@@ -1,32 +1,25 @@
 import type { Product, SiteSettings, Offer } from '@/types';
 
 const BASE = '';
+const V = 'v4';
 
-// Cache TTLs
+// TTLs
 const PRODUCTS_TTL = 12 * 60 * 60 * 1000;
 const SETTINGS_TTL = 12 * 60 * 60 * 1000;
 const SEARCH_TTL   =  1 * 60 * 60 * 1000;
 const OFFER_TTL    =  5 * 60 * 60 * 1000;
 const PRODUCT_TTL  =  8 * 60 * 60 * 1000;
 
-// ── Cache key version — bump to invalidate all stale browser caches ──
-const V = 'v4'; // bump clears all stale caches
-
+// ── ImageKit helpers ─────────────────────────────────────────────────
 function ikResize(url: string, width: number, quality: number): string {
   if (!url || !url.includes('ik.imagekit.io')) return url;
   const base = url.split('?')[0];
-  // f-webp: modern format, 40-60% smaller than JPEG
-  // q: quality 1-100
-  // c-at_max: never upscale (saves bandwidth on small images)
-  // pr-true: progressive — shows blurred preview while loading
-  // dpr-2: serve 2× pixels for retina screens
   return `${base}?tr=w-${width},q-${quality},f-webp,c-at_max,pr-true,dpr-2`;
 }
 
 export function ikSrcSet(url: string, quality = 75): string {
   if (!url || !url.includes('ik.imagekit.io')) return '';
   const base = url.split('?')[0];
-  // Responsive srcset — browser picks the right size for the screen
   return [320, 480, 640, 800, 1080, 1440]
     .map(w => `${base}?tr=w-${w},q-${quality},f-webp,c-at_max,pr-true ${w}w`)
     .join(', ');
@@ -34,84 +27,96 @@ export function ikSrcSet(url: string, quality = 75): string {
 
 function fixImage(img: string | undefined): string {
   if (!img) return '';
-  if (img.startsWith("http")) return ikResize(img, 220, 75);
+  if (img.startsWith('http')) return ikResize(img, 400, 75);
   if (img.startsWith('/static/')) return img;
   return '';
 }
 
-/** Parse a field that might be a JSON string, array, or object */
+/** Parse a field that might be a JSON string, Postgres array, or native array */
 function parseJsonField<T>(v: unknown, fallback: T): T {
   if (v === null || v === undefined) return fallback;
+  if (Array.isArray(v) || (typeof v === 'object' && !Array.isArray(v))) return v as T;
   if (typeof v === 'string') {
-    try { return JSON.parse(v) as T; } catch { return fallback; }
+    const s = v.trim();
+    // JSON array
+    if (s.startsWith('[')) { try { return JSON.parse(s) as T; } catch {} }
+    // Postgres array literal {a,b,c}
+    if (s.startsWith('{') && s.endsWith('}')) {
+      const items = s.slice(1,-1).split(',').map(i => i.trim().replace(/^"|"$/g,''));
+      return items as unknown as T;
+    }
+    // JSON object
+    if (s.startsWith('{')) { try { return JSON.parse(s) as T; } catch {} }
   }
-  return v as T;
+  return fallback;
 }
 
 function fixProducts(list: unknown[]): Product[] {
   if (!Array.isArray(list)) return [];
-  return list.map((p: any) => {
-    const sizes  = parseJsonField<string[]>(p.sizes, []);
-    const colors = parseJsonField<any[]>(p.colors, []);
-    const stock  = parseJsonField<Record<string,number>>(p.stock, {});
-    return {
-      ...p,
-      name:   String(p.name  || '').slice(0, 200),
-      brand:  String(p.brand || '').slice(0, 100),
-      price:  Math.max(0, Number(p.price) || 0),
-      image:  fixImage(p.image),
-      sizes:  Array.isArray(sizes) ? sizes : [],
-      colors: Array.isArray(colors)
-        ? colors.map((c: any) => ({ ...c, image: fixImage(c.image) }))
-        : [],
-      stock: typeof stock === 'object' && stock !== null ? stock : {},
-    };
-  });
+  return list.map((p: any) => ({
+    ...p,
+    name:   String(p.name  || '').slice(0, 200),
+    brand:  String(p.brand || '').slice(0, 100),
+    price:  Math.max(0, Number(p.price) || 0),
+    image:  fixImage(p.image),
+    sizes:  parseJsonField<string[]>(p.sizes, []),
+    colors: (parseJsonField<any[]>(p.colors, [])).map((c: any) => ({
+      ...c, image: fixImage(c.image)
+    })),
+    stock:  parseJsonField<Record<string,number>>(p.stock, {}),
+  }));
 }
 
-// ── Safe localStorage ────────────────────────────────────────────────
-function lsGet<T>(key: string, validate?: (d: T) => boolean): T | null {
+// ── Fetch with timeout (8 seconds) ───────────────────────────────────
+async function fetchWithTimeout(url: string, options?: RequestInit, timeoutMs = 8000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timer);
+    return res;
+  } catch (e: any) {
+    clearTimeout(timer);
+    if (e.name === 'AbortError') throw new Error('Request timed out — please refresh');
+    throw e;
+  }
+}
+
+// ── Safe localStorage ─────────────────────────────────────────────────
+function lsGet<T>(key: string): { ts: number; data: T } | null {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (typeof parsed?.ts !== 'number') return null;
     if (parsed.data === undefined || parsed.data === null) return null;
-    // Reject empty arrays — empty means a previous failed/empty fetch was cached
     if (Array.isArray(parsed.data) && parsed.data.length === 0) return null;
-    if (validate && !validate(parsed.data as T)) return null;
-    return parsed as T;
+    return parsed as { ts: number; data: T };
   } catch { return null; }
 }
-
 function lsSet(key: string, data: unknown): void {
   try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); } catch {}
 }
-
 function lsDel(key: string): void {
   try { localStorage.removeItem(key); } catch {}
 }
 
-// ── Products (12hr) ──────────────────────────────────────────────────
+// ── Products (12hr) ───────────────────────────────────────────────────
 let _productsPromise: Promise<Product[]> | null = null;
 
 export async function fetchProducts(): Promise<Product[]> {
   if (_productsPromise) return _productsPromise;
 
-  const cacheKey = `calvac_products_${V}`;
-  const cached = lsGet<{ ts: number; data: Product[] }>(cacheKey);
+  const cached = lsGet<Product[]>(`calvac_products_${V}`);
   if (cached && Date.now() - cached.ts < PRODUCTS_TTL) {
     _productsPromise = Promise.resolve(fixProducts(cached.data));
     return _productsPromise;
   }
 
-  _productsPromise = fetch(`${BASE}/api/products`)
+  _productsPromise = fetchWithTimeout(`${BASE}/api/products`)
     .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
     .then((data: Product[]) => {
-      // Only cache if we actually got products
-      if (Array.isArray(data) && data.length > 0) {
-        lsSet(cacheKey, data);
-      }
+      if (Array.isArray(data) && data.length > 0) lsSet(`calvac_products_${V}`, data);
       return fixProducts(data);
     })
     .catch(e => { _productsPromise = null; throw e; });
@@ -129,7 +134,7 @@ export function clearSettingsCache(): void {
   lsDel(`calvac_settings_${V}`);
 }
 
-// ── Site settings (12hr) ─────────────────────────────────────────────
+// ── Site settings (12hr) ──────────────────────────────────────────────
 let _settingsPromise: Promise<SiteSettings> | null = null;
 
 const DEFAULT_SETTINGS: SiteSettings = {
@@ -144,71 +149,61 @@ const DEFAULT_SETTINGS: SiteSettings = {
 export async function fetchSiteSettings(): Promise<SiteSettings> {
   if (_settingsPromise) return _settingsPromise;
 
-  const cacheKey = `calvac_settings_${V}`;
-  const cached = lsGet<{ ts: number; data: Partial<SiteSettings> }>(cacheKey);
+  const cached = lsGet<Partial<SiteSettings>>(`calvac_settings_${V}`);
   if (cached && Date.now() - cached.ts < SETTINGS_TTL) {
     _settingsPromise = Promise.resolve({ ...DEFAULT_SETTINGS, ...cached.data });
     return _settingsPromise;
   }
 
-  _settingsPromise = fetch(`${BASE}/api/site-settings`)
+  _settingsPromise = fetchWithTimeout(`${BASE}/api/site-settings`)
     .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
     .then((data: Partial<SiteSettings>) => {
-      lsSet(cacheKey, data);
+      lsSet(`calvac_settings_${V}`, data);
       return { ...DEFAULT_SETTINGS, ...data };
     })
-    .catch(() => {
-      _settingsPromise = null; // reset so next navigation retries
-      return DEFAULT_SETTINGS;
-    });
+    .catch(() => { _settingsPromise = null; return DEFAULT_SETTINGS; });
 
-  return _settingsPromise!;
+  return _settingsPromise;
 }
 
-// ── Offer (5hr) ──────────────────────────────────────────────────────
+// ── Offer (5hr) ───────────────────────────────────────────────────────
 export async function fetchOffer(): Promise<Offer> {
-  const cacheKey = `calvac_offer_${V}`;
-  const cached = lsGet<{ ts: number; data: Offer }>(cacheKey);
+  const cached = lsGet<Offer>(`calvac_offer_${V}`);
   if (cached && Date.now() - cached.ts < OFFER_TTL) return cached.data;
-
   try {
-    const r = await fetch(`${BASE}/api/offer`);
+    const r = await fetchWithTimeout(`${BASE}/api/offer`);
     if (!r.ok) throw new Error(`${r.status}`);
     const data: Offer = await r.json();
-    lsSet(cacheKey, data);
+    lsSet(`calvac_offer_${V}`, data);
     return data;
   } catch {
     return { active: false, text: '', bg_color: '#FF6B35', text_color: '#ffffff', show_logo: true };
   }
 }
 
-// ── Single product (8hr) ─────────────────────────────────────────────
+// ── Single product (8hr) ──────────────────────────────────────────────
 export async function fetchProduct(id: number): Promise<Product> {
   if (!Number.isInteger(id) || id <= 0) throw new Error('Invalid product ID');
-
   const cacheKey = `calvac_product_${id}_${V}`;
-  const cached = lsGet<{ ts: number; data: Product }>(cacheKey);
+  const cached = lsGet<Product>(cacheKey);
   if (cached && Date.now() - cached.ts < PRODUCT_TTL) return cached.data;
-
-  const r = await fetch(`${BASE}/api/products?id=${id}`);
-  if (!r.ok) throw new Error('Not found');
+  const r = await fetchWithTimeout(`${BASE}/api/products?id=${id}`);
+  if (!r.ok) throw new Error('Product not found');
   const p: Product = await r.json();
   const fixed = fixProducts([p])[0];
   lsSet(cacheKey, fixed);
   return fixed;
 }
 
-// ── Search (1hr) ─────────────────────────────────────────────────────
+// ── Search (1hr) ──────────────────────────────────────────────────────
 export async function searchProducts(q: string): Promise<Product[]> {
   const safe = q.replace(/<[^>]*>/g, '').slice(0, 100).trim();
   if (!safe) return [];
-
   const cacheKey = `calvac_search_${safe.toLowerCase()}_${V}`;
-  const cached = lsGet<{ ts: number; data: Product[] }>(cacheKey);
+  const cached = lsGet<Product[]>(cacheKey);
   if (cached && Date.now() - cached.ts < SEARCH_TTL) return cached.data;
-
   try {
-    const r = await fetch(`${BASE}/api/search?q=${encodeURIComponent(safe)}`);
+    const r = await fetchWithTimeout(`${BASE}/api/search?q=${encodeURIComponent(safe)}`);
     if (!r.ok) throw new Error(`${r.status}`);
     const data: Product[] = await r.json();
     const fixed = fixProducts(data);
@@ -218,11 +213,9 @@ export async function searchProducts(q: string): Promise<Product[]> {
 }
 
 // ── Create order ──────────────────────────────────────────────────────
-export async function createOrder(payload: {
-  address: object; items: object[]; total: number;
-}): Promise<void> {
+export async function createOrder(payload: { address: object; items: object[]; total: number }): Promise<void> {
   try {
-    await fetch(`${BASE}/api/orders`, {
+    await fetchWithTimeout(`${BASE}/api/orders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

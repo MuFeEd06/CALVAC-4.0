@@ -44,7 +44,7 @@ export default function ShopPage() {
       }
       setProducts(filtered);
       setLoading(false);
-    });
+    }).catch(() => setLoading(false));
   }, [brand, tag, q, sale, maxPrice, minPrice]);
 
   // Page title derivation

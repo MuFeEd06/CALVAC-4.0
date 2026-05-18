@@ -140,7 +140,7 @@ export function CategoryScroll({ settings }: { settings: SiteSettings }) {
               cursor: 'pointer', textDecoration: 'none',
             }}>
             <div style={{ width: '100%', aspectRatio: '1/1', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-2)' }}>
-              <img src={`https://ik.imagekit.io/yocxectr4/logos/categories/${cat.slug}.png`} alt={cat.label}
+              <img src={`https://ik.imagekit.io/yocxectr4/logos/categories/${cat.slug}.png?tr=w-120,h-120,f-webp,q-80`} alt={cat.label}
                 loading="lazy"
                 onError={e => { const el = e.target as HTMLImageElement; el.style.display = 'none'; el.nextElementSibling!.removeAttribute('hidden'); }}
                 style={{ width: '70%', height: '70%', objectFit: 'contain' }} />

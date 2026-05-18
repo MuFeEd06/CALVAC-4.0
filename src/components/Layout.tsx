@@ -3,6 +3,19 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Header from './Header';
 import Footer from './Footer';
+import { fetchSiteSettings } from '@/api';
+
+/** Apply primary_color from admin settings to CSS variable */
+function useTheme() {
+  useEffect(() => {
+    fetchSiteSettings().then(s => {
+      const color = (s as any).primary_color;
+      if (color && /^#[0-9A-Fa-f]{6}$/.test(color)) {
+        document.documentElement.style.setProperty('--primary', color);
+      }
+    }).catch(() => {});
+  }, []);
+}
 
 function CustomCursor() {
   const dotRef  = useRef<HTMLDivElement>(null);
@@ -48,17 +61,18 @@ function CustomCursor() {
 
 export default function Layout() {
   const location = useLocation();
+  useTheme();
 
   return (
     <>
       <CustomCursor />
       <Header />
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="sync">
         <motion.div key={location.pathname}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.3 }}>
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}>
           <Outlet />
         </motion.div>
       </AnimatePresence>

@@ -30,15 +30,15 @@ function useRateLimit() {
 
 /** Validate the redirect `from` param — only allow same-origin paths */
 function safePath(raw: string | undefined): string {
-  if (!raw) return '/manage-store-x9k2/dashboard';
+  if (!raw) return '/admin/dashboard';
   try {
     // Reject anything that looks like a full URL (has a scheme or //)
-    if (/^https?:|^\/\//i.test(raw)) return '/manage-store-x9k2/dashboard';
+    if (/^https?:|^\/\//i.test(raw)) return '/admin/dashboard';
     // Must start with /admin
-    if (!raw.startsWith('/manage-store-x9k2')) return '/manage-store-x9k2/dashboard';
+    if (!raw.startsWith('/admin')) return '/admin/dashboard';
     return raw;
   } catch {
-    return '/manage-store-x9k2/dashboard';
+    return '/admin/dashboard';
   }
 }
 
@@ -97,7 +97,7 @@ export default function AdminLoginPage() {
       return;
     }
 
-    navigate(from.startsWith('/manage-store-x9k2') ? from : '/manage-store-x9k2/dashboard', { replace: true });
+    navigate(from.startsWith('/admin') ? from : '/admin/dashboard', { replace: true });
   };
 
   return (

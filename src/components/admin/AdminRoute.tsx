@@ -2,7 +2,7 @@ import type { PropsWithChildren } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 
-const BASE = '/manage-store-x9k2';
+const BASE = '/admin';
 
 export default function AdminRoute({ children }: PropsWithChildren) {
   const { session, loading, hasEnv } = useAdminAuth();

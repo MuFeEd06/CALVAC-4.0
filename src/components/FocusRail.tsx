@@ -373,7 +373,7 @@ export function FocusRail({
             transition={{ duration: 0.9, ease: "easeOut" }}
             style={{ position: "absolute", inset: 0 }}
           >
-            <img src={activeItem.imageSrc} alt="" style={S.bgImg} />
+            <img src={activeItem.imageSrc} alt="" loading="lazy" decoding="async" style={S.bgImg} />
             <div style={S.bgGrad} />
           </motion.div>
         </AnimatePresence>
@@ -430,6 +430,8 @@ export function FocusRail({
                 }}
               >
                 <img
+                  loading="lazy"
+                  decoding="async"
                   src={item.imageSrc}
                   alt={item.title}
                   style={S.cardImg}
