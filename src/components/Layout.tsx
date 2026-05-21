@@ -5,8 +5,10 @@ import Header from './Header';
 import Footer from './Footer';
 import { fetchSiteSettings } from '@/api';
 
-/** Apply primary_color from admin settings to CSS variable */
+/** Apply primary_color from admin settings to CSS variable.
+ *  Runs on every route change so color updates after admin saves. */
 function useTheme() {
+  const { pathname } = useLocation();
   useEffect(() => {
     fetchSiteSettings().then(s => {
       const color = (s as any).primary_color;
@@ -14,7 +16,7 @@ function useTheme() {
         document.documentElement.style.setProperty('--primary', color);
       }
     }).catch(() => {});
-  }, []);
+  }, [pathname]); // re-run on every navigation — fast because settings are cached
 }
 
 function CustomCursor() {
