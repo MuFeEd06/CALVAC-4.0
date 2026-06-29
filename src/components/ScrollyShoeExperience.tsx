@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, useScroll, useTransform, useMotionValueEvent } from 'framer-motion';
 import type { SiteSettings } from '@/types';
+import { safeLink } from '@/utils/validation';
 
 /* ─── Frame configuration ────────────────────────────────────────────
    FRAME_COUNT : how many frames in your sequence (you have 120)
@@ -68,7 +69,7 @@ export default function ScrollyShoeExperience({ settings }: Props) {
   const framesRef  = useRef<(HTMLImageElement | null)[]>(Array(FRAME_COUNT).fill(null));
   const loadedRef  = useRef<boolean[]>(Array(FRAME_COUNT).fill(false));
   const [activeFrame, setActiveFrame] = useState(0);
-  const [bgColor, setBgColor]         = useState('#f4f8fb');
+  const [bgColor, setBgColor]         = useState('#F4F8FB');
   const [skipped, setSkipped]         = useState(false);
   const [loadProgress, setLoadProgress] = useState(0); // 0-100
   const isMobile = useResponsive();
@@ -117,7 +118,7 @@ export default function ScrollyShoeExperience({ settings }: Props) {
   const overlayFadeOutStart = num(settings?.hero_overlay_fade_out_start, 0.86);
   const overlayFadeOutEnd   = num(settings?.hero_overlay_fade_out_end,   1.00);
   const starVisible = mBool('hero_star_visible','hero_m_star_visible',true,true);
-  const starColor   = txt(settings?.hero_star_color,'#FF6B35');
+  const starColor   = txt(settings?.hero_star_color,'var(--accent)');
   const starSize    = mNum('hero_star_size','hero_m_star_size',48,28);
   const starX       = mNum('hero_star_x_pct','hero_m_star_x_pct',18,10);
   const starY       = mNum('hero_star_y_pct','hero_m_star_y_pct',55,32);
@@ -127,17 +128,17 @@ export default function ScrollyShoeExperience({ settings }: Props) {
   const offerTitle    = txt(settings?.hero_offer_title,'New Arrivals');
   const offerPrice    = txt(settings?.hero_offer_price,'');
   const offerDiscount = txt(settings?.hero_offer_discount,'');
-  const offerBg       = txt(settings?.hero_offer_bg,'#ffffff');
-  const offerAccent   = txt(settings?.hero_offer_accent,'#2B9FD8');
-  const offerTextCol  = txt(settings?.hero_offer_text_color,'#1a1a2e');
-  const offerLink     = txt(settings?.hero_offer_link,'/shop?tag=new');
+  const offerBg       = txt(settings?.hero_offer_bg,'var(--surface)');
+  const offerAccent   = txt(settings?.hero_offer_accent,'var(--primary)');
+  const offerTextCol  = txt(settings?.hero_offer_text_color,'var(--text)');
+  const offerLink     = safeLink(txt(settings?.hero_offer_link,'/shop?tag=new'), '/shop?tag=new');
   const offerX        = mNum('hero_offer_x_pct','hero_m_offer_x_pct',3,3);
   const offerY        = mNum('hero_offer_y_pct','hero_m_offer_y_pct',12,7);
   const offerWidth    = mNum('hero_offer_width_px','hero_m_offer_width_px',160,128);
   const skipVisible   = mBool('hero_skip_visible','hero_m_skip_visible',true,true);
   const skipText      = txt(settings?.hero_skip_text,'Skip Animation');
-  const skipBg        = txt(settings?.hero_skip_bg,'rgba(43,159,216,0.12)');
-  const skipColor     = txt(settings?.hero_skip_color,'#2B9FD8');
+  const skipBg        = txt(settings?.hero_skip_bg,'#E9F5FB');
+  const skipColor     = txt(settings?.hero_skip_color,'var(--primary)');
   const skipX         = mNum('hero_skip_x_pct','hero_m_skip_x_pct',3,50);
   const skipY         = mNum('hero_skip_y_px','hero_m_skip_y_px',32,16);
   const skipSize      = mNum('hero_skip_size_px','hero_m_skip_size_px',12,10);
@@ -239,7 +240,7 @@ export default function ScrollyShoeExperience({ settings }: Props) {
     });
 
     // Priority 1: frame 0 — blocks until loaded to paint immediately
-    loadFrame(0, '#f4f8fb').then(() => {
+    loadFrame(0, '#F4F8FB').then(() => {
       const bg = bgColor;
 
       // Priority 2: frames 1-29 — load sequentially, fast
@@ -315,15 +316,15 @@ export default function ScrollyShoeExperience({ settings }: Props) {
 
           {/* Loading progress bar — disappears when fully loaded */}
           {loadProgress < 100 && (
-            <div style={{position:'absolute',bottom:0,left:0,right:0,height:2,background:'rgba(43,159,216,0.15)',zIndex:20,pointerEvents:'none'}}>
+            <div style={{position:'absolute',bottom:0,left:0,right:0,height:2,background:'rgba(var(--primary-rgb),0.15)',zIndex:20,pointerEvents:'none'}}>
               <div style={{height:'100%',background:'var(--primary)',transition:'width 0.3s ease',width:`${loadProgress}%`}}/>
             </div>
           )}
 
           {/* Gradients */}
           {gradientVisible && <>
-            <div style={{pointerEvents:'none',position:'absolute',inset:0,background:`radial-gradient(ellipse at 50% 0%,rgba(43,159,216,${0.2*gradientStrength}),transparent 56%)`}}/>
-            <div style={{pointerEvents:'none',position:'absolute',inset:0,background:`linear-gradient(125deg,rgba(43,159,216,${0.14*gradientStrength}) 0%,transparent 40%,rgba(43,159,216,${0.08*gradientStrength}) 100%)`}}/>
+            <div style={{pointerEvents:'none',position:'absolute',inset:0,background:`radial-gradient(ellipse at 50% 0%,rgba(var(--primary-rgb),${0.2*gradientStrength}),transparent 56%)`}}/>
+            <div style={{pointerEvents:'none',position:'absolute',inset:0,background:`linear-gradient(125deg,rgba(var(--primary-rgb),${0.14*gradientStrength}) 0%,transparent 40%,rgba(var(--primary-rgb),${0.08*gradientStrength}) 100%)`}}/>
           </>}
 
           {/* Intro block — outer div positions, inner motion.div animates only */}
@@ -494,7 +495,7 @@ export default function ScrollyShoeExperience({ settings }: Props) {
                 {txt(settings?.hero_prompt_text,'Scroll to Explore')}
               </span>
               <span style={{position:'relative',width:isMobile?12:16,height:isMobile?20:28,
-                borderRadius:999,border:'1px solid rgba(43,159,216,0.35)'}}>
+                borderRadius:'var(--button-radius)',border:'1px solid rgba(var(--primary-rgb),0.35)'}}>
                 <motion.span
                   style={{position:'absolute',left:'50%',top:3,
                     width:isMobile?4:6,height:isMobile?4:6,
@@ -572,7 +573,7 @@ export default function ScrollyShoeExperience({ settings }: Props) {
                 transform:mobileSkipCenter?'translateX(-50%)':'none',
                 zIndex:8, opacity:persistentOpacity as any,
                 background:skipBg, border:`1px solid ${skipColor}44`,
-                borderRadius:20, padding:isMobile?'5px 11px':'7px 14px',
+                borderRadius:'var(--button-radius)', padding:isMobile?'5px 11px':'7px 14px',
                 cursor:'pointer', display:'flex', alignItems:'center', gap:5,
                 backdropFilter:'blur(8px)',
               }}

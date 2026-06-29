@@ -73,7 +73,7 @@ export default function ShopPage() {
             <img src={brandCfg.logo} alt={brand} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
         ) : pageEmoji ? (
-          <div style={{ width: 80, height: 80, borderRadius: 18, background: 'rgba(43,159,216,0.08)', border: '1px solid rgba(43,159,216,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.2rem', flexShrink: 0 }}>
+          <div style={{ width: 80, height: 80, borderRadius: 18, background: 'var(--primary-light)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.2rem', flexShrink: 0 }}>
             {pageEmoji}
           </div>
         ) : null}

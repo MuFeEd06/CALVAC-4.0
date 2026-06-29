@@ -53,7 +53,7 @@ export default function PolicyPage() {
         {tabs.map(t => (
           <Link key={t} to={`/policy/${t}`}
             style={{
-              padding: '7px 18px', borderRadius: 20, fontSize: '0.85rem', fontWeight: 600,
+              padding: '7px 18px', borderRadius: 'var(--button-radius)', fontSize: '0.85rem', fontWeight: 600,
               textDecoration: 'none', border: '1.5px solid var(--border)',
               background: policyType === t ? 'var(--primary)' : 'transparent',
               color: policyType === t ? '#fff' : 'var(--text-muted)',

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchAdminOrders, updateOrderNotes, updateOrderStatus } from '@/api/admin';
 import type { AdminOrder } from '@/types/admin';
+import { formatSizeWithUnit } from '@/utils/sizeUnits';
 
 const STATUSES: AdminOrder['status'][] = ['Pending', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled'];
 
@@ -70,7 +71,7 @@ export default function AdminDashboardPage() {
           <span style={{ fontSize: '1rem', flexShrink: 0 }}>⚠️</span>
           <span>
             <strong>Local development:</strong> The orders API requires a Flask admin session from{' '}
-            <a href="https://calvac.in" target="_blank" rel="noopener" style={{ color: '#2B9FD8', fontWeight: 600 }}>calvac.in</a>.
+            <a href="https://calvac.in" target="_blank" rel="noopener noreferrer" style={{ color: '#2B9FD8', fontWeight: 600 }}>calvac.in</a>.
             Products and Settings work fine here. Deploy to Vercel to manage orders.
           </span>
         </div>
@@ -144,7 +145,7 @@ export default function AdminDashboardPage() {
               <div style={{ margin: '8px 0', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {order.items.map((item, i) => (
                   <span key={i} style={{ fontSize: '0.75rem', background: '#eaf3fa', border: '1px solid #d0e6f5', borderRadius: 6, padding: '2px 8px', color: '#5a6a7a' }}>
-                    {item.name} × {item.qty} {item.size ? `(${item.size})` : ''}
+                    {item.name} × {item.qty} {item.size ? `(${formatSizeWithUnit(item.size_unit || item.sizeUnit, item.size)})` : ''}
                   </span>
                 ))}
               </div>

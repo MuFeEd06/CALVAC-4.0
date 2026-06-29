@@ -68,11 +68,11 @@ export default function Header() {
     <>
       <header style={{
         position: 'sticky', top: 0, zIndex: 1000,
-        background: 'rgba(255,255,255,0.92)',
+        background: 'color-mix(in srgb, var(--surface) 92%, transparent)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
         borderBottom: '1px solid var(--border)',
-        boxShadow: '0 2px 16px rgba(43,159,216,0.08)',
+        boxShadow: '0 2px 16px var(--primary-light)',
         height: 'var(--header-h)',
         display: 'flex', alignItems: 'center',
         padding: '0 5%', gap: 12,
@@ -124,7 +124,7 @@ export default function Header() {
             style={{
               display: 'flex', alignItems: 'center',
               border: `1.5px solid ${searchOpen ? 'var(--primary)' : 'var(--border)'}`,
-              borderRadius: 20, overflow: 'hidden', height: 36,
+              borderRadius: 'var(--button-radius)', overflow: 'hidden', height: 36,
               background: 'var(--bg)',
             }}
           >
@@ -242,7 +242,7 @@ export default function Header() {
                 position:'fixed', top:'var(--header-h)', left:0, right:0,
                 background:'var(--surface)', borderBottom:'1px solid var(--border)',
                 padding:'8px 0 16px', zIndex:999,
-                boxShadow:'0 8px 24px rgba(43,159,216,0.10)',
+                boxShadow:'0 8px 24px var(--primary-light)',
               }}
             >
               {navLinks.map(({ to, label }) => (

@@ -49,18 +49,6 @@ export function getDeal(price: number, original_price?: number): Deal | null {
   return { dealPrice: price, origPrice: original_price, pct };
 }
 
-export const UK_TO_EU: Record<string, string> = {
-  'UK 3': 'EU 35', 'UK 3.5': 'EU 36', 'UK 4': 'EU 37',
-  'UK 5': 'EU 38', 'UK 6': 'EU 39',  'UK 6.5': 'EU 40',
-  'UK 7': 'EU 41', 'UK 8': 'EU 42',  'UK 9': 'EU 43',
-  'UK 10': 'EU 44','UK 11': 'EU 45', 'UK 11.5': 'EU 46','UK 12': 'EU 47',
-};
-
-export function getSizeLabel(size: string, unit: 'uk' | 'euro'): string {
-  if (unit === 'euro') return UK_TO_EU[size] || size;
-  return size;
-}
-
 export const WHATSAPP_NUMBER = '919645087584';
 
 export const CATEGORIES = [

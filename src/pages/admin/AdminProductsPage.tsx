@@ -3,30 +3,38 @@ import {
   createAdminProduct, deleteAdminProduct,
   fetchAdminProducts, updateAdminProduct,
 } from '@/api/admin';
-import type { Product, ProductColor } from '@/types';
+import type { Product, ProductColor, ProductSizeUnit } from '@/types';
 import type { AdminProductPayload } from '@/types/admin';
 import { sanitizeProductPayload } from '@/utils/validation';
+import { cleanSizeLabel, normalizeSizeList, normalizeSizeUnit, SIZE_OPTIONS, SIZE_UNITS } from '@/utils/sizeUnits';
 
 /* ─── Constants ─── */
-const UK_SIZES = ['UK 3','UK 3.5','UK 4','UK 5','UK 6','UK 6.5',
-                  'UK 7','UK 8','UK 9','UK 10','UK 11','UK 11.5','UK 12'];
-const UK_TO_EU: Record<string,string> = {
-  'UK 3':'EU 35','UK 3.5':'EU 36','UK 4':'EU 37','UK 5':'EU 38',
-  'UK 6':'EU 39','UK 6.5':'EU 40','UK 7':'EU 41','UK 8':'EU 42',
-  'UK 9':'EU 43','UK 10':'EU 44','UK 11':'EU 45','UK 11.5':'EU 46','UK 12':'EU 47',
-};
 const TAG_OPTIONS = ['trending','new','sale','luxury'];
 const CAT_OPTIONS = ['boots','crocs','girls'];
-
-function displaySize(uk: string, unit: 'uk'|'eu') {
-  return unit === 'eu' ? (UK_TO_EU[uk] || uk) : uk;
-}
 
 const emptyDraft = (): AdminProductPayload => ({
   name:'', brand:'', price:0, original_price:0,
   image:'', tag:'', category:'',
+  size_unit:'UK',
   sizes:[], colors:[], specs:'', stock:{},
 });
+
+function normalizeStockKeys(stock: Record<string, number>, sizes: string[]): Record<string, number> {
+  const next: Record<string, number> = {};
+  const allowed = new Set(sizes.map(s => s.toLowerCase()));
+  Object.entries(stock || {}).forEach(([key, value]) => {
+    const qty = Math.max(0, Math.min(Number(value) || 0, 100000));
+    if (!key.includes('|')) {
+      next[key] = qty;
+      return;
+    }
+    const [row, rawSize] = key.split('|');
+    const size = cleanSizeLabel(rawSize);
+    if (!size || (allowed.size > 0 && !allowed.has(size.toLowerCase()))) return;
+    next[`${row || 'default'}|${size}`] = qty;
+  });
+  return next;
+}
 
 /* ─── shared input style ─── */
 const inp = (focus=false): React.CSSProperties => ({
@@ -455,8 +463,9 @@ function ProductModal({ open, onClose, editing, draft, setDraft, onSubmit, savin
   onSubmit:(e:FormEvent|React.MouseEvent)=>void;
   saving:boolean;
 }) {
-  const [sizeUnit, setSizeUnit] = useState<'uk'|'eu'>('uk');
   const firstRef = useRef<HTMLInputElement>(null);
+  const selectedSizeUnit = normalizeSizeUnit(draft.size_unit);
+  const sizeOptions = SIZE_OPTIONS[selectedSizeUnit];
 
   useEffect(() => { if (open) setTimeout(()=>firstRef.current?.focus(),80); }, [open]);
   useEffect(() => {
@@ -466,6 +475,13 @@ function ProductModal({ open, onClose, editing, draft, setDraft, onSubmit, savin
   }, [onClose]);
 
   if (!open) return null;
+
+  const setSizeUnit = (unit: ProductSizeUnit) =>
+    setDraft(d => {
+      const current = normalizeSizeUnit(d.size_unit);
+      if (current === unit) return { ...d, size_unit: unit };
+      return { ...d, size_unit: unit, sizes: [], stock: {} };
+    });
 
   const toggleSize = (s:string) =>
     setDraft(d => ({ ...d, sizes: d.sizes.includes(s)?d.sizes.filter(x=>x!==s):[...d.sizes,s] }));
@@ -560,23 +576,19 @@ function ProductModal({ open, onClose, editing, draft, setDraft, onSubmit, savin
           <div>
             <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10 }}>
               <p style={{ ...sectionHead, margin:0 }}>📐 Sizes Available</p>
-              <div style={{ display:'flex',alignItems:'center',gap:6 }}>
-                <span style={{ fontSize:'0.72rem',color:'#9badb8',fontWeight:600 }}>Display unit:</span>
-                {(['uk','eu'] as const).map(u=>(
-                  <button key={u} type="button"
-                    onClick={()=>setSizeUnit(u)}
-                    style={{
-                      padding:'4px 12px',borderRadius:20,border:`1.5px solid ${sizeUnit===u?'#2B9FD8':'#d0e6f5'}`,
-                      background:sizeUnit===u?'#2B9FD8':'#fff',color:sizeUnit===u?'#fff':'#5a6a7a',
-                      cursor:'pointer',fontSize:'0.72rem',fontWeight:700,fontFamily:'inherit',
-                    }}>
-                    {u.toUpperCase()}
-                  </button>
-                ))}
-              </div>
+              <label style={{ display:'flex',alignItems:'center',gap:6,fontSize:'0.72rem',color:'#9badb8',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.5px' }}>
+                Size Unit *
+                <select
+                  value={selectedSizeUnit}
+                  onChange={e=>setSizeUnit(e.target.value as ProductSizeUnit)}
+                  style={{ ...inp(),width:88,padding:'5px 10px',cursor:'pointer',fontWeight:800 }}
+                >
+                  {SIZE_UNITS.map(unit => <option key={unit} value={unit}>{unit}</option>)}
+                </select>
+              </label>
             </div>
             <div style={{ display:'flex',flexWrap:'wrap',gap:7 }}>
-              {UK_SIZES.map(s => {
+              {sizeOptions.map(s => {
                 const active = draft.sizes.includes(s);
                 return (
                   <button key={s} type="button" onClick={()=>toggleSize(s)}
@@ -586,14 +598,14 @@ function ProductModal({ open, onClose, editing, draft, setDraft, onSubmit, savin
                       background:active?'#2B9FD8':'#f4f8fb',
                       color:active?'#fff':'#5a6a7a',cursor:'pointer',transition:'all 0.15s',
                     }}>
-                    {displaySize(s,sizeUnit)}
+                    {s}
                   </button>
                 );
               })}
             </div>
             {draft.sizes.length > 0 && (
               <p style={{ fontSize:'0.72rem',color:'#9badb8',marginTop:8 }}>
-                Selected: {draft.sizes.map(s=>displaySize(s,sizeUnit)).join(' · ')}
+                Selected {selectedSizeUnit}: {draft.sizes.join(' | ')}
               </p>
             )}
           </div>
@@ -719,12 +731,14 @@ export default function AdminProductsPage() {
       if (typeof v === 'string') { try { return JSON.parse(v) as T; } catch {} }
       return fb;
     };
+    const sizes = normalizeSizeList(parseFld<string[]>(p.sizes, []));
     setDraft({ name:p.name, brand:p.brand, price:p.price, original_price:p.original_price||0,
       image:p.image, tag:p.tag||'', category:p.category||'',
-      sizes:  parseFld<string[]>(p.sizes, []),
+      size_unit: normalizeSizeUnit(p.size_unit),
+      sizes,
       colors: parseFld<any[]>(p.colors, []),
       specs:  p.specs||'',
-      stock:  parseFld<Record<string,number>>(p.stock, {}) });
+      stock:  normalizeStockKeys(parseFld<Record<string,number>>(p.stock, {}), sizes) });
     setModalOpen(true);
   };
   const closeModal = () => { setModalOpen(false); setTimeout(()=>{setEditing(null);setDraft(emptyDraft());},250); };
@@ -825,7 +839,7 @@ export default function AdminProductsPage() {
                     </span></>
                   )}
                 </div>
-                {Array.isArray(p.sizes)&&p.sizes.length>0&&<p style={{ fontSize:'0.68rem',color:'#9badb8',marginBottom:4 }}>{p.sizes.slice(0,4).join(' · ')}{p.sizes.length>4?'…':''}</p>}
+                {Array.isArray(p.sizes)&&p.sizes.length>0&&<p style={{ fontSize:'0.68rem',color:'#9badb8',marginBottom:4 }}>{normalizeSizeUnit(p.size_unit)} {normalizeSizeList(p.sizes).slice(0,4).join(' | ')}{p.sizes.length>4?'...':''}</p>}
                 <div className="admin-card-actions">
                   <button type="button" onClick={()=>openEdit(p)}>✏️ Edit</button>
                   <button type="button" className="danger" onClick={()=>remove(p)}>Delete</button>

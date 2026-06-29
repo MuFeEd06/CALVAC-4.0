@@ -6,10 +6,13 @@ import ScrollyShoeExperience from '@/components/ScrollyShoeExperience';
 import OfferRibbon from '@/components/OfferRibbon';
 import { NewArrivals, BrandTiles, CategoryScroll } from '@/components/HomeSections';
 import ProductCard from '@/components/ProductCard';
+import { DEFAULT_THEME_SETTINGS } from '@/theme';
 
 const DEFAULT_SETTINGS: SiteSettings = {
-  primary_color: '#2B9FD8', hero_font: 'default', model_path: '/static/sneaker.glb',
-  model_scale: 3, model_y: 0.8, model_speed: 0.006, size_unit: 'uk',
+  theme_settings: DEFAULT_THEME_SETTINGS,
+  primary_color: DEFAULT_THEME_SETTINGS.primaryColor,
+  hero_font: 'default', model_path: '/static/sneaker.glb',
+  model_scale: 3, model_y: 0.8, model_speed: 0.006,
   show_new_arrivals: true, show_categories: true,
   cat_boots: true, cat_crocs: true, cat_girls: true, cat_sale: true,
   cat_under1000: true, cat_under1500: true, cat_under2500: true,

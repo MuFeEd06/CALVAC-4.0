@@ -5,6 +5,8 @@ export interface ProductColor {
   image?: string;
 }
 
+export type ProductSizeUnit = 'UK' | 'EU';
+
 export interface Product {
   id: number;
   name: string;
@@ -14,6 +16,7 @@ export interface Product {
   image: string;
   tag?: string;
   category?: string;
+  size_unit: ProductSizeUnit;
   sizes: string[];
   colors: ProductColor[];
   stock?: Record<string, number>;
@@ -29,6 +32,7 @@ export interface CartItem {
   price: number;
   image: string;
   size: string;
+  size_unit: ProductSizeUnit;
   color?: string;
   colorHex?: string;
   qty: number;
@@ -45,14 +49,27 @@ export interface Address {
   landmark?: string;
 }
 
+export interface ThemeSettings {
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  backgroundColor: string;
+  surfaceColor: string;
+  textColor: string;
+  mutedTextColor: string;
+  borderColor: string;
+  buttonStyle: 'rounded' | 'pill' | 'square';
+  themeMode: 'light' | 'dark' | 'custom';
+}
+
 export interface SiteSettings {
+  theme_settings: ThemeSettings;
   primary_color: string;
   hero_font: string;
   model_path: string;
   model_scale: number;
   model_y: number;
   model_speed: number;
-  size_unit: 'uk' | 'euro';
   show_new_arrivals: boolean;
   show_categories: boolean;
   cat_boots: boolean;

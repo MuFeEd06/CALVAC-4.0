@@ -1,13 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { SiteSettings } from '@/types';
-
-declare global {
-  interface Window {
-    THREE: typeof import('three');
-    MeshoptDecoder: unknown;
-  }
-}
 
 interface Props { settings: SiteSettings; }
 
@@ -18,27 +13,11 @@ export default function HeroSection({ settings }: Props) {
     const container = containerRef.current;
     if (!container) return;
 
-    // Load THREE + GLTFLoader dynamically
-    const scripts: HTMLScriptElement[] = [];
-    const loadScript = (src: string) => new Promise<void>(resolve => {
-      const s = document.createElement('script');
-      s.src = src;
-      s.onload = () => resolve();
-      document.head.appendChild(s);
-      scripts.push(s);
-    });
-
     let animId: number;
     let renderer: import('three').WebGLRenderer | undefined;
+    let cleanupEvents: (() => void) | undefined;
 
     async function init() {
-      if (!window.THREE) {
-        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');
-        await loadScript('https://cdn.jsdelivr.net/npm/meshoptimizer@0.18.1/meshopt_decoder.js');
-        await loadScript('https://cdn.jsdelivr.net/npm/three@0.128/examples/js/loaders/GLTFLoader.js');
-      }
-
-      const THREE = window.THREE;
       if (!THREE || !container) return;
 
       const scene = new THREE.Scene();
@@ -64,7 +43,7 @@ export default function HeroSection({ settings }: Props) {
       let floatTime = 0;
       let mouseX = 0, mouseY = 0;
 
-      const loader = new (window as any).THREE.GLTFLoader();
+      const loader = new GLTFLoader();
       loader.load(
         'https://ik.imagekit.io/yocxectr4/models/sneaker.glb',
         (gltf: any) => {
@@ -110,19 +89,18 @@ export default function HeroSection({ settings }: Props) {
       };
       window.addEventListener('resize', onResize);
 
-      return () => {
+      cleanupEvents = () => {
         document.removeEventListener('mousemove', onMouse);
         window.removeEventListener('resize', onResize);
       };
     }
 
-    const cleanupPromise = init();
+    init();
     return () => {
       cancelAnimationFrame(animId);
       renderer?.dispose();
       if (container.firstChild) container.removeChild(container.firstChild);
-      cleanupPromise.then(fn => fn?.());
-      scripts.forEach(s => s.remove());
+      cleanupEvents?.();
     };
   }, [settings]);
 

@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import type { Product, SiteSettings } from '@/types';
 import { BRANDS, CATEGORIES, formatPrice, getDeal } from '@/utils';
@@ -45,7 +45,7 @@ export function NewArrivals({ products }: { products: Product[] }) {
         display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
         marginBottom: 24, flexWrap: 'wrap', gap: 6,
       }}>
-        <a href="/shop?tag=new" style={{ textDecoration: 'none' }}>
+        <Link to="/shop?tag=new" style={{ textDecoration: 'none' }}>
           <h2 style={{
             fontFamily: 'var(--font-display)', color: 'var(--primary)',
             fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.5px',
@@ -54,7 +54,7 @@ export function NewArrivals({ products }: { products: Product[] }) {
           }}>
             New Arrivals <span style={{ transition: 'transform 0.2s' }}>→</span>
           </h2>
-        </a>
+        </Link>
         <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
           Drag · Scroll · Click side cards to navigate
         </p>

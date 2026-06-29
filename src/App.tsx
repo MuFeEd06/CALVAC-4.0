@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { CartProvider } from '@/context/CartContext';
 import { ToastProvider } from '@/context/ToastContext';
 import { AdminAuthProvider } from '@/context/AdminAuthContext';
@@ -76,7 +76,7 @@ function NotFound() {
       <div style={{ fontSize:'4rem', marginBottom:16 }}>👟</div>
       <h1 style={{ fontFamily:'var(--font-display)', fontSize:'2rem', marginBottom:12 }}>Page Not Found</h1>
       <p style={{ color:'var(--text-muted)', marginBottom:32 }}>The page you're looking for doesn't exist.</p>
-      <a href="/" style={{ padding:'12px 32px', background:'var(--primary)', color:'#fff', borderRadius:8, fontWeight:700, textDecoration:'none' }}>Go Home</a>
+      <Link to="/" style={{ padding:'12px 32px', background:'var(--primary)', color:'#fff', borderRadius:8, fontWeight:700, textDecoration:'none' }}>Go Home</Link>
     </main>
   );
 }

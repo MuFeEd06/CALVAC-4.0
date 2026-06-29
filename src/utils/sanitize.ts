@@ -8,7 +8,7 @@ const ALLOWED_TAGS = new Set([
   'br','hr','blockquote','code','pre','span',
 ]);
 
-const ALLOWED_ATTRS = new Set(['class','style']);
+const ALLOWED_ATTRS = new Set(['class']);
 
 /** Strip every tag not in the allowlist and every attribute not in the allowlist. */
 export function sanitizeHtml(html: string): string {
@@ -43,12 +43,6 @@ function sanitizeNode(node: Element) {
         if (!ALLOWED_ATTRS.has(attr.name.toLowerCase())) {
           el.removeAttribute(attr.name);
         }
-      }
-
-      // Strip inline event handlers that sneak through (belt-and-suspenders)
-      const style = el.getAttribute('style');
-      if (style && /expression|javascript|vbscript|url\s*\(/i.test(style)) {
-        el.removeAttribute('style');
       }
 
       sanitizeNode(el);

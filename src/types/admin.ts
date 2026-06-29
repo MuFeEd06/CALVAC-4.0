@@ -1,4 +1,5 @@
 import type { Product } from './index';
+import type { ProductSizeUnit } from './index';
 
 export interface AdminUser {
   id: string;
@@ -8,6 +9,8 @@ export interface AdminUser {
 export interface OrderItem {
   name: string;
   size?: string;
+  size_unit?: ProductSizeUnit;
+  sizeUnit?: ProductSizeUnit;
   color?: string;
   qty: number;
   price: number;
@@ -32,4 +35,3 @@ export interface AdminOrder {
 }
 
 export type AdminProductPayload = Omit<Product, 'id'>;
-

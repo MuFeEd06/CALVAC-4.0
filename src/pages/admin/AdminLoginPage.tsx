@@ -1,5 +1,6 @@
 import { FormEvent, useState, useRef, useCallback } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { adminLogin } from '@/api/admin';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 import { supabase } from '@/lib/supabase';
 
@@ -87,7 +88,20 @@ export default function AdminLoginPage() {
     setError('');
     record();
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    let signInError: Error | null = null;
+    try {
+      const session = await adminLogin(email.trim(), password);
+      if (!session.access_token || !session.refresh_token) {
+        throw new Error('Invalid credentials');
+      }
+      const { error: setSessionError } = await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
+      if (setSessionError) throw setSessionError;
+    } catch (e: any) {
+      signInError = e instanceof Error ? e : new Error('Invalid credentials');
+    }
     setLoading(false);
 
     if (signInError) {

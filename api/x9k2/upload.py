@@ -1,162 +1,186 @@
-"""
-POST /api/x9k2/upload
-Accepts: multipart/form-data with field 'image'
-Returns: {"url": "https://ik.imagekit.io/..."} or {"error": "..."}
-
-Security:
-- JWT auth required (Supabase token)
-- Max file size: 200KB (after client-side compression)
-- Allowed MIME types: image/jpeg, image/png, image/webp
-- Uploads to ImageKit using IK_PRIVATE_KEY + IK_URL_ENDPOINT env vars
-"""
-import os, json, base64, time, cgi, io, urllib.request, urllib.parse
+import base64
+import cgi
+import io
+import json
+import os
+import urllib.request
 from http.server import BaseHTTPRequestHandler
 
-MAX_BYTES     = 200 * 1024          # 200 KB hard limit
+from api._lib.auth import require_admin
+from api._lib.cors import handle_options, require_cors
+from api._lib.http import ApiError, send_error, send_json
+from api._lib.rate_limit import require_rate_limit
+
+
+MAX_BYTES = 200 * 1024
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
+ALLOWED_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
+MAX_DIMENSION = 4096
+MAX_PIXELS = 16_000_000
 
-def _sb_url(): return os.environ.get("SUPABASE_URL","").rstrip("/")
-def _ik_private(): return os.environ.get("IK_PRIVATE_KEY","")
-def _ik_endpoint(): return os.environ.get("IK_URL_ENDPOINT","").rstrip("/")
 
-def _cors(o="*"):
-    return {"Access-Control-Allow-Origin": o,
-            "Access-Control-Allow-Methods": "POST,OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type,Authorization",
-            "Access-Control-Allow-Credentials": "true",
-            "Content-Type": "application/json"}
+def _safe_filename(filename):
+    safe_name = "".join(ch for ch in (filename or "") if ch.isalnum() or ch in ".-_")[:80] or "product.webp"
+    lower = safe_name.lower()
+    if not any(lower.endswith(ext) for ext in ALLOWED_EXTS):
+        raise ApiError(400, "Image extension not allowed")
+    return safe_name
 
-def _ok_origin(h):
-    o = h.get("Origin","")
-    return o if o in {"https://calvac.in","https://calvac-4-0.vercel.app",
-                      "https://www.calvac.in","http://localhost:5173"} else "*"
 
-def _auth(h):
-    a = h.get("Authorization","")
-    if not a.startswith("Bearer "): return False, "no token"
-    try:
-        token = a.split(" ",1)[1]; parts = token.split(".")
-        if len(parts)!=3: return False, "bad jwt"
-        pad = parts[1]+"="*(-len(parts[1])%4)
-        p   = json.loads(base64.urlsafe_b64decode(pad))
-        sb  = _sb_url()
-        if p.get("iss") != f"{sb}/auth/v1": return False, f"wrong issuer"
-        if p.get("exp",0) < time.time(): return False, "expired"
-        return bool(p.get("sub")), "ok"
-    except Exception as e:
-        return False, str(e)
+def _read_u24_le(data):
+    return data[0] | (data[1] << 8) | (data[2] << 16)
 
-def _upload_to_imagekit(image_bytes: bytes, filename: str, mime: str) -> str:
-    """Upload bytes to ImageKit, return public URL."""
+
+def _image_info(data):
+    if data.startswith(b"\xff\xd8\xff"):
+        i = 2
+        while i + 9 < len(data):
+            if data[i] != 0xFF:
+                i += 1
+                continue
+            marker = data[i + 1]
+            i += 2
+            if marker in (0xD8, 0xD9):
+                continue
+            if i + 2 > len(data):
+                break
+            seg_len = int.from_bytes(data[i:i + 2], "big")
+            if seg_len < 2 or i + seg_len > len(data):
+                break
+            if marker in {0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF}:
+                height = int.from_bytes(data[i + 3:i + 5], "big")
+                width = int.from_bytes(data[i + 5:i + 7], "big")
+                return "image/jpeg", width, height
+            i += seg_len
+    if data.startswith(b"\x89PNG\r\n\x1a\n") and len(data) >= 24:
+        width = int.from_bytes(data[16:20], "big")
+        height = int.from_bytes(data[20:24], "big")
+        return "image/png", width, height
+    if data.startswith(b"RIFF") and data[8:12] == b"WEBP" and len(data) >= 30:
+        chunk = data[12:16]
+        if chunk == b"VP8X" and len(data) >= 30:
+            width = _read_u24_le(data[24:27]) + 1
+            height = _read_u24_le(data[27:30]) + 1
+            return "image/webp", width, height
+        if chunk == b"VP8 " and len(data) >= 30 and data[23:26] == b"\x9d\x01\x2a":
+            width = int.from_bytes(data[26:28], "little") & 0x3FFF
+            height = int.from_bytes(data[28:30], "little") & 0x3FFF
+            return "image/webp", width, height
+        if chunk == b"VP8L" and len(data) >= 25 and data[20] == 0x2F:
+            bits = int.from_bytes(data[21:25], "little")
+            width = (bits & 0x3FFF) + 1
+            height = ((bits >> 14) & 0x3FFF) + 1
+            return "image/webp", width, height
+    raise ApiError(400, "Image type not allowed")
+
+
+def _validate_image(data, browser_mime, filename):
+    safe_name = _safe_filename(filename)
+    detected_mime, width, height = _image_info(data)
+    if detected_mime not in ALLOWED_TYPES or browser_mime not in ALLOWED_TYPES:
+        raise ApiError(400, "Image type not allowed")
+    if detected_mime != browser_mime:
+        raise ApiError(400, "Image MIME does not match file content")
+    if width < 1 or height < 1 or width > MAX_DIMENSION or height > MAX_DIMENSION or width * height > MAX_PIXELS:
+        raise ApiError(400, "Image dimensions not allowed")
+    return safe_name, detected_mime
+
+
+def _ik_private():
+    value = os.environ.get("IK_PRIVATE_KEY", "")
+    if not value:
+        print("Missing required server environment variable: IK_PRIVATE_KEY")
+        raise ApiError(500, "Upload configuration unavailable")
+    return value
+
+
+def _ik_endpoint():
+    value = os.environ.get("IK_URL_ENDPOINT", "").rstrip("/")
+    if not value:
+        print("Missing required server environment variable: IK_URL_ENDPOINT")
+        raise ApiError(500, "Upload configuration unavailable")
+    return value
+
+
+def _upload_to_imagekit(image_bytes, filename, mime):
     private_key = _ik_private()
-    endpoint    = _ik_endpoint()
-    if not private_key or not endpoint:
-        raise RuntimeError("IK_PRIVATE_KEY or IK_URL_ENDPOINT env var not set")
-
-    # ImageKit upload API — multipart
+    _ik_endpoint()
     boundary = b"----CalvacBoundary7f3a9b2e"
-    body_parts = []
+    parts = []
 
-    def field(name: str, value: str):
-        return (
-            b"--" + boundary + b"\r\n"
-            + f'Content-Disposition: form-data; name="{name}"\r\n\r\n'.encode()
-            + value.encode() + b"\r\n"
-        )
-    def file_field(name: str, fname: str, data: bytes, ctype: str):
+    def field(name, value):
+        return b"--" + boundary + b"\r\n" + f'Content-Disposition: form-data; name="{name}"\r\n\r\n'.encode() + value.encode() + b"\r\n"
+
+    def file_field(name, fname, data, ctype):
         return (
             b"--" + boundary + b"\r\n"
             + f'Content-Disposition: form-data; name="{name}"; filename="{fname}"\r\n'.encode()
-            + f'Content-Type: {ctype}\r\n\r\n'.encode()
+            + f"Content-Type: {ctype}\r\n\r\n".encode()
             + data + b"\r\n"
         )
 
-    body_parts.append(file_field("file", filename, image_bytes, mime))
-    body_parts.append(field("fileName", filename))
-    body_parts.append(field("folder",   "/shoes"))
-    body_parts.append(field("useUniqueFileName", "true"))
-    body_parts.append(b"--" + boundary + b"--\r\n")
-    body = b"".join(body_parts)
-
-    # Basic auth: private_key as username, empty password
+    parts.append(file_field("file", filename, image_bytes, mime))
+    parts.append(field("fileName", filename))
+    parts.append(field("folder", "/shoes"))
+    parts.append(field("useUniqueFileName", "true"))
+    parts.append(b"--" + boundary + b"--\r\n")
     credentials = base64.b64encode(f"{private_key}:".encode()).decode()
     req = urllib.request.Request(
         "https://upload.imagekit.io/api/v1/files/upload",
-        data=body,
+        data=b"".join(parts),
         headers={
             "Authorization": f"Basic {credentials}",
             "Content-Type": f"multipart/form-data; boundary={boundary.decode()}",
         },
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=30) as r:
-        result = json.loads(r.read())
-    return result.get("url","")
+    with urllib.request.urlopen(req, timeout=30) as res:
+        result = json.loads(res.read())
+    return result.get("url", "")
+
 
 class handler(BaseHTTPRequestHandler):
-
     def do_OPTIONS(self):
-        o = _ok_origin(self.headers); self.send_response(204)
-        for k,v in _cors(o).items(): self.send_header(k,v)
-        self.end_headers()
+        handle_options(self, "POST,OPTIONS")
 
     def do_POST(self):
-        o  = _ok_origin(self.headers)
-        h  = _cors(o)
-        ok, reason = _auth(self.headers)
-        if not ok:
-            self._send(401, {"error": f"Unauthorised: {reason}"}, h); return
-
+        cors = None
         try:
-            ctype = self.headers.get("Content-Type","")
-
-            # Parse multipart form
-            length = int(self.headers.get("Content-Length",0))
-            if length > MAX_BYTES * 2:   # extra headroom for multipart overhead
-                self._send(413, {"error": "File too large (max 200 KB)"}, h); return
-
+            cors = require_cors(self, "POST,OPTIONS")
+            require_rate_limit(self, "upload")
+            require_admin(self.headers)
+            length = int(self.headers.get("Content-Length", 0))
+            if length > MAX_BYTES * 2:
+                raise ApiError(413, "File too large")
             raw = self.rfile.read(length)
-
-            # Extract file from multipart using cgi module
-            env = {
-                "REQUEST_METHOD": "POST",
-                "CONTENT_TYPE":   ctype,
-                "CONTENT_LENGTH": str(length),
-            }
             fs = cgi.FieldStorage(
                 fp=io.BytesIO(raw),
                 headers=self.headers,
-                environ=env,
+                environ={
+                    "REQUEST_METHOD": "POST",
+                    "CONTENT_TYPE": self.headers.get("Content-Type", ""),
+                    "CONTENT_LENGTH": str(length),
+                },
             )
             if "image" not in fs:
-                self._send(400, {"error": "No 'image' field in form"}, h); return
-
+                raise ApiError(400, "No image field in form")
             file_item = fs["image"]
+            if isinstance(file_item, list):
+                raise ApiError(400, "Only one image can be uploaded")
             image_bytes = file_item.file.read()
-            mime        = file_item.type or "image/webp"
-            filename    = file_item.filename or "product.webp"
-
-            # Server-side validation
-            if mime not in ALLOWED_TYPES:
-                self._send(400, {"error": f"Type not allowed: {mime}"}, h); return
+            mime = file_item.type or "image/webp"
+            filename = file_item.filename or "product.webp"
             if len(image_bytes) > MAX_BYTES:
-                self._send(413, {"error": f"Image too large: {len(image_bytes)//1024}KB (max 200KB)"}, h); return
+                raise ApiError(413, "Image too large")
             if len(image_bytes) < 100:
-                self._send(400, {"error": "Image is empty or corrupt"}, h); return
-
-            url = _upload_to_imagekit(image_bytes, filename, mime)
+                raise ApiError(400, "Image is empty or corrupt")
+            safe_name, detected_mime = _validate_image(image_bytes, mime, filename)
+            url = _upload_to_imagekit(image_bytes, safe_name, detected_mime)
             if not url:
-                self._send(500, {"error": "ImageKit returned no URL"}, h); return
+                raise ApiError(502, "Image upload failed")
+            send_json(self, 200, {"url": url}, cors)
+        except Exception as exc:
+            send_error(self, exc, cors)
 
-            self._send(200, {"url": url}, h)
-
-        except Exception as e:
-            self._send(500, {"error": str(e)}, h)
-
-    def _send(self, s, body, h):
-        b = json.dumps(body).encode()
-        self.send_response(s)
-        for k,v in h.items(): self.send_header(k,v)
-        self.send_header("Content-Length", str(len(b)))
-        self.end_headers(); self.wfile.write(b)
-    def log_message(self, *a): pass
+    def log_message(self, *args):
+        pass

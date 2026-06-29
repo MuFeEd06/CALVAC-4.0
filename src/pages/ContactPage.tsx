@@ -24,7 +24,7 @@ export default function ContactPage() {
       </motion.div>
 
       {/* WhatsApp */}
-      <motion.a href="https://wa.me/919645087584" target="_blank" rel="noopener"
+      <motion.a href="https://wa.me/919645087584" target="_blank" rel="noopener noreferrer"
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
         whileHover={{ y: -3, boxShadow: '0 12px 32px rgba(37,211,102,0.3)' }}
         style={{ display: 'flex', alignItems: 'center', gap: 24, background: 'linear-gradient(135deg, #25D366, #128C7E)', borderRadius: 18, padding: '36px 32px', textDecoration: 'none', marginBottom: 24 }}>
@@ -34,14 +34,14 @@ export default function ContactPage() {
           <p style={{ color: 'rgba(255,255,255,0.82)', fontSize: '0.9rem', lineHeight: 1.5, marginBottom: 10 }}>
             Fastest way to reach us. Ask about stock, sizing, custom orders, or track your delivery.
           </p>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 700, fontSize: '0.88rem', padding: '8px 18px', borderRadius: 20 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 700, fontSize: '0.88rem', padding: '8px 18px', borderRadius: 'var(--button-radius)' }}>
             💬 Start Chat →
           </span>
         </div>
       </motion.a>
 
       {/* Instagram */}
-      <motion.a href="https://www.instagram.com/clc.india__?igsh=MTNvbDhseWQ0dzc0aA==" target="_blank" rel="noopener"
+      <motion.a href="https://www.instagram.com/clc.india__?igsh=MTNvbDhseWQ0dzc0aA==" target="_blank" rel="noopener noreferrer"
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
         whileHover={{ y: -3, boxShadow: '0 12px 32px rgba(220,39,67,0.3)' }}
         style={{ display: 'flex', alignItems: 'center', gap: 24, background: 'linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)', borderRadius: 18, padding: '28px 32px', textDecoration: 'none', marginBottom: 32 }}>

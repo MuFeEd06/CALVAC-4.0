@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { CartItem, Address } from '@/types';
+import { cleanSizeLabel, normalizeSizeUnit } from '@/utils/sizeUnits';
 
 interface CartCtx {
   cart: CartItem[];
@@ -15,9 +16,34 @@ interface CartCtx {
 
 const CartContext = createContext<CartCtx>({} as CartCtx);
 
+function migrateCart(raw: unknown): CartItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item: any) => {
+    const rawSize = String(item?.size || '').trim();
+    const unit = normalizeSizeUnit(item?.size_unit || item?.sizeUnit || rawSize);
+    const size = cleanSizeLabel(rawSize);
+    const id = Number(item?.id);
+    const price = Number(item?.price);
+    const qty = Math.max(1, Math.min(10, Number(item?.qty) || 1));
+    if (!Number.isFinite(id) || !Number.isFinite(price) || !size) return null;
+    return {
+      id,
+      name: String(item?.name || '').slice(0, 200),
+      brand: String(item?.brand || '').slice(0, 100),
+      price,
+      image: String(item?.image || ''),
+      size,
+      size_unit: unit,
+      color: item?.color ? String(item.color).slice(0, 80) : undefined,
+      colorHex: item?.colorHex ? String(item.colorHex).slice(0, 20) : undefined,
+      qty,
+    } satisfies CartItem;
+  }).filter(Boolean) as CartItem[];
+}
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>(() => {
-    try { return JSON.parse(localStorage.getItem('calvac_cart') || '[]'); } catch { return []; }
+    try { return migrateCart(JSON.parse(localStorage.getItem('calvac_cart') || '[]')); } catch { return []; }
   });
   const [address, setAddress] = useState<Address | null>(() => {
     try { return JSON.parse(localStorage.getItem('claxxic_address') || 'null'); } catch { return null; }
@@ -29,7 +55,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addItem = useCallback((item: Omit<CartItem, 'qty'>) => {
     setCart(prev => {
-      const existing = prev.find(i => i.id === item.id && i.size === item.size && i.color === item.color);
+      const existing = prev.find(i => i.id === item.id && i.size === item.size && i.size_unit === item.size_unit && i.color === item.color);
       if (existing) return prev.map(i => i === existing ? { ...i, qty: i.qty + 1 } : i);
       return [...prev, { ...item, qty: 1 }];
     });

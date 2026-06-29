@@ -7,6 +7,7 @@ import { formatPrice, WHATSAPP_NUMBER } from '@/utils';
 import { createOrder } from '@/api';
 import type { Address } from '@/types';
 import { cleanStr, isValidPhone, isValidPin, validateAddress } from '@/utils/validation';
+import { formatSizeWithUnit } from '@/utils/sizeUnits';
 
 function AddressForm({ onSave, existing }: { onSave: (a: Address) => void; existing: Address | null }) {
   const [form, setForm] = useState<Address>(
@@ -38,7 +39,7 @@ function AddressForm({ onSave, existing }: { onSave: (a: Address) => void; exist
   const inp = (k: keyof Address): React.CSSProperties => ({
     width:'100%', padding:'9px 12px',
     background:'var(--surface)', border:`1.5px solid ${errors[k]?'#ef4444':'var(--border)'}`,
-    borderRadius:7, color:'var(--text)', fontSize:'0.85rem',
+    borderRadius:'var(--button-radius)', color:'var(--text)', fontSize:'0.85rem',
     fontFamily:'var(--font-body)', outline:'none',
   });
 
@@ -75,7 +76,7 @@ function AddressForm({ onSave, existing }: { onSave: (a: Address) => void; exist
         <input style={inp('landmark')} placeholder="Landmark (optional)" value={form.landmark || ''} onChange={set('landmark')}
           onFocus={e=>e.target.style.borderColor='var(--primary)'} onBlur={e=>e.target.style.borderColor='var(--border)'} />
       </div>
-      <button onClick={handleSave} style={{ padding:'10px', background:'var(--primary)', color:'#fff', border:'none', borderRadius:7, fontWeight:700, fontSize:'0.88rem', cursor:'pointer', fontFamily:'var(--font-body)', marginTop:2 }}>
+      <button onClick={handleSave} style={{ padding:'10px', background:'var(--primary)', color:'#fff', border:'none', borderRadius:'var(--button-radius)', fontWeight:700, fontSize:'0.88rem', cursor:'pointer', fontFamily:'var(--font-body)', marginTop:2 }}>
         Save Address
       </button>
     </div>
@@ -96,7 +97,7 @@ export default function CartPage() {
     cart.forEach((item, i) => {
       msg += `\n${i + 1}. *${cleanStr(item.name, 200)}*\n`;
       msg += `   Brand: ${cleanStr(item.brand, 100)}\n`;
-      msg += `   Size: ${cleanStr(item.size, 20)}\n`;
+      msg += `   Size: ${cleanStr(formatSizeWithUnit(item.size_unit, item.size), 30)}\n`;
       if (item.color) msg += `   Color: ${cleanStr(item.color, 50)}\n`;
       msg += `   Qty: ${Math.max(1, Math.min(99, item.qty))}\n`;
       msg += `   Price: ${formatPrice(item.price * item.qty)}\n`;
@@ -111,16 +112,36 @@ export default function CartPage() {
   };
 
   const handleOrder = async () => {
+    if (ordering) return;
     if (!address) { showToast('Add a delivery address first', false); return; }
     const err = validateAddress(address);
     if (err) { showToast(err, false); return; }
     if (cart.length === 0) { showToast('Your cart is empty', false); return; }
 
     setOrdering(true);
-    await createOrder({ address, items: cart, total: totalPrice });
-    const url = buildWhatsApp();
-    if (url !== '#') window.open(url, '_blank', 'noopener,noreferrer');
-    setOrdering(false);
+    try {
+      const idempotencyKey = crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+      await createOrder({
+        items: cart.map(item => ({
+          productId: item.id,
+          quantity: item.qty,
+          size: item.size,
+          sizeUnit: item.size_unit,
+          color: item.color,
+        })),
+        customer: {
+          ...address,
+          address: `${address.line1}${address.line2 ? ', ' + address.line2 : ''}, ${address.city}, ${address.state} - ${address.pin}`,
+        },
+        paymentMethod: 'cod',
+      }, idempotencyKey);
+      const url = buildWhatsApp();
+      if (url !== '#') window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (e: any) {
+      showToast(e?.message || 'Could not place order', false);
+    } finally {
+      setOrdering(false);
+    }
   };
 
   if (totalItems === 0) return (
@@ -129,7 +150,7 @@ export default function CartPage() {
         <div style={{ fontSize:'4rem', marginBottom:20 }}>👟</div>
         <h2 style={{ fontFamily:'var(--font-display)', fontSize:'1.6rem', marginBottom:10 }}>Your cart is empty</h2>
         <p style={{ color:'var(--text-muted)', marginBottom:30 }}>Looks like you haven't added any sneakers yet.</p>
-        <Link to="/shop" style={{ display:'inline-block', padding:'12px 32px', border:'1.5px solid var(--primary)', color:'var(--primary)', borderRadius:8, fontWeight:600, transition:'all 0.2s' }}
+        <Link to="/shop" style={{ display:'inline-block', padding:'12px 32px', border:'1.5px solid var(--primary)', color:'var(--primary)', borderRadius:'var(--button-radius)', fontWeight:600, transition:'all 0.2s' }}
           onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.background='var(--primary)';(e.currentTarget as HTMLElement).style.color='#fff';}}
           onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.background='transparent';(e.currentTarget as HTMLElement).style.color='var(--primary)';}}>
           Continue Shopping
@@ -148,7 +169,7 @@ export default function CartPage() {
         <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
           <AnimatePresence>
             {cart.map((item, idx) => (
-              <motion.div key={`${item.id}-${item.size}-${item.color}`}
+              <motion.div key={`${item.id}-${item.size_unit}-${item.size}-${item.color}`}
                 initial={{ opacity:0, x:-20 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:20 }}
                 transition={{ duration:0.25 }}
                 style={{ display:'grid', gridTemplateColumns:'90px 1fr auto', gap:16, alignItems:'center', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:16, boxShadow:'var(--shadow)' }}>
@@ -159,7 +180,7 @@ export default function CartPage() {
                   <span style={{ fontSize:'0.7rem', color:'var(--text-light)', textTransform:'uppercase', letterSpacing:'1px' }}>{item.brand}</span>
                   <div style={{ fontWeight:600, fontSize:'0.95rem', marginBottom:4, fontFamily:'var(--font-display)' }}>{item.name}</div>
                   <div style={{ fontSize:'0.82rem', color:'var(--text-muted)', marginBottom:4 }}>
-                    Size: <span style={{ background:'var(--surface-2)', padding:'2px 8px', borderRadius:4, border:'1px solid var(--border)' }}>{item.size}</span>
+                    Size: <span style={{ background:'var(--surface-2)', padding:'2px 8px', borderRadius:4, border:'1px solid var(--border)' }}>{formatSizeWithUnit(item.size_unit, item.size)}</span>
                     {item.color && (
                       <span style={{ display:'inline-flex', alignItems:'center', gap:5, marginLeft:8 }}>
                         <span style={{ width:11, height:11, borderRadius:'50%', background:item.colorHex||'#aaa', border:'1px solid rgba(0,0,0,0.12)', display:'inline-block' }} />
@@ -170,7 +191,7 @@ export default function CartPage() {
                   <span style={{ color:'var(--primary)', fontWeight:700, fontSize:'0.95rem' }}>{formatPrice(item.price)}</span>
                 </div>
                 <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:12 }}>
-                  <div style={{ display:'flex', alignItems:'center', border:'1.5px solid var(--border)', borderRadius:8, overflow:'hidden' }}>
+                  <div style={{ display:'flex', alignItems:'center', border:'1.5px solid var(--border)', borderRadius:'var(--button-radius)', overflow:'hidden' }}>
                     <button onClick={()=>changeQty(idx,-1)} style={{ width:32, height:32, background:'var(--surface-2)', border:'none', cursor:'pointer', fontSize:'1.1rem', display:'flex', alignItems:'center', justifyContent:'center' }}>−</button>
                     <span style={{ width:36, textAlign:'center', fontWeight:600, fontSize:'0.95rem', borderLeft:'1px solid var(--border)', borderRight:'1px solid var(--border)', lineHeight:'32px' }}>{item.qty}</span>
                     <button onClick={()=>changeQty(idx,1)} style={{ width:32, height:32, background:'var(--surface-2)', border:'none', cursor:'pointer', fontSize:'1.1rem', display:'flex', alignItems:'center', justifyContent:'center' }}>+</button>
@@ -202,7 +223,7 @@ export default function CartPage() {
           <div style={{ background:'var(--surface-2)', border:'1.5px solid var(--border)', borderRadius:12, padding:16, marginTop:16 }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
               <h3 style={{ fontSize:'0.8rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.8px' }}>📍 Delivery Address</h3>
-              <button onClick={()=>setAddrOpen(v=>!v)} style={{ background:'none', border:'1.5px solid var(--primary)', color:'var(--primary)', fontSize:'0.75rem', fontWeight:600, padding:'4px 12px', borderRadius:20, cursor:'pointer' }}>
+              <button onClick={()=>setAddrOpen(v=>!v)} style={{ background:'none', border:'1.5px solid var(--primary)', color:'var(--primary)', fontSize:'0.75rem', fontWeight:600, padding:'4px 12px', borderRadius:'var(--button-radius)', cursor:'pointer' }}>
                 {address ? '✏️ Edit' : '+ Add'}
               </button>
             </div>
@@ -227,12 +248,12 @@ export default function CartPage() {
 
           <motion.button onClick={handleOrder} whileHover={address?{scale:1.02}:{}} whileTap={address?{scale:0.98}:{}}
             disabled={!address||ordering}
-            style={{ width:'100%', padding:15, marginTop:20, background:address?'#25D366':'#aaa', border:'none', borderRadius:10, color:'#fff', fontWeight:700, fontSize:'1rem', cursor:address?'pointer':'not-allowed', display:'flex', alignItems:'center', justifyContent:'center', gap:10, fontFamily:'var(--font-display)' }}>
+            style={{ width:'100%', padding:15, marginTop:20, background:address?'#25D366':'#aaa', border:'none', borderRadius:'var(--button-radius)', color:'#fff', fontWeight:700, fontSize:'1rem', cursor:address?'pointer':'not-allowed', display:'flex', alignItems:'center', justifyContent:'center', gap:10, fontFamily:'var(--font-display)' }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
             {ordering ? 'Placing order…' : 'Order via WhatsApp'}
           </motion.button>
           {!address && <p style={{ textAlign:'center', fontSize:'0.78rem', color:'#e53e3e', marginTop:6 }}>⚠️ Add a delivery address to order.</p>}
-          <Link to="/shop" style={{ display:'block', textAlign:'center', marginTop:10, padding:12, border:'1.5px solid var(--border)', borderRadius:10, color:'var(--text-muted)', fontSize:'0.9rem' }}>← Continue Shopping</Link>
+          <Link to="/shop" style={{ display:'block', textAlign:'center', marginTop:10, padding:12, border:'1.5px solid var(--border)', borderRadius:'var(--button-radius)', color:'var(--text-muted)', fontSize:'0.9rem' }}>← Continue Shopping</Link>
         </div>
       </div>
       <style>{`@media(max-width:700px){main>div>div:last-child{position:static!important;grid-column:1/-1}main>div{grid-template-columns:1fr!important}}`}</style>

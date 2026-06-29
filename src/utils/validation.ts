@@ -2,6 +2,7 @@
  * Input validation helpers — used throughout the app to
  * sanitize user-entered data before rendering or sending to API.
  */
+import { normalizeSizeList, normalizeSizeUnit } from './sizeUnits';
 
 /** Strip control characters and limit length */
 export function cleanStr(s: unknown, maxLen = 500): string {
@@ -19,15 +20,34 @@ export function isValidPhone(phone: string): boolean {
   return /^(\+91[\-\s]?)?[6-9]\d{9}$/.test(phone.trim().replace(/\s/g, ''));
 }
 
-/** Validate a safe URL — http/https only, no javascript: or data: */
+/** Validate an admin-configured link. */
 export function isSafeUrl(url: string): boolean {
+  const trimmed = url.trim();
+  if (!trimmed) return true;
+  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) return true;
   try {
-    const u = new URL(url);
-    return u.protocol === 'https:' || u.protocol === 'http:';
+    const u = new URL(trimmed);
+    if (u.protocol !== 'https:') {
+      const isLocal = u.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(u.hostname);
+      if (!isLocal) return false;
+    }
+    const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'calvac.in';
+    return [
+      currentHost,
+      'calvac.in',
+      'www.calvac.in',
+      'calvac-4-0.vercel.app',
+      'wa.me',
+      'www.instagram.com',
+    ].includes(u.hostname);
   } catch {
-    // Relative path — allow /shop, /product, etc.
-    return url.startsWith('/') && !url.startsWith('//');
+    return false;
   }
+}
+
+export function safeLink(url: unknown, fallback = '/shop'): string {
+  const value = typeof url === 'string' ? url.trim() : '';
+  return isSafeUrl(value) ? (value || fallback) : fallback;
 }
 
 /** Validate email address */
@@ -59,6 +79,8 @@ export function sanitizeProductPayload(draft: Record<string, unknown>): Record<s
     original_price: Math.max(0, Math.min(Number(draft.original_price) || 0, 1_000_000)),
     tag:            cleanStr(draft.tag as string, 50),
     category:       cleanStr(draft.category as string, 50),
+    size_unit:      normalizeSizeUnit(draft.size_unit),
+    sizes:          normalizeSizeList(draft.sizes),
     specs:          cleanStr(draft.specs as string, 2000),
     image:          isSafeUrl(String(draft.image || '')) ? String(draft.image) : '',
   };

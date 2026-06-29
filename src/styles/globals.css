@@ -2,8 +2,12 @@
 
 :root {
   --primary:       #2B9FD8;
+  --primary-rgb:   43, 159, 216;
   --primary-dark:  #1a7ab0;
   --primary-light: rgba(43,159,216,0.08);
+  --secondary:     #1A7AB0;
+  --accent:        #FF6B35;
+  --accent-rgb:    255, 107, 53;
   --bg:            #f4f8fb;
   --surface:       #ffffff;
   --surface-2:     #eaf3fa;
@@ -14,6 +18,7 @@
   --shadow:        0 4px 24px rgba(43,159,216,0.10);
   --shadow-hover:  0 8px 32px rgba(43,159,216,0.22);
   --radius:        14px;
+  --button-radius: 10px;
   --header-h:      70px;
   --font-display:  'Syne', system-ui, sans-serif;
   --font-body:     'DM Sans', system-ui, sans-serif;
@@ -119,23 +124,6 @@ button { font-family: inherit; cursor: pointer; border: none; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
 
 /* ── SIZE TYPE BTN ── */
-.size-type-btn {
-  padding: 6px 16px;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 700;
-  border: 1.5px solid var(--border);
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.size-type-btn.active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-}
-
 /* ── Responsive product grid ───────────────────────────────────────
    Always 2 columns on mobile, auto-fill ≥220px on wider screens.
    Use className="product-grid" on every product listing container.

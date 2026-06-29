@@ -3,20 +3,22 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Header from './Header';
 import Footer from './Footer';
-import { fetchSiteSettings } from '@/api';
+import { fetchSiteSettings, refreshSiteSettings } from '@/api';
+import { applyThemeSettings } from '@/theme';
 
-/** Apply primary_color from admin settings to CSS variable.
- *  Runs on every route change so color updates after admin saves. */
+/** Apply normalized theme settings to CSS variables. */
 function useTheme() {
   const { pathname } = useLocation();
   useEffect(() => {
-    fetchSiteSettings().then(s => {
-      const color = (s as any).primary_color;
-      if (color && /^#[0-9A-Fa-f]{6}$/.test(color)) {
-        document.documentElement.style.setProperty('--primary', color);
-      }
-    }).catch(() => {});
-  }, [pathname]); // re-run on every navigation — fast because settings are cached
+    let cancelled = false;
+    fetchSiteSettings()
+      .then(s => { if (!cancelled) applyThemeSettings(s.theme_settings); })
+      .catch(() => {});
+    refreshSiteSettings()
+      .then(s => { if (!cancelled) applyThemeSettings(s.theme_settings); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [pathname]);
 }
 
 function CustomCursor() {
@@ -81,7 +83,7 @@ export default function Layout() {
       <Footer />
 
       {/* WhatsApp float button */}
-      <a href="https://wa.me/919645087584" target="_blank" rel="noopener" className="wa-float" aria-label="Chat on WhatsApp">
+      <a href="https://wa.me/919645087584" target="_blank" rel="noopener noreferrer" className="wa-float" aria-label="Chat on WhatsApp">
         <img src="https://ik.imagekit.io/yocxectr4/logos/whatsapp.png?tr=w-55,q-80,f-webp" alt="WhatsApp" />
       </a>
     </>

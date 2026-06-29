@@ -1,7 +1,17 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { fetchAdminOffer, fetchAdminSettings, saveAdminOffer, saveAdminSettings } from '@/api/admin';
-import { clearSettingsCache, clearProductsCache } from '@/api';
+import { setCachedSiteSettings } from '@/api';
 import { BRANDS } from '@/utils';
+import { safeLink } from '@/utils/validation';
+import type { ThemeSettings } from '@/types';
+import {
+  DEFAULT_THEME_SETTINGS,
+  applyThemeSettings,
+  normalizeHexColor,
+  normalizeSiteSettings,
+  normalizeThemeSettings,
+  themeToCssVars,
+} from '@/theme';
 
 /* ═══════════════════════════════════════════════════════
    TYPES
@@ -9,7 +19,8 @@ import { BRANDS } from '@/utils';
 type S = Record<string, unknown>;
 type ElementId = 'intro' | 'prompt' | 'left' | 'right' | 'image' | 'gradient' | 'offer' | 'skip' | 'star';
 type OfferState = { active: boolean; text: string; bg_color: string; text_color: string; show_logo?: boolean };
-type Tab = 'hero' | 'mobile' | 'store' | 'announcement' | 'policies';
+type Tab = 'hero' | 'mobile' | 'theme' | 'store' | 'announcement' | 'policies';
+type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 /* ═══════════════════════════════════════════════════════
    CONSTANTS
@@ -152,7 +163,7 @@ function HeroPreview({ settings, playhead, activeId }: {
       {settings.hero_gradient_visible !== false && (
         <div style={{ position:'absolute', inset:0, pointerEvents:'none',
           opacity: opac('gradient'),
-          background:`radial-gradient(ellipse at 50% 0%, rgba(43,159,216,${0.18*gradStr}),transparent 60%), linear-gradient(125deg,rgba(43,159,216,${0.12*gradStr}) 0%,transparent 40%,rgba(43,159,216,${0.07*gradStr}) 100%)` }} />
+          background:`radial-gradient(ellipse at 50% 0%, rgba(var(--primary-rgb),${0.18*gradStr}),transparent 60%), linear-gradient(125deg,rgba(var(--primary-rgb),${0.12*gradStr}) 0%,transparent 40%,rgba(var(--primary-rgb),${0.07*gradStr}) 100%)` }} />
       )}
 
       {/* Shoe image */}
@@ -278,7 +289,7 @@ function HeroPreview({ settings, playhead, activeId }: {
         }}>
           <div style={{
             display:'inline-flex', alignItems:'center', gap:4,
-            background:(settings.hero_skip_bg as string)||'rgba(43,159,216,0.12)',
+            background:(settings.hero_skip_bg as string)||'#E9F5FB',
             border:`1px solid ${(settings.hero_skip_color as string)||'#2B9FD8'}44`,
             borderRadius:20, padding:'4px 9px',
           }}>
@@ -507,7 +518,7 @@ function Inspector({ activeId, settings, setField }: {
 
       {/* GRADIENT */}
       {activeId==='gradient' && <>
-        <ColourPick label="Primary colour" value={txt('primary_color')||'#2B9FD8'} onChange={v=>setField('primary_color',v)} />
+        <ColourPick label="Hero accent colour" value={txt('hero_overlay_color')||'#2B9FD8'} onChange={v=>setField('hero_overlay_color',v)} />
         <SliderRow label="Gradient strength" min={0} max={2} step={0.05}
           value={num('hero_gradient_strength',1)} onChange={v=>setField('hero_gradient_strength',v)} />
         <Field label="Hero font family">
@@ -580,12 +591,12 @@ function Inspector({ activeId, settings, setField }: {
           <SliderRow label="Y from bottom (px)" min={10} max={100} step={2} value={num('hero_skip_y_px',32)} onChange={v=>setField('hero_skip_y_px',v)} />
         </div>
         <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:10 }}>
-          <ColourPick label="Background" value={txt('hero_skip_bg')||'rgba(43,159,216,0.12)'} onChange={v=>setField('hero_skip_bg',v)} />
+          <ColourPick label="Background" value={txt('hero_skip_bg')||'#E9F5FB'} onChange={v=>setField('hero_skip_bg',v)} />
           <ColourPick label="Text & icon" value={txt('hero_skip_color')||'#2B9FD8'} onChange={v=>setField('hero_skip_color',v)} />
         </div>
         <div style={{ background:'#f8fafc',borderRadius:8,padding:10 }}>
           <p style={{ fontSize:'0.7rem',fontWeight:700,color:'#9badb8',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:8 }}>Button preview</p>
-          <div style={{ display:'inline-flex',alignItems:'center',gap:6,background:txt('hero_skip_bg')||'rgba(43,159,216,0.12)',border:`1px solid ${txt('hero_skip_color')||'#2B9FD8'}44`,borderRadius:20,padding:'7px 14px' }}>
+          <div style={{ display:'inline-flex',alignItems:'center',gap:6,background:txt('hero_skip_bg')||'#E9F5FB',border:`1px solid ${txt('hero_skip_color')||'#2B9FD8'}44`,borderRadius:'var(--button-radius)',padding:'7px 14px' }}>
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 3l4 3-4 3V3zM7 3h1.5v6H7V3z" fill={txt('hero_skip_color')||'#2B9FD8'}/></svg>
             <span style={{ fontSize:num('hero_skip_size_px',12),fontWeight:700,color:txt('hero_skip_color')||'#2B9FD8',letterSpacing:'0.06em',textTransform:'uppercase' }}>
               {txt('hero_skip_text')||'Skip Animation'}
@@ -1002,25 +1013,233 @@ function HeroStudio({ settings, setField, onSave, status }: {
 /* ═══════════════════════════════════════════════════════
    ADMIN SETTINGS PAGE  (main export)
 ═══════════════════════════════════════════════════════ */
+function ThemeStudio({
+  theme,
+  onChange,
+  onReset,
+  onSave,
+  state,
+  error,
+}: {
+  theme: ThemeSettings;
+  onChange: <K extends keyof ThemeSettings>(key: K, value: ThemeSettings[K]) => void;
+  onReset: () => void;
+  onSave: () => void;
+  state: SaveState;
+  error: string;
+}) {
+  const previewVars = themeToCssVars(theme) as React.CSSProperties;
+  const saveText = state === 'saving' ? 'Saving...' : state === 'saved' ? 'Saved' : 'Save Theme';
+  const colorFields: Array<[keyof ThemeSettings, string]> = [
+    ['primaryColor', 'Primary'],
+    ['secondaryColor', 'Secondary'],
+    ['accentColor', 'Accent'],
+    ['backgroundColor', 'Page background'],
+    ['surfaceColor', 'Surface'],
+    ['textColor', 'Text'],
+    ['mutedTextColor', 'Muted text'],
+    ['borderColor', 'Border'],
+  ];
+
+  return (
+    <div className="admin-form" style={{ borderTop:'none', marginTop:0, paddingTop:0 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) 360px', gap:20, alignItems:'start' }}>
+        <div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:14 }}>
+            {colorFields.map(([key, label]) => (
+              <ColourPick
+                key={key}
+                label={label}
+                value={theme[key] as string}
+                onChange={value => onChange(key, normalizeHexColor(value, theme[key] as string) as ThemeSettings[typeof key])}
+              />
+            ))}
+          </div>
+
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:14, marginTop:16 }}>
+            <Field label="Button style">
+              <select
+                value={theme.buttonStyle}
+                onChange={e => onChange('buttonStyle', e.target.value as ThemeSettings['buttonStyle'])}
+                style={{
+                  width:'100%', padding:'9px 10px', border:'1px solid #d0e6f5',
+                  borderRadius:8, background:'#f4f8fb', color:'#1a1a2e',
+                  fontFamily:'inherit', fontWeight:700,
+                }}
+              >
+                <option value="rounded">Rounded</option>
+                <option value="pill">Pill</option>
+                <option value="square">Square</option>
+              </select>
+            </Field>
+            <Field label="Theme mode">
+              <select
+                value={theme.themeMode}
+                onChange={e => onChange('themeMode', e.target.value as ThemeSettings['themeMode'])}
+                style={{
+                  width:'100%', padding:'9px 10px', border:'1px solid #d0e6f5',
+                  borderRadius:8, background:'#f4f8fb', color:'#1a1a2e',
+                  fontFamily:'inherit', fontWeight:700,
+                }}
+              >
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="custom">Custom</option>
+              </select>
+            </Field>
+          </div>
+
+          {error && (
+            <div style={{ marginTop:16, background:'#fff1f2', border:'1px solid #fecdd3',
+              color:'#be123c', borderRadius:8, padding:'10px 12px', fontSize:'0.82rem', fontWeight:700 }}>
+              {error}
+            </div>
+          )}
+
+          <div style={{ display:'flex', gap:10, marginTop:18, flexWrap:'wrap' }}>
+            <button
+              type="button"
+              onClick={onReset}
+              disabled={state === 'saving'}
+              style={{ padding:'11px 18px', background:'#fff', border:'1.5px solid #d0e6f5',
+                borderRadius:10, color:'#5a6a7a', fontWeight:700, cursor:state === 'saving' ? 'not-allowed' : 'pointer',
+                fontFamily:'inherit', fontSize:'0.86rem' }}
+            >
+              Reset to Default Theme
+            </button>
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={state === 'saving'}
+              style={{ padding:'11px 28px', background: state === 'saved' ? '#10b981' : 'linear-gradient(135deg,#2B9FD8,#1a7ab0)',
+                color:'#fff', border:'none', borderRadius:10, fontWeight:800,
+                fontSize:'0.9rem', cursor:state === 'saving' ? 'not-allowed' : 'pointer', fontFamily:'inherit' }}
+            >
+              {saveText}
+            </button>
+          </div>
+        </div>
+
+        <div style={{ position:'sticky', top:90 }}>
+          <p style={{ fontSize:'0.72rem', fontWeight:800, color:'#9badb8',
+            textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:10, textAlign:'center' }}>
+            Live Theme Preview
+          </p>
+          <div style={{
+            ...previewVars,
+            background:'var(--bg)',
+            color:'var(--text)',
+            border:'1px solid var(--border)',
+            borderRadius:14,
+            overflow:'hidden',
+            boxShadow:'var(--shadow)',
+          }}>
+            <div style={{
+              display:'flex', justifyContent:'space-between', alignItems:'center',
+              padding:'14px 16px', background:'var(--surface)', borderBottom:'1px solid var(--border)',
+            }}>
+              <strong style={{ color:'var(--primary)', fontFamily:'var(--font-display)' }}>CALVAC</strong>
+              <span style={{ color:'var(--text-muted)', fontSize:'0.78rem', fontWeight:700 }}>Shop</span>
+            </div>
+            <div style={{ padding:16 }}>
+              <div style={{ background:'var(--surface)', border:'1px solid var(--border)',
+                borderRadius:12, overflow:'hidden', marginBottom:14 }}>
+                <div style={{ background:'var(--surface-2)', height:110, display:'flex',
+                  alignItems:'center', justifyContent:'center', color:'var(--primary)', fontWeight:900 }}>
+                  Product image
+                </div>
+                <div style={{ padding:12 }}>
+                  <p style={{ color:'var(--text-light)', fontSize:'0.7rem', textTransform:'uppercase',
+                    letterSpacing:'1px', fontWeight:800 }}>Premium</p>
+                  <h3 style={{ color:'var(--text)', fontSize:'1rem', margin:'5px 0',
+                    fontFamily:'var(--font-display)' }}>Aether Runner</h3>
+                  <p style={{ color:'var(--text-muted)', fontSize:'0.82rem', lineHeight:1.5 }}>
+                    Storefront text, borders, cards, buttons, and muted labels use this palette.
+                  </p>
+                  <button type="button" style={{ width:'100%', marginTop:12, padding:'10px 12px',
+                    borderRadius:'var(--button-radius)', background:'var(--primary)', color:'#fff',
+                    border:'none', fontWeight:800, fontFamily:'inherit' }}>
+                    View Product
+                  </button>
+                </div>
+              </div>
+              <div style={{ display:'flex', gap:8 }}>
+                <span style={{ flex:1, background:'var(--primary-light)', color:'var(--primary)',
+                  border:'1px solid var(--border)', borderRadius:'var(--button-radius)',
+                  padding:'8px 10px', textAlign:'center', fontWeight:800, fontSize:'0.78rem' }}>
+                  Hover
+                </span>
+                <span style={{ flex:1, background:'var(--accent)', color:'#fff',
+                  borderRadius:'var(--button-radius)', padding:'8px 10px', textAlign:'center',
+                  fontWeight:800, fontSize:'0.78rem' }}>
+                  Accent
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<S>({});
   const [offer, setOffer]       = useState<OfferState>({ active:false, text:'', bg_color:'#FF6B35', text_color:'#ffffff', show_logo:true });
   const [status, setStatus]     = useState('');
   const [activeTab, setActiveTab] = useState<Tab>('hero');
+  const [themeSaveState, setThemeSaveState] = useState<SaveState>('idle');
+  const [themeError, setThemeError] = useState('');
 
   useEffect(()=>{
-    fetchAdminSettings().then(setSettings).catch(()=>{});
+    fetchAdminSettings().then(s => setSettings(normalizeSiteSettings(s))).catch(()=>{});
     fetchAdminOffer().then(setOffer).catch(()=>{});
   },[]);
 
   const flash = (msg:string) => { setStatus(msg); setTimeout(()=>setStatus(''),3000); };
   const setField = useCallback((k:string, v:unknown) => setSettings(prev=>({...prev,[k]:v})), []);
+  const currentTheme = normalizeThemeSettings(settings.theme_settings, settings.primary_color);
+  const setThemeField = useCallback(<K extends keyof ThemeSettings>(key: K, value: ThemeSettings[K]) => {
+    setThemeSaveState('idle');
+    setThemeError('');
+    setSettings(prev => ({
+      ...prev,
+      theme_settings: {
+        ...normalizeThemeSettings(prev.theme_settings, prev.primary_color),
+        [key]: value,
+      },
+    }));
+  }, []);
+  const resetTheme = useCallback(() => {
+    setThemeSaveState('idle');
+    setThemeError('');
+    setSettings(prev => ({ ...prev, theme_settings: { ...DEFAULT_THEME_SETTINGS } }));
+  }, []);
+  const saveTheme = useCallback(async () => {
+    if (themeSaveState === 'saving') return;
+    setThemeSaveState('saving');
+    setThemeError('');
+    try {
+      const res = await saveAdminSettings({ theme_settings: currentTheme });
+      if (!res.success) throw new Error(res.error || 'Save failed');
+      const next = setCachedSiteSettings(res.settings ?? { ...settings, theme_settings: currentTheme });
+      setSettings(next);
+      applyThemeSettings(next.theme_settings);
+      setThemeSaveState('saved');
+      flash('Theme saved! ✓');
+      window.setTimeout(() => setThemeSaveState('idle'), 2500);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Save failed';
+      setThemeError(message);
+      setThemeSaveState('error');
+    }
+  }, [currentTheme, settings, themeSaveState]);
 
   /* ── Save handlers ── */
   const saveHero = async (e: FormEvent) => {
     e.preventDefault();
     const hero_keys = [
-      'primary_color','hero_font',
+      'hero_font',
       'hero_headline','hero_highlight','hero_headline2','hero_eyebrow','hero_sub','hero_prompt_text',
       'hero_text_color','hero_sub_color','hero_overlay_color',
       'hero_intro_font_size_rem','hero_eyebrow_size_px','hero_sub_size_rem','hero_prompt_size_px',
@@ -1042,8 +1261,9 @@ export default function AdminSettingsPage() {
     ];
     const payload: S = {};
     hero_keys.forEach(k => { payload[k] = settings[k] ?? undefined; });
+    if (payload.hero_offer_link) payload.hero_offer_link = safeLink(payload.hero_offer_link, '/shop?tag=new');
     const res = await saveAdminSettings(payload);
-    if (res.success) clearSettingsCache();
+    if (res.success) setSettings(setCachedSiteSettings(res.settings ?? { ...settings, ...payload }));
     flash(res.success ? 'Hero Studio saved! ✓' : (res.error||'Save failed'));
   };
 
@@ -1051,7 +1271,7 @@ export default function AdminSettingsPage() {
     const payload: S = { show_new_arrivals:settings.show_new_arrivals!==false, show_categories:settings.show_categories!==false, show_brands_section:settings.show_brands_section!==false, hidden_brands:settings.hidden_brands||'' };
     CAT_SLUGS.forEach(slug => { payload[`cat_${slug}`] = settings[`cat_${slug}`]!==false; });
     const res = await saveAdminSettings(payload);
-    if (res.success) clearSettingsCache();
+    if (res.success) setSettings(setCachedSiteSettings(res.settings ?? { ...settings, ...payload }));
     flash(res.success?'Store settings saved! ✓':(res.error||'Save failed'));
   };
 
@@ -1061,8 +1281,9 @@ export default function AdminSettingsPage() {
   };
 
   const savePolicies = async () => {
-    const res = await saveAdminSettings({ policy_privacy:settings.policy_privacy||'', policy_return:settings.policy_return||'', policy_shipping:settings.policy_shipping||'' });
-    if (res.success) clearSettingsCache();
+    const payload = { policy_privacy:settings.policy_privacy||'', policy_return:settings.policy_return||'', policy_shipping:settings.policy_shipping||'' };
+    const res = await saveAdminSettings(payload);
+    if (res.success) setSettings(setCachedSiteSettings(res.settings ?? { ...settings, ...payload }));
     flash(res.success?'Policies saved! ✓':(res.error||'Save failed'));
   };
 
@@ -1111,7 +1332,7 @@ export default function AdminSettingsPage() {
             require the old Flask session cookie (set by <code style={{ background:'#fef3c7', padding:'1px 5px', borderRadius:3 }}>/manage-store-x9k2</code>),
             which can't be forwarded from React's Supabase login.
             <strong> Deploy to Vercel</strong> to fully save — or manage settings at{' '}
-            <a href="https://calvac.in/manage-store-x9k2" target="_blank" rel="noopener"
+            <a href="https://calvac.in/manage-store-x9k2" target="_blank" rel="noopener noreferrer"
               style={{ color:'#2B9FD8', fontWeight:700 }}>calvac.in/manage-store-x9k2</a>.
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
@@ -1146,9 +1367,9 @@ export default function AdminSettingsPage() {
 
       {/* Tab strip */}
       <div style={{ display:'flex', gap:8, marginBottom:24, flexWrap:'wrap' }}>
-        {(['hero','mobile','store','announcement','policies'] as Tab[]).map(t=>(
+        {(['hero','mobile','theme','store','announcement','policies'] as Tab[]).map(t=>(
           <button key={t} type="button" style={tabStyle(t)} onClick={()=>setActiveTab(t)}>
-            { t==='hero'?'🎬 Hero Studio' : t==='mobile'?'📱 Mobile Hero' : t==='store'?'🏪 Store Info' : t==='announcement'?'📢 Announcement' : '📄 Policies' }
+            { t==='hero'?'🎬 Hero Studio' : t==='mobile'?'📱 Mobile Hero' : t==='theme'?'Theme' : t==='store'?'🏪 Store Info' : t==='announcement'?'📢 Announcement' : '📄 Policies' }
           </button>
         ))}
       </div>
@@ -1158,13 +1379,21 @@ export default function AdminSettingsPage() {
         <HeroStudio settings={settings} setField={setField} onSave={saveHero} status="" />
       )}
 
+      {activeTab==='theme' && (
+        <ThemeStudio
+          theme={currentTheme}
+          onChange={setThemeField}
+          onReset={resetTheme}
+          onSave={saveTheme}
+          state={themeSaveState}
+          error={themeError}
+        />
+      )}
+
       {/* ── STORE INFO ── */}
       {activeTab==='store' && (
         <div className="admin-form" style={{ borderTop:'none', marginTop:0, paddingTop:0 }}>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:20 }}>
-            <ColourPick label="Primary Colour"
-              value={(settings.primary_color as string)||'#2B9FD8'}
-              onChange={v=>setField('primary_color',v)} />
+          <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:14, marginBottom:20 }}>
             <Field label="Hero Font">
               <TextInput value={(settings.hero_font as string)||'default'} placeholder="default"
                 onChange={v=>setField('hero_font',v)} />
@@ -1592,7 +1821,7 @@ export default function AdminSettingsPage() {
                 }}>
                   {/* Gradient wash */}
                   <div style={{ position:'absolute', inset:0,
-                    background:`radial-gradient(ellipse at 50% 0%,rgba(43,159,216,0.22),transparent 55%)` }}/>
+                    background:`radial-gradient(ellipse at 50% 0%,rgba(var(--primary-rgb),0.22),transparent 55%)` }}/>
 
                   {/* Shoe image placeholder */}
                   <img src="/frames/ffout001.gif" alt=""
@@ -1743,8 +1972,8 @@ export default function AdminSettingsPage() {
                       left:'50%', transform:'translateX(-50%)', zIndex:5 }}>
                       <div style={{
                         display:'inline-flex', alignItems:'center', gap:2,
-                        background:'rgba(43,159,216,0.12)',
-                        border:'1px solid rgba(43,159,216,0.3)',
+                        background:'#E9F5FB',
+                        border:'1px solid rgba(var(--primary-rgb),0.3)',
                         borderRadius:10, padding:'2px 6px',
                       }}>
                         <svg width="4" height="4" viewBox="0 0 12 12" fill="none">
@@ -1837,6 +2066,7 @@ export default function AdminSettingsPage() {
                 const payload: Record<string,unknown> = {};
                 mobileKeys.forEach(k=>{payload[k]=settings[k]??undefined;});
                 const res = await saveAdminSettings(payload);
+                if (res.success) setSettings(setCachedSiteSettings(res.settings ?? { ...settings, ...payload }));
                 flash(res.success?'Mobile hero saved!':(res.error||'Save failed'));
               }}
               style={{ padding:'11px 28px', background:'linear-gradient(135deg,#6366f1,#4f46e5)',
