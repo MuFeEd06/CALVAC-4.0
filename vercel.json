@@ -3,6 +3,54 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/api/x9k2/upload",
+      "destination": "/api/upload"
+    },
+    {
+      "source": "/api/x9k2/upload/:path*",
+      "destination": "/api/upload?path=:path*"
+    },
+    {
+      "source": "/api/x9k2/:resource",
+      "destination": "/api/admin?resource=:resource"
+    },
+    {
+      "source": "/api/x9k2/:resource/:path*",
+      "destination": "/api/admin?resource=:resource&path=:path*"
+    },
+    {
+      "source": "/api/products/:id",
+      "destination": "/api/store?resource=products&id=:id"
+    },
+    {
+      "source": "/api/products",
+      "destination": "/api/store?resource=products"
+    },
+    {
+      "source": "/api/search",
+      "destination": "/api/store?resource=search"
+    },
+    {
+      "source": "/api/site-settings",
+      "destination": "/api/store?resource=site-settings"
+    },
+    {
+      "source": "/api/offer",
+      "destination": "/api/store?resource=offer"
+    },
+    {
+      "source": "/api/admin-login",
+      "destination": "/api/auth"
+    },
+    {
+      "source": "/api/theme-css",
+      "destination": "/api/theme_css"
+    },
+    {
+      "source": "/api/ping",
+      "destination": "/api/health"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
