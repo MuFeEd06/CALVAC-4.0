@@ -1,6 +1,6 @@
 # CALVAC upgrade: accounts, payments and deployment
 
-Status: source implemented and published to `MuFeEd06/CALVAC-4.0` on `main` and `codex/calvac-upgrade`. Both production database migrations were approved and applied. The initial production build is ready in **calvac-4-0**, and its catalog, checkout configuration and protected account routes passed deployed checks. The `calvac.in` domain switch follows the final admin refund-state update. Vercel MCP and the normal Vercel CLI are signed in to the intended account.
+Status: **live at https://calvac.in**, served by **calvac-4-0**. Source is published to `MuFeEd06/CALVAC-4.0` on `main` and `codex/calvac-upgrade`. Both production database migrations were approved and applied. The previous **claxxic-india** project and its deployment remain available for rollback. Vercel MCP and the normal Vercel CLI are signed in to the intended account.
 
 ## Customer and admin flows
 
@@ -31,7 +31,11 @@ Each migration has bounded lock/statement timeouts and a transaction. Migration 
 
 Local migration filenames match the versions recorded by Supabase; the approved SQL content is unchanged. This avoids applying the same migrations again during a later CLI deployment.
 
-GitHub Checks passed for the initial release commit `c1897a7`, including frontend/browser tests and Python 3.12/3.14. The deployed preview and production returned catalog/settings/configuration successfully and denied unsigned customer/admin API requests. No runtime errors were reported for those checks. Payment-provider tests used fixtures; real payment delivery remains disabled pending gateway setup.
+GitHub Checks passed for release commit `30c1350` on both branches, including frontend/browser tests and Python 3.12/3.14. Production deployment `dpl_8ZPgVDUh8r5p4TuJd2FWJMJhKztq` was ready before moving the domain. The move retained domain verification and required no DNS replacement.
+
+Live HTTPS checks passed for the homepage, catalog, cart, customer sign-in/sign-up and account/admin redirects. Mobile pages had no horizontal overflow or page JavaScript errors. The homepage downloaded no admin or Supabase chunks. Public catalog/configuration returned successfully; unsigned customer/admin APIs returned 401. Runtime logs showed no errors during these checks. Verification sent no real orders, account updates, emails or payments. Payment-provider tests used fixtures; real payment delivery remains disabled pending gateway setup.
+
+The rollback destination is `claxxic-india` (`prj_9DZTPzUY5kAMbKzcOCwc8jkzHhpN`), retaining deployment `dpl_48QewiBs6dJYU5AsVJt5adSJRNeF`. If needed, move `calvac.in` from `calvac-4-0` back to that project. The database changes are additive and protective; reverting them is a separate reviewed operation, not part of a frontend rollback.
 
 ## Vercel rollout
 

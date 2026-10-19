@@ -1,6 +1,6 @@
 # CALVAC fix status — 19 October 2026
 
-The code changes are implemented, verified and published to the requested Git repository. Both production database migrations were explicitly approved and applied on 19 October 2026. The initial Vercel production deployment passed public API and access-control checks; see `DEPLOYMENT_PLAN.md` for domain release status.
+The code changes are implemented, verified, published to `MuFeEd06/CALVAC-4.0` and **live at https://calvac.in** through Vercel's `calvac-4-0` project. Both production database migrations were explicitly approved and applied on 19 October 2026. The old `claxxic-india` project is retained for rollback. See `DEPLOYMENT_PLAN.md` for release evidence and remaining account/payment configuration.
 
 ## Original findings
 
@@ -74,5 +74,6 @@ The original public-schema metadata and checkout definition were saved without c
 - Screenshots inspected for mobile home/confirmation and admin save-error feedback. API responses and external image placeholders were fixtures; no real orders were sent.
 - npm audit reports zero vulnerabilities after the dependency update.
 - GitHub Checks passed for the published release, including Python 3.12 and 3.14. Vercel preview/production builds succeeded; deployed catalog/settings/payment configuration returned successfully, and unsigned customer/admin API access was denied.
+- After moving `calvac.in`, live HTTPS/mobile checks passed for home, shop, cart, login, registration and account/admin redirects, with no horizontal overflow or JavaScript errors. The live homepage loaded no admin/Supabase chunks. WhatsApp/COD are enabled; Razorpay remains disabled until credentials, webhook and test-mode verification are configured.
 
 Browser results/screenshots are in `test-results/`. CI uses synthetic public Supabase settings for the admin browser scenario; a release build must use the real public project configuration.
