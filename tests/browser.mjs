@@ -461,4 +461,10 @@ try {
   results.pageErrors = errors;
   await writeFile(resolve(artifact, 'browser-results.json'), JSON.stringify(results, null, 2));
   console.log(JSON.stringify(results, null, 2));
+} catch(error) {
+  if(process.env.GITHUB_ACTIONS==='true'){
+    const message=String(error?.stack||error).replace(/%/g,'%25').replace(/\r/g,'%0D').replace(/\n/g,'%0A');
+    console.error(`::error title=Browser regression::${message}`);
+  }
+  throw error;
 } finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }
