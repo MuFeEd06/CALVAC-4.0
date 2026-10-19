@@ -5,7 +5,7 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 
 from api._lib._cors import handle_options, require_cors
 from api._lib._rate_limit import require_rate_limit
-from api._lib._pagination import page_options, page_response, filter_value
+from api._lib._pagination import page_options, page_response, filter_value, column_filter_value
 from api._lib._inventory import refresh_expired_reservations
 from api._lib._responses import ApiError, send_error, send_json
 from api._lib._supabase import public_rest_request
@@ -145,7 +145,7 @@ def _catalog_filters(qs):
     filters = ['active=eq.true']
     for field in ('brand', 'tag', 'category'):
         value = _first(qs, field).strip()[:100]
-        if value: filters.append(f'{field}=ilike.{filter_value(value)}')
+        if value: filters.append(f'{field}=ilike.{column_filter_value(value)}')
     for name, operator in (('max_price', 'lte'), ('min_price', 'gte')):
         value = _first(qs, name)
         if value:

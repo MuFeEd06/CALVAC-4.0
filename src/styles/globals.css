@@ -104,6 +104,12 @@ button { font-family: inherit; cursor: pointer; border: none; }
   bottom: 28px;
   right: 28px;
   width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #187c43;
+  color: #fff;
   z-index: 500;
   filter: drop-shadow(0 4px 12px rgba(37,211,102,0.4));
   transition: transform 0.2s;
@@ -170,6 +176,26 @@ button { color:inherit; }
 .theme-switch { display:inline-grid;place-items:center;width:36px;height:36px;flex-shrink:0;border:1px solid var(--border);border-radius:50%;background:transparent;color:var(--text); }
 .theme-switch:hover { background:var(--text);color:var(--bg); }
 .header-theme { display:flex;flex-shrink:0; }
+.header-account { display:grid;place-items:center;width:36px;height:36px;flex-shrink:0;border:1px solid var(--border);border-radius:50%;color:var(--text); }
+.header-account:hover { background:var(--surface-2); }
+.social-mark { width:64px;height:64px;display:grid;place-items:center;flex-shrink:0;border-radius:18px;color:#fff; }
+.social-mark-whatsapp { background:#187c43; }
+.social-mark-instagram { background:linear-gradient(135deg,#a44208,#a51e35,#86115f); }
+.product-detail-section { padding:40px 5%;display:flex;justify-content:center; }
+.product-detail-layout { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:48px;max-width:1100px;width:100%;align-items:start;background:var(--surface);padding:40px;border-radius:20px;border:1px solid var(--border);box-shadow:var(--shadow); }
+.product-specifications { margin-top:24px;border:1px solid var(--border);border-radius:12px;background:var(--surface);overflow:hidden; }
+.product-specifications summary { padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;cursor:pointer;background:var(--surface-2);color:var(--text);font-size:.9rem;font-weight:600;list-style:none; }
+.product-specifications summary::-webkit-details-marker { display:none; }
+.product-specifications[open] summary svg { transform:rotate(180deg); }
+.product-specifications dl { margin:0; }
+.specification-row { display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:12px;padding:12px 16px;border-top:1px solid var(--border);font-size:.85rem;line-height:1.6; }
+.specification-row dt { color:var(--text-muted);font-weight:500;overflow-wrap:anywhere; }
+.specification-row dd { margin:0;overflow-wrap:anywhere;white-space:pre-wrap; }
+.specification-note { padding:12px 16px;border-top:1px solid var(--border);font-size:.85rem;line-height:1.6;overflow-wrap:anywhere; }
+.specifications-help { padding:12px 16px;border-top:1px solid var(--border);font-size:.8rem;line-height:1.6;color:var(--text-muted); }
+.specifications-help a,.text-button { color:var(--primary);text-decoration:underline;text-underline-offset:3px; }
+.text-button { background:transparent;padding:4px 0;font:inherit; }
+@media(max-width:760px){.product-detail-section{padding:24px 5%;}.product-detail-layout{grid-template-columns:minmax(0,1fr);padding:20px;gap:28px;}.social-mark{width:48px;height:48px;border-radius:14px;}}
 .header-brand span { font-weight:600!important;letter-spacing:-.06em!important; }
 .primary-link,.admin-primary-btn { color:var(--on-primary); }
 .toast-item { background:var(--inverse);color:var(--on-inverse);white-space:normal;max-width:min(90vw,520px); }
@@ -222,6 +248,15 @@ button { color:inherit; }
 .account-shell .primary-link{color:var(--on-primary);display:inline-block;text-decoration:none}
 .account-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;margin:24px 0;box-shadow:var(--shadow)}
 .auth-shell{max-width:500px}
+.social-auth{margin-top:24px}
+.google-signin{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;min-height:48px;padding:12px 20px;border:1px solid var(--border);border-radius:var(--button-radius);background:var(--surface);color:var(--text);font-size:.9rem;font-weight:500}
+.google-signin svg{flex-shrink:0;background:#fff;border-radius:50%;padding:2px;box-sizing:content-box}
+.google-signin:hover:not(:disabled){background:var(--surface-2);border-color:var(--primary)}
+.auth-help{font-size:.8rem;color:var(--text-muted)}
+.auth-divider{display:flex;align-items:center;gap:12px;color:var(--text-muted);font-size:.75rem;margin:20px 0}
+.auth-divider::before,.auth-divider::after{content:'';height:1px;flex:1;background:var(--border)}
+.auth-shell .account-card{margin-top:0}
+.auth-shell .load-error{padding:12px 0;text-align:left}
 .account-field{display:flex;flex-direction:column;gap:5px;margin:12px 0;font-size:.85rem}
 .account-field input{width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:inherit}
 .account-field input:focus{outline:2px solid var(--primary);outline-offset:2px}

@@ -44,9 +44,9 @@ export function getDeal(price: number, original_price?: number): Deal | null {
 export const WHATSAPP_NUMBER = '919645087584';
 
 export const CATEGORIES = [
-  { label: 'Boots',      slug: 'boots',     emoji: '👢', path: '/shop?tag=boots'       },
-  { label: 'Crocs',      slug: 'crocs',     emoji: '🥿', path: '/shop?tag=crocs'       },
-  { label: 'Girls',      slug: 'girls',     emoji: '👟', path: '/shop?tag=girls'       },
+  { label: 'Boots',      slug: 'boots',     emoji: '👢', path: '/shop?category=boots'  },
+  { label: 'Crocs',      slug: 'crocs',     emoji: '🥿', path: '/shop?category=crocs'  },
+  { label: 'Girls',      slug: 'girls',     emoji: '👟', path: '/shop?category=girls'  },
   { label: 'Sale',       slug: 'sale',      emoji: '🏷️', path: '/shop?sale=1'          },
   { label: 'Under 1000', slug: 'under1000', emoji: '💰', path: '/shop?max_price=1000'  },
   { label: 'Under 1500', slug: 'under1500', emoji: '💸', path: '/shop?max_price=1500'  },

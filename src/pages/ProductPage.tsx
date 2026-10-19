@@ -9,6 +9,8 @@ import { formatSizeWithUnit } from '@/utils/sizeUnits';
 import { useCart } from '@/context/CartContext';
 import { useToast } from '@/context/ToastContext';
 import ProductCard from '@/components/ProductCard';
+import ProductSpecifications from '@/components/ProductSpecifications';
+import { relatedProducts } from '@/utils/productDetails';
 
 function ProductStateMessage({
   title,
@@ -74,7 +76,7 @@ export default function ProductPage() {
   const [mainImg, setMainImg] = useState('');
   const [currentPrice, setCurrentPrice] = useState(0);
   const [similar, setSimilar] = useState<Product[]>([]);
-  const [specsOpen, setSpecsOpen] = useState(true);
+  const [similarLoading,setSimilarLoading]=useState(false),[similarError,setSimilarError]=useState(false),[similarRetry,setSimilarRetry]=useState(0);
 
   useEffect(() => {
     let active = true;
@@ -112,15 +114,6 @@ export default function ProductPage() {
         setMainImg(ikResize(firstColor?.image || nextProduct.image, 800, 85));
 
         setLoading(false);
-        try {
-          const all = await fetchProducts({ brand: nextProduct.brand, limit: 9 });
-          if (!active) return;
-          const sameBrand = all.filter(x => x.id !== productId && x.brand.toLowerCase() === nextProduct.brand.toLowerCase());
-          const rest = all.filter(x => x.id !== productId && !sameBrand.some(s => s.id === x.id));
-          setSimilar([...sameBrand, ...rest].slice(0, 8));
-        } catch (similarError) {
-          if (active && import.meta.env.DEV) console.warn('[CALVAC] Similar products failed:', similarError);
-        }
       } catch (loadError) {
         if (!active) return;
         if (import.meta.env.DEV) console.warn('[CALVAC] Product load failed:', loadError);
@@ -133,6 +126,15 @@ export default function ProductPage() {
     loadProduct();
     return () => { active = false; };
   }, [productId, retryNonce]);
+
+  useEffect(()=>{
+    if(!product)return;
+    let active=true;setSimilarLoading(true);setSimilarError(false);
+    relatedProducts(product,fetchProducts).then(items=>{if(active)setSimilar(items);})
+      .catch(()=>{if(active)setSimilarError(true);})
+      .finally(()=>{if(active)setSimilarLoading(false);});
+    return()=>{active=false;};
+  },[product,similarRetry]);
 
   useEffect(() => {
     if (!product) return;
@@ -205,14 +207,9 @@ export default function ProductPage() {
 
   return (
     <main>
-      <section style={{ padding: '40px 5%', display: 'flex', justifyContent: 'center' }}>
-        <div style={{
-          display: 'flex', flexWrap: 'wrap', gap: 48,
-          maxWidth: 1100, width: '100%', alignItems: 'flex-start',
-          background: 'var(--surface)', padding: '40px', borderRadius: 20,
-          border: '1px solid var(--border)', boxShadow: 'var(--shadow)',
-        }}>
-          <motion.div style={{ flex: 1, minWidth: 280 }} layout>
+      <section className="product-detail-section">
+        <div className="product-detail-layout">
+          <motion.div style={{ minWidth: 0 }} layout>
             <AnimatePresence mode="wait">
               <motion.img key={mainImg || product.id}
                 initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
@@ -230,7 +227,7 @@ export default function ProductPage() {
             </AnimatePresence>
           </motion.div>
 
-          <div style={{ flex: 1, minWidth: 280 }}>
+          <div style={{ minWidth: 0 }}>
             <button type="button" onClick={() => navigate(-1)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', background: 'none', border: 'none', fontSize: '0.85rem', cursor: 'pointer', marginBottom: 20, padding: 0 }}>
               Back
             </button>
@@ -339,43 +336,16 @@ export default function ProductPage() {
               </div>
             )}
 
-            {product.specs?.trim() && (
-              <div style={{ marginTop: 24, border: '1.5px solid var(--border)', borderRadius: 'var(--button-radius)', overflow: 'hidden' }}>
-                <button onClick={() => setSpecsOpen(v => !v)}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '11px 16px', background: 'var(--surface-2)', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', fontFamily: 'var(--font-body)' }}>
-                  Specifications
-                  <motion.span animate={{ rotate: specsOpen ? 0 : -90 }}>v</motion.span>
-                </button>
-                <AnimatePresence>
-                  {specsOpen && (
-                    <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} style={{ overflow: 'hidden' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                        <tbody>
-                          {product.specs.trim().split('\n').filter(l => l.trim()).map((line, i) => {
-                            const idx = line.indexOf(':');
-                            const k = idx > 0 ? line.slice(0, idx).trim() : '';
-                            const v = idx > 0 ? line.slice(idx + 1).trim() : line;
-                            return (
-                              <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                                <td style={{ padding: '9px 16px', color: 'var(--text-muted)', fontWeight: 600, width: '40%' }}>{k}</td>
-                                <td style={{ padding: '9px 16px', color: 'var(--text)' }}>{v}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
+            <ProductSpecifications product={product}/>
           </div>
         </div>
       </section>
 
-      {similar.length > 0 && (
+      {(similar.length > 0||similarLoading||similarError) && (
         <section style={{ padding: '20px 5% 60px', maxWidth: 1300, margin: '0 auto' }}>
           <h2 style={{ fontFamily: 'var(--font-display)', textAlign: 'center', color: 'var(--primary)', margin: '0 0 24px', fontSize: '1.6rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px' }}>You May Also Like</h2>
+          {similarLoading&&<p role="status">Finding similar styles…</p>}
+          {similarError&&<p role="alert">Could not load similar styles. <button type="button" className="text-button" onClick={()=>setSimilarRetry(value=>value+1)}>Try again</button></p>}
           <div className="product-grid">
             {similar.map(p => <ProductCard key={p.id} product={p} />)}
           </div>

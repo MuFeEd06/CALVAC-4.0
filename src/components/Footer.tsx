@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { WhatsAppIcon, InstagramIcon } from './BrandIcons';
 
 export default function Footer() {
   return (
@@ -18,20 +19,17 @@ export default function Footer() {
           <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--primary)', fontSize: '1.4rem', fontWeight: 800, marginBottom: 8 }}>CALVAC</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: 16 }}>Quality sneakers delivered across India.</p>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <a href="https://wa.me/919645087584" target="_blank" rel="noopener noreferrer"
+            <a href="https://wa.me/919645087584" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp"
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, background: '#25D366', borderRadius: '50%', transition: 'transform 0.2s' }}
               onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.1)')}
               onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}>
-              <img src="https://ik.imagekit.io/yocxectr4/logos/whatsapp.png?tr=w-22,h-22,f-webp" alt="WhatsApp" style={{ width: 22, height: 22 }} />
+              <WhatsAppIcon width={22} height={22} color="#fff"/>
             </a>
-            <a href="https://www.instagram.com/clc.india__?igsh=MTNvbDhseWQ0dzc0aA==" target="_blank" rel="noopener noreferrer"
+            <a href="https://www.instagram.com/clc.india__?igsh=MTNvbDhseWQ0dzc0aA==" target="_blank" rel="noopener noreferrer" aria-label="Instagram"
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, background: 'linear-gradient(135deg,#f09433,#dc2743,#bc1888)', borderRadius: '50%', transition: 'transform 0.2s' }}
               onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.1)')}
               onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><circle cx="12" cy="12" r="4"/>
-                <circle cx="17.5" cy="6.5" r="1" fill="#fff" stroke="none"/>
-              </svg>
+              <InstagramIcon width={22} height={22} color="#fff"/>
             </a>
           </div>
         </div>

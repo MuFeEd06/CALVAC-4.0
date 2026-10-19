@@ -1,4 +1,5 @@
 import ThemeSwitch from './ThemeSwitch';
+import { UserRound } from 'lucide-react';
 import { FALLBACK_IMAGE, imageFallback } from '@/utils/images';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
@@ -220,7 +221,7 @@ export default function Header() {
         </div>
 
         {/* ── Cart ── */}
-        {!searchOpen&&<Link to="/account" aria-label="My account" style={{fontSize:'0.78rem',color:'var(--primary)',flexShrink:0}}>Account</Link>}
+        {!searchOpen&&<Link to="/account" aria-label="My account" className="header-account"><UserRound size={22} strokeWidth={1.8} aria-hidden="true" /></Link>}
         <Link to="/cart" aria-label={`Cart, ${totalItems} items`}
           style={{ position:'relative', display:'flex', alignItems:'center',
             color:'var(--primary)', fontWeight:700, fontSize:'1.15rem', flexShrink:0 }}>

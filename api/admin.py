@@ -7,7 +7,7 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 from api._lib._auth import require_admin
 from api._lib._cors import handle_options, require_cors
 from api._lib._rate_limit import require_rate_limit
-from api._lib._pagination import page_options, page_response, filter_value
+from api._lib._pagination import page_options, page_response, filter_value, column_filter_value
 from api._lib._responses import ApiError, read_json, send_error, send_json
 from api._lib._supabase import rest_request
 from api._lib._validation import (
@@ -260,7 +260,7 @@ def _get_products(handler, cors):
     limit, cursor = page_options(qs)
     filters = []
     if cursor: filters.append('id=gt.' + cursor)
-    if _first(qs, 'brand'): filters.append('brand=ilike.' + filter_value(_first(qs, 'brand')[:100]))
+    if _first(qs, 'brand'): filters.append('brand=ilike.' + column_filter_value(_first(qs, 'brand')[:100]))
     query = _first(qs, 'q').strip()[:100]
     if query:
         pattern = filter_value('*' + query + '*')

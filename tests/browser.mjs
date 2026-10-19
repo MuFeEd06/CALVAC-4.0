@@ -171,6 +171,50 @@ try {
   results.searchIgnoresOldRequests = true;
   await store.close();
 
+  const fixes=await context({viewport:{width:390,height:844},isMobile:true,hasTouch:true,reducedMotion:'reduce'});
+  const detail={...product,brand:'Rare brand',category:'boots',specs:'Material: Leather\nCare: '+('Gentle cleaning and air drying. '.repeat(8))};
+  const categoryRequests=[];
+  await fixes.route('**/api/products?*',route=>{
+    const query=new URL(route.request().url()).searchParams;
+    let data;
+    if(query.has('id'))data={...detail,id:Number(query.get('id'))};
+    else if(query.has('category')){
+      categoryRequests.push(query.get('category'));
+      data={items:[{...detail,id:2,brand:'Other brand',category:query.get('category'),name:query.get('category')+' collection shoe'}],nextCursor:null};
+    }else if(query.has('brand'))data={items:[detail],nextCursor:null};
+    else data={items:[{...detail,id:3,brand:'Third brand',name:'Catalog fallback shoe'}],nextCursor:null};
+    return route.fulfill({contentType:'application/json',body:JSON.stringify(data)});
+  });
+  const fixedPage=await fixes.newPage();
+  for(const category of ['boots','crocs','girls']){
+    await fixedPage.goto(origin+'/');
+    await fixedPage.locator(`a[href="/shop?category=${category}"]`).first().click();
+    await fixedPage.getByRole('heading',{name:category+' collection shoe',exact:true}).waitFor();
+    assert.equal(new URL(fixedPage.url()).searchParams.get('category'),category);
+  }
+  assert.deepEqual(categoryRequests,['boots','crocs','girls']);
+  await fixedPage.goto(origin+'/shop?tag=boots');await fixedPage.getByRole('heading',{name:'boots collection shoe',exact:true}).waitFor();
+  await fixedPage.goto(origin+'/product/1');
+  await fixedPage.getByRole('heading',{name:'You May Also Like',exact:true}).waitFor();
+  await fixedPage.getByRole('heading',{name:'Catalog fallback shoe',exact:true}).waitFor();
+  assert.equal(await fixedPage.locator('.product-grid a[href="/product/1"]').count(),0);
+  assert.equal(await fixedPage.getByRole('link',{name:'My account',exact:true}).innerText(),'');
+  assert.equal(await fixedPage.locator('header a[aria-label="My account"] svg').count(),1);
+  assert.equal(await fixedPage.locator('.wa-float svg').count(),1);assert.equal(await fixedPage.locator('.wa-float img').count(),0);
+  const specs=fixedPage.locator('.product-specifications');
+  assert.equal(await specs.getAttribute('open'),'');assert.equal(await specs.evaluate(el=>getComputedStyle(el).borderRadius),'12px');
+  await specs.getByText('Material',{exact:true}).waitFor();await specs.getByText('Leather',{exact:true}).waitFor();
+  await specs.locator('summary').press('Enter');assert.equal(await specs.getAttribute('open'),null);
+  await specs.locator('summary').press('Enter');assert.equal(await specs.getAttribute('open'),'');
+  for(const mode of ['light','dark']){
+    if(mode==='dark')await fixedPage.getByRole('button',{name:'Switch to dark theme',exact:true}).click();
+    assert.deepEqual(await readability(fixedPage),[],`${mode} product specifications contrast`);
+    assert.equal(await fixedPage.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+    await specs.screenshot({path:resolve(artifact,`specifications-mobile-${mode}.png`)});
+  }
+  results.collectionAndDetails={explicitAndLegacyCategories:true,similarFallback:true,rectangularReadableSpecifications:true,vectorIcons:true};
+  await fixes.close();
+
   const motion = await context({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const animation = await motion.newPage();
   const beforeFrames = calls.length;
@@ -264,6 +308,50 @@ try {
   await duplicate.close();results.whatsappCooldown={popup:true,noSecondRequestDuringCooldown:true};
 
   if(process.env.BROWSER_TEST_ADMIN==='1'){
+    const auth=await context({viewport:{width:390,height:844}});let exchanges=0,resends=0,googleEnabled=true,authorizeUrl;
+    await auth.route('https://test-fixture.supabase.co/auth/v1/**',async route=>{
+      const url=new URL(route.request().url());
+      if(url.pathname.endsWith('/settings'))return route.fulfill({contentType:'application/json',body:JSON.stringify({external:{google:googleEnabled}})});
+      if(url.pathname.endsWith('/authorize')){authorizeUrl=url;return route.fulfill({contentType:'text/html',body:'<title>OAuth fixture</title>'});}
+      if(url.pathname.endsWith('/token')){
+        exchanges++;assert.equal(url.searchParams.get('grant_type'),'pkce');
+        const body=route.request().postDataJSON();assert.equal(body.auth_code,'fixture-code');assert.ok(body.code_verifier.length>=43);
+        return route.fulfill({contentType:'application/json',body:JSON.stringify(customerSession())});
+      }
+      if(url.pathname.endsWith('/resend')){
+        resends++;const body=route.request().postDataJSON();assert.equal(body.type,'signup');assert.equal(body.email,customerFixture.email);
+        assert.equal(new URL(url.searchParams.get('redirect_to')).searchParams.get('redirect'),'/cart');
+        return route.fulfill({contentType:'application/json',body:'{}'});
+      }
+      return route.fulfill({contentType:'application/json',body:JSON.stringify(customerFixture)});
+    });
+    const authPage=await auth.newPage();await authPage.goto(origin+'/login?redirect=/account/orders');
+    await authPage.getByRole('button',{name:'Continue with Google',exact:true}).click();
+    await authPage.waitForURL(url=>url.hostname==='test-fixture.supabase.co');
+    assert.equal(authorizeUrl.searchParams.get('provider'),'google');assert.equal(authorizeUrl.searchParams.get('code_challenge_method'),'s256');
+    assert.equal(new URL(authorizeUrl.searchParams.get('redirect_to')).origin,origin);
+    await authPage.goto(origin+'/auth/callback?code=fixture-code&redirect=/account/orders');
+    await authPage.getByRole('heading',{name:'My orders',exact:true}).waitFor();assert.equal(exchanges,1);
+    await authPage.goto(origin+'/auth/callback?error=access_denied&redirect=/account');
+    await authPage.getByRole('alert').waitFor();assert.equal(new URL(authPage.url()).pathname,'/auth/callback');
+    await authPage.goto(origin+'/account');await authPage.getByRole('button',{name:'Sign out',exact:true}).click();
+    await authPage.goto(origin+'/login?redirect=/cart');await authPage.getByLabel('Email',{exact:true}).fill(customerFixture.email);
+    await authPage.getByRole('link',{name:'Resend verification email',exact:true}).click();
+    assert.equal(await authPage.getByLabel('Email',{exact:true}).inputValue(),customerFixture.email);
+    assert.equal(await authPage.getByLabel('Password',{exact:true}).count(),0);
+    await authPage.getByRole('button',{name:'Resend verification email',exact:true}).click();
+    await authPage.getByRole('status').filter({hasText:'awaiting confirmation'}).waitFor();
+    assert.equal(resends,1);assert.equal(await authPage.getByRole('button',{name:/Resend available in/}).isDisabled(),true);
+    await authPage.reload();await authPage.getByLabel('Email',{exact:true}).fill(customerFixture.email);
+    assert.equal(await authPage.getByRole('button',{name:/Resend available in/}).isDisabled(),true);assert.equal(resends,1);
+    googleEnabled=false;await authPage.goto(origin+'/login');
+    await authPage.getByText('Google sign-in is currently unavailable. You can continue with email.',{exact:true}).waitFor();
+    assert.equal(await authPage.getByRole('button',{name:'Continue with Google',exact:true}).isDisabled(),true);
+    await authPage.getByRole('button',{name:'Switch to dark theme',exact:true}).click();assert.deepEqual(await readability(authPage),[],'Dark auth contrast');
+    await authPage.screenshot({path:resolve(artifact,'auth-google-email-mobile-dark.png'),fullPage:true});
+    results.googleAndVerification={pkce:true,callbackExchangesOnce:true,cancellationHandled:true,resendWithoutPassword:true,cooldownSurvivesReload:true,providerAvailability:true};
+    await auth.close();
+
     const customer=await context({viewport:{width:390,height:844}});
     await customer.route('https://test-fixture.supabase.co/auth/v1/**',async route=>{
       if(route.request().url().includes('/token'))return route.fulfill({contentType:'application/json',body:JSON.stringify(customerSession())});

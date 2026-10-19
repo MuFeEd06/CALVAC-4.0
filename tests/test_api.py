@@ -2,6 +2,7 @@ import io
 import json
 import os
 import unittest
+from urllib.parse import parse_qs, urlparse
 from unittest.mock import patch
 from api import admin, orders, upload, store
 from api._lib import _auth, _rate_limit
@@ -29,6 +30,21 @@ class Handler:
 
 
 class ApiTests(unittest.TestCase):
+    def test_catalog_column_filters_match_without_literal_quotes_and_do_not_inject_parameters(self):
+        for field,value in [('category','boots'),('category','crocs'),('category','girls'),('brand','New Balance'),('tag','new'),('brand','x&active=eq.false,or=(id.gt.0)')]:
+            with self.subTest(field=field,value=value):
+                filters=store._catalog_filters({field:[value]})
+                query=parse_qs('&'.join(filters))
+                self.assertEqual(query[field],['ilike.'+value])
+                self.assertEqual(query['active'],['eq.true'])
+                self.assertEqual(set(query),{field,'active'})
+
+    def test_catalog_search_keeps_logical_filter_values_quoted(self):
+        filters=store._catalog_filters({'q':['x),active.eq.false']})
+        query=parse_qs('&'.join(filters))
+        self.assertEqual(query['active'],['eq.true'])
+        self.assertEqual(query['or'],['(name.ilike."*x),active.eq.false*",brand.ilike."*x),active.eq.false*")'])
+
     def test_duplicate_order_returns_a_bounded_cooldown_without_customer_data(self):
         handler = Handler(payload())
         with patch.object(orders,'require_cors'), patch.object(orders,'require_rate_limit'), patch.object(orders,'require_method'), \

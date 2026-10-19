@@ -20,5 +20,10 @@ def page_response(rows, limit):
 
 
 def filter_value(value):
-    """Quote PostgREST filter grammar as well as URL-encoding the value."""
+    """Quote values inside PostgREST logical expressions (or/and)."""
     return quote('"' + str(value).replace('\\', '\\\\').replace('"', '\\"') + '"', safe='')
+
+
+def column_filter_value(value):
+    """Encode a standalone column value without adding literal quote characters."""
+    return quote(str(value), safe='')

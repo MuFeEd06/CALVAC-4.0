@@ -59,7 +59,7 @@ export default function App() {
                 <Route path="/product/:id"   element={<ProductPage />} />
                 <Route path="/cart"          element={<CartPage />} />
                 <Route path="/checkout" element={<Navigate to="/cart" replace/>}/>
-                {['login','signup','forgot-password','reset-password'].map(path=><Route key={path} path={'/'+path} element={<CustomerAuthPage/>}/>)}
+                {['login','signup','verify-email','forgot-password','reset-password'].map(path=><Route key={path} path={'/'+path} element={<CustomerAuthPage/>}/>)}
                 <Route path="/auth/callback" element={<AuthCallback/>}/>
                 <Route path="/account" element={<AccountPage/>}/>
                 <Route path="/account/orders" element={<AccountPage/>}/>

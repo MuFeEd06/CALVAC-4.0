@@ -19,13 +19,14 @@ export default function ShopPage() {
 
   const brand    = params.get('brand') || '';
   const tag      = params.get('tag') || '';
+  const category = params.get('category') || (['boots','crocs','girls'].includes(tag) ? tag : '');
   const q        = params.get('q') || '';
   const sale     = params.get('sale') || '';
   const maxPrice = parseInt(params.get('max_price') || '0');
   const minPrice = parseInt(params.get('min_price') || '0');
 
   const filters: ProductFilters = { brand, q, sale, max_price: maxPrice || undefined, min_price: minPrice || undefined,
-    ...(['boots', 'crocs', 'girls'].includes(tag) ? { category: tag } : { tag }) };
+    category, tag: ['boots','crocs','girls'].includes(tag) ? undefined : tag };
   useEffect(() => {
     const request = ++generation.current;
     setLoading(true); setError(''); setProducts([]); setNextCursor(null);
@@ -34,7 +35,7 @@ export default function ShopPage() {
     }).catch(() => { if (request === generation.current) setError('Could not load shoes. Please try again.'); })
       .finally(() => { if (request === generation.current) setLoading(false); });
     return () => { generation.current++; };
-  }, [brand, tag, q, sale, maxPrice, minPrice, retry]);
+  }, [brand, tag, category, q, sale, maxPrice, minPrice, retry]);
   const loadMore = async () => {
     if (!nextCursor || loading) return;
     const request = generation.current;
@@ -55,6 +56,7 @@ export default function ShopPage() {
   let pageEmoji = '👟';
   if (q)        { pageTitle = `"${q}"`; pageEmoji = '🔍'; }
   else if (brand) { pageTitle = brand; pageEmoji = ''; }
+  else if (category) { pageTitle = tagLabels[category] || category; pageEmoji = tagEmoji[category] || '🛍️'; }
   else if (tag)   { pageTitle = tagLabels[tag] || tag; pageEmoji = tagEmoji[tag] || '🛍️'; }
   else if (sale)  { pageTitle = 'Sale'; pageEmoji = '🏷️'; }
   else if (maxPrice) { pageTitle = `Under ₹${maxPrice.toLocaleString('en-IN')}`; pageEmoji = '💰'; }

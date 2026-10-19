@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
+import { WhatsAppIcon } from './BrandIcons';
 import { fetchSiteSettings } from '@/api';
 import { applyThemeSettings } from '@/theme';
 
@@ -79,7 +80,7 @@ export default function Layout() {
 
       {/* WhatsApp float button */}
       <a href="https://wa.me/919645087584" target="_blank" rel="noopener noreferrer" className="wa-float" aria-label="Chat on WhatsApp">
-        <img src="https://ik.imagekit.io/yocxectr4/logos/whatsapp.png?tr=w-55,q-80,f-webp" alt="WhatsApp" />
+        <WhatsAppIcon width={30} height={30}/>
       </a>
     </>
   );

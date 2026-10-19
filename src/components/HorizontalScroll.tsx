@@ -18,6 +18,7 @@ export default function HorizontalScroll({ children, padding = '4px 5% 20px' }: 
   useEffect(() => () => { if (rafId.current !== undefined) cancelAnimationFrame(rafId.current); }, []);
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 0) return;
     setDragging(true);
     startX.current = e.pageX;
     scrollStart.current = wrapRef.current?.scrollLeft || 0;
@@ -51,7 +52,9 @@ export default function HorizontalScroll({ children, padding = '4px 5% 20px' }: 
   }, [dragging]);
 
   const onClick = useCallback((e: React.MouseEvent) => {
-    if (dragDist.current > 6) { e.preventDefault(); e.stopPropagation(); }
+    const dragged = dragDist.current > 6;
+    dragDist.current = 0;
+    if (dragged && e.detail !== 0) { e.preventDefault(); e.stopPropagation(); }
   }, []);
 
   return (
@@ -63,6 +66,7 @@ export default function HorizontalScroll({ children, padding = '4px 5% 20px' }: 
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
       onClickCapture={onClick}
+      onDragStart={event=>event.preventDefault()}
       style={{
         overflowX: 'auto',
         overflowY: 'hidden',
