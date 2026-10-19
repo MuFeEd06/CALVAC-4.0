@@ -10,7 +10,7 @@ await mkdir(artifact, { recursive: true });
 const product = { id: 1, name: 'Audit Sneaker', brand: 'Audit', price: 100, image: '/product-placeholder.svg', size_unit: 'UK', sizes: ['8'], colors: [{ name: 'Red', hex: '#FF0000', price: 150 }, { name: 'Blue', hex: '#0000FF', price: 120 }], stock: { 'Red|8': 5, 'Blue|8': 0 }, tag: 'new' };
 const calls = [], orderKeys = [];
 let orderAttempts = 0;
-let paymentPaid=false,paymentVerifications=0;
+let paymentPaid=false,paymentVerifications=0,adminCancelled=false;
 const customerFixture={id:'11111111-1111-4111-8111-111111111111',aud:'authenticated',role:'authenticated',email:'customer@example.invalid',app_metadata:{provider:'email'},user_metadata:{full_name:'Customer Fixture'},created_at:new Date().toISOString()};
 function customerSession(){
   const encode=value=>Buffer.from(JSON.stringify(value)).toString('base64url');
@@ -49,7 +49,10 @@ const server = createServer(async (request, response) => {
         if (request.method === 'POST') { response.statusCode = 503; result = { error: 'Fixture save failed. Please try again.' }; }
       }
       if (url.pathname === '/api/admin-session') result = { admin: true, id: 'test-user' };
-      if (url.pathname === '/api/x9k2/orders') result = { items: [], nextCursor: null };
+      if (url.pathname === '/api/x9k2/orders') {
+        if (request.method === 'PATCH') { adminCancelled=true; result={success:true}; }
+        else result = { items: [{...paymentOrder(),name:'Payment fixture',phone:'9876543210',line1:'Fixture Street',city:'City',state:'State',pin:'123456',status:adminCancelled?'Cancelled':'Confirmed',payment_status:adminCancelled?'refund_required':'paid'}], nextCursor: null };
+      }
       if (url.pathname === '/api/x9k2/products') result = { items: [product], nextCursor: null };
       if (url.pathname === '/api/orders') {
         let raw = ''; for await (const chunk of request) raw += chunk;
@@ -231,6 +234,11 @@ try {
     await settings.getByText('Fixture save failed. Please try again.', { exact: true }).waitFor();
     await settings.screenshot({ path: resolve(artifact, 'admin-save-error.png'), fullPage: true });
     results.adminSaveErrorsVisible = true;
+    await settings.goto(origin + '/manage-store-x9k2/dashboard');
+    await settings.getByRole('heading',{name:'Payment fixture',exact:true}).waitFor();
+    await settings.locator('.admin-order-controls select').selectOption('Cancelled');
+    await settings.getByText('Refund review required. Process and verify the refund in Razorpay before closing this case.',{exact:true}).waitFor();
+    results.adminCancellationShowsRefundReview = true;
     await admin.close();
   }
 

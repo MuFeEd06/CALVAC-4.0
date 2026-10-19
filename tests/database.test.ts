@@ -9,7 +9,7 @@ const item = { productId: '1', quantity: 1, size: '8', sizeUnit: 'UK', color: 'R
 const order = async (items = [item], key = 'test-idempotency-0001') => (await db.query<{result: any}>(
   'select public.create_order_with_stock_v2($1::jsonb,$2::jsonb,$3) as result', [JSON.stringify(items), JSON.stringify(customer), key])).rows[0].result;
 const stock = async () => (await db.query<{stock: Record<string, number>}>('select stock from products where id=1')).rows[0].stock;
-const migration = () => readFile(new URL('../supabase/migrations/202610190001_checkout_hardening.sql', import.meta.url), 'utf8');
+const migration = () => readFile(new URL('../supabase/migrations/20261019111147_checkout_hardening.sql', import.meta.url), 'utf8');
 
 async function fixture(jsonType: 'json' | 'jsonb' = 'jsonb') {
   const database = new PGlite();

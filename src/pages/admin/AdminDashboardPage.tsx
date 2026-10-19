@@ -42,7 +42,7 @@ export default function AdminDashboardPage() {
   const saveStatus = async (id: number, status: AdminOrder['status']) => {
     try {
       const res = await updateOrderStatus(id, status);
-      if (res.success) setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
+      if (res.success) await load();
     } catch (error) { setError(error instanceof Error ? error.message : 'Status update failed'); }
   };
 

@@ -23,7 +23,7 @@ before(async () => {
     grant usage on schema auth to authenticated;
     insert into auth.users values('${user}'),('${other}');`);
   await db.exec(await readFile(new URL('./fixtures/live-schema.sql', import.meta.url),'utf8'));
-  for (const name of ['202610190001_checkout_hardening.sql','20261019070645_customer_payments.sql'])
+  for (const name of ['20261019111147_checkout_hardening.sql','20261019111159_customer_payments.sql'])
     await db.exec(await readFile(new URL('../supabase/migrations/' + name, import.meta.url),'utf8'));
 });
 after(async () => { await db?.close(); });

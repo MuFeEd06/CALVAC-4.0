@@ -1,6 +1,6 @@
 # CALVAC fix status — 19 October 2026
 
-The code changes are implemented and locally verified. Both production database migrations were explicitly approved and applied on 19 October 2026. Git publication and the Vercel rollout are being completed; see `DEPLOYMENT_PLAN.md` for release status.
+The code changes are implemented, verified and published to the requested Git repository. Both production database migrations were explicitly approved and applied on 19 October 2026. The initial Vercel production deployment passed public API and access-control checks; see `DEPLOYMENT_PLAN.md` for domain release status.
 
 ## Original findings
 
@@ -46,7 +46,7 @@ The fixture production build has a roughly 323 KB shared entry, a 44 KB home rou
 
 Read-only inspection of `jjyysdxkoarjlxwttiak` found 330 products, 976 orders and 1,153 relational order items. Products, legacy settings and order items lacked RLS and had broad anonymous/authenticated privileges. Orders, offers and site settings had RLS enabled with no policies. The old checkout function was already service-role only, but referenced missing product/order columns. No application triggers existed.
 
-`supabase/migrations/202610190001_checkout_hardening.sql` was applied after approval:
+`supabase/migrations/20261019111147_checkout_hardening.sql` was applied after approval:
 
 - Add missing inventory/order fields and sale/pagination indexes; retain JSON text columns and support their prefixed legacy size labels.
 - Copy historical relational item details into the new order snapshot field. Keep original records, totals, statuses and stock quantities unchanged. Two legacy orders have no item rows; their snapshots stay empty for manual review.
@@ -57,7 +57,7 @@ Read-only inspection of `jjyysdxkoarjlxwttiak` found 330 products, 976 orders an
 
 The migration has a five-second lock timeout and a sixty-second statement timeout and runs in one transaction. Existing orders are not marked as v2 orders. Cancelling an old order requires a manual stock review because the old inventory behavior cannot safely be inferred.
 
-The second migration, `20261019070645_customer_payments.sql`, adds owned profiles, order ownership, Razorpay leases/events, reservation expiry and persistent rate limits. Both live migrations succeeded. Live verification confirms the original 330 products, 976 orders and 1,153 item rows, with 974 snapshots backfilled and no historical orders marked as new checkout orders. Every public table has RLS; anonymous/authenticated roles cannot execute privileged RPCs or read orders/items. Profiles allow only owner access. Three internal tables deliberately have no public policies. The original RLS errors and missing foreign-key index warning are resolved; new unused-index notices are informational.
+The second migration, `20261019111159_customer_payments.sql`, adds owned profiles, order ownership, Razorpay leases/events, reservation expiry and persistent rate limits. Both live migrations succeeded. Live verification confirms the original 330 products, 976 orders and 1,153 item rows, with 974 snapshots backfilled and no historical orders marked as new checkout orders. Every public table has RLS; anonymous/authenticated roles cannot execute privileged RPCs or read orders/items. Profiles allow only owner access. Three internal tables deliberately have no public policies. The original RLS errors and missing foreign-key index warning are resolved; new unused-index notices are informational.
 
 No real test order, stock adjustment, payment or customer deletion was performed. Multi-connection concurrency and real payment-provider delivery still need validation; embedded PostgreSQL tests do not establish those properties.
 
@@ -70,8 +70,9 @@ The original public-schema metadata and checkout definition were saved without c
 - TypeScript check and Vite 8 production build pass.
 - 22 frontend/SQL tests pass, including migrations against the captured live schema, payment event retries, ownership, stock expiry and rate-limit windows.
 - 20 Python API tests pass, covering validation, confirmed admin email, retries, privacy/ownership, payment signatures, rate limiting, pagination, cutover compatibility and uploads.
-- Production-browser scenarios pass for checkout, pagination, variants, stale search, mobile animation cleanup, reduced motion, bundle separation, failed admin saves, customer sign-in, pending-to-paid confirmation, owned history, sign-out cleanup and payment settings. No page JavaScript errors were observed.
+- Production-browser scenarios pass for checkout, pagination, variants, stale search, mobile animation cleanup, reduced motion, bundle separation, failed admin saves, customer sign-in, pending-to-paid confirmation, owned history, sign-out cleanup, payment settings and immediate refund-review feedback after admin cancellation. No page JavaScript errors were observed.
 - Screenshots inspected for mobile home/confirmation and admin save-error feedback. API responses and external image placeholders were fixtures; no real orders were sent.
 - npm audit reports zero vulnerabilities after the dependency update.
+- GitHub Checks passed for the published release, including Python 3.12 and 3.14. Vercel preview/production builds succeeded; deployed catalog/settings/payment configuration returned successfully, and unsigned customer/admin API access was denied.
 
 Browser results/screenshots are in `test-results/`. CI uses synthetic public Supabase settings for the admin browser scenario; a release build must use the real public project configuration.

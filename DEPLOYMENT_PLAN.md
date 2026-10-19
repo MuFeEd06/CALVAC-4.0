@@ -1,6 +1,6 @@
 # CALVAC upgrade: accounts, payments and deployment
 
-Status: source implemented and locally tested. Both production database migrations were approved and applied; Git publication and the `calvac.in` domain switch are in progress. Vercel MCP is connected. The target is the existing **calvac-4-0** project in the same team as the live **claxxic-india** project; no replacement Vercel project needs to be created.
+Status: source implemented and published to `MuFeEd06/CALVAC-4.0` on `main` and `codex/calvac-upgrade`. Both production database migrations were approved and applied. The initial production build is ready in **calvac-4-0**, and its catalog, checkout configuration and protected account routes passed deployed checks. The `calvac.in` domain switch follows the final admin refund-state update. Vercel MCP and the normal Vercel CLI are signed in to the intended account.
 
 ## Customer and admin flows
 
@@ -20,14 +20,18 @@ The intended admin already has a confirmed Supabase email. Its allowlist is conf
 
 Applied in order to `jjyysdxkoarjlxwttiak` on 19 October 2026:
 
-1. `supabase/migrations/202610190001_checkout_hardening.sql`: add missing product/order fields, backfill snapshots from existing relational order items, widen address/image fields, add indexes, restrict public permissions/RLS, and add idempotent stock/order transactions.
-2. `supabase/migrations/20261019070645_customer_payments.sql`: add private customer profiles, verified-account order ownership, payment metadata/leases/events and rate-limit records; add service-only checkout, payment-event, expiry, cancellation and limiter RPCs. Profile RLS permits customers to access only their own profile; customer order access goes through the verified API and exposes no internal notes/stock metadata.
+1. `supabase/migrations/20261019111147_checkout_hardening.sql`: add missing product/order fields, backfill snapshots from existing relational order items, widen address/image fields, add indexes, restrict public permissions/RLS, and add idempotent stock/order transactions.
+2. `supabase/migrations/20261019111159_customer_payments.sql`: add private customer profiles, verified-account order ownership, payment metadata/leases/events and rate-limit records; add service-only checkout, payment-event, expiry, cancellation and limiter RPCs. Profile RLS permits customers to access only their own profile; customer order access goes through the verified API and exposes no internal notes/stock metadata.
 
 The original 330 products, 976 orders and 1,153 relational items remain. Original totals, customer details, statuses, stock quantities and passwords were not rewritten. 974 snapshots were backfilled; two historical orders have no item records and keep empty snapshots. Legacy order cancellation still requires manual stock review. The user explicitly approved both production migrations, resolving the earlier automatic approval rejection.
 
 Supabase recorded versions `20261019111147` (checkout_hardening) and `20261019111159` (customer_payments). Post-apply verification confirms RLS on every public table, no public mutations except owned profiles, and service-only privileged RPCs. Internal limiter/idempotency/payment-event tables deliberately have no public policies. Leaked-password protection remains a dashboard setting requiring configuration.
 
 Each migration has bounded lock/statement timeouts and a transaction. Migration compatibility and transaction behavior pass isolated PostgreSQL tests using the captured schema. These do not substitute for multi-connection/live integration checks.
+
+Local migration filenames match the versions recorded by Supabase; the approved SQL content is unchanged. This avoids applying the same migrations again during a later CLI deployment.
+
+GitHub Checks passed for the initial release commit `c1897a7`, including frontend/browser tests and Python 3.12/3.14. The deployed preview and production returned catalog/settings/configuration successfully and denied unsigned customer/admin API requests. No runtime errors were reported for those checks. Payment-provider tests used fixtures; real payment delivery remains disabled pending gateway setup.
 
 ## Vercel rollout
 
