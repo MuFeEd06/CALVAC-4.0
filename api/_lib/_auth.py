@@ -26,7 +26,7 @@ def is_admin_user(user):
     if isinstance(app_meta, dict) and app_meta.get("role") == "admin":
         return True
     email = str(user.get("email") or "").lower()
-    return bool(email and email in _admin_emails())
+    return bool(email and email in _admin_emails() and (user.get('email_confirmed_at') or user.get('confirmed_at')))
 
 
 def authenticate(headers):

@@ -1,53 +1,27 @@
 import type { Offer, Product, SiteSettings } from '@/types';
 import type { AdminOrder, AdminProductPayload } from '@/types/admin';
+import type { Page } from '@/types/api';
+import { getAdminAuthHeaders } from '@/lib/adminAuth';
+import { requestJson, clearProductsCache, clearSettingsCache, clearOfferCache } from './index';
 import { normalizeSizeList, normalizeSizeUnit } from '@/utils/sizeUnits';
 
 // All admin API calls hit the same-domain Python serverless functions
 const BASE = '';
 const JSON_H = { 'Content-Type': 'application/json' };
 
-function getSupabaseToken(): string | null {
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i) || '';
-      if (key.includes('-auth-token') || key.startsWith('sb-')) {
-        const val = JSON.parse(localStorage.getItem(key) || 'null');
-        const token = val?.access_token ?? val?.session?.access_token ?? null;
-        if (token) return token;
-      }
-    }
-  } catch {}
-  return null;
-}
-
-function authHeaders(extra?: Record<string, string>): Record<string, string> {
-  const token = getSupabaseToken();
-  return {
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    ...(extra ?? {}),
-  };
-}
-
-async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init);
-  if (!res.ok) {
-    let message = `${res.status} ${res.statusText}`;
-    try {
-      const body = await res.json();
-      if (body?.error) message = body.error;
-    } catch {}
-    throw new Error(message);
-  }
-  return res.json() as Promise<T>;
-}
-
 async function fetchAdmin<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers = { ...authHeaders(), ...(init?.headers as Record<string, string> ?? {}) };
-  return fetchJson<T>(`${BASE}${path}`, { ...init, headers });
+  const headers = { ...await getAdminAuthHeaders(), ...(init?.headers as Record<string, string> ?? {}) };
+  const result = await requestJson<T>(`${BASE}${path}`, { ...init, headers });
+  if (init?.method && init.method !== 'GET') {
+    if (path.includes('/products')) clearProductsCache();
+    if (path.includes('/site-settings')) clearSettingsCache();
+    if (path.includes('/offer')) clearOfferCache();
+  }
+  return result;
 }
 
 export async function adminLogin(email: string, password: string) {
-  return fetchJson<{
+  return requestJson<{
     access_token: string;
     refresh_token: string;
     expires_in?: number;
@@ -61,11 +35,12 @@ export async function adminLogin(email: string, password: string) {
 }
 
 /* ── Orders ── */
-export async function fetchAdminOrders(): Promise<AdminOrder[]> {
-  const rows = await fetchAdmin<AdminOrder[]>('/api/x9k2/orders');
-  return Array.isArray(rows)
-    ? rows.map(row => ({ ...row, total: Number(row.total) || 0 }))
-    : [];
+export async function fetchAdminOrders(after?: string | null, status = 'all'): Promise<Page<AdminOrder>> {
+  const params = new URLSearchParams({ limit: '50' });
+  if (after) params.set('after', after);
+  if (status !== 'all') params.set('status', status);
+  const page = await fetchAdmin<Page<AdminOrder>>(`/api/x9k2/orders?${params}`);
+  return { ...page, items: page.items.map(row => ({ ...row, total: Number(row.total) || 0 })) };
 }
 export async function updateOrderStatus(orderId: number, status: AdminOrder['status']) {
   return fetchAdmin<{ success: boolean; error?: string }>(
@@ -99,9 +74,13 @@ function sanitizeProduct(p: any): any {
   };
 }
 
-export async function fetchAdminProducts(): Promise<Product[]> {
-  const raw = await fetchAdmin<Product[]>('/api/x9k2/products');
-  return Array.isArray(raw) ? raw.map(sanitizeProduct) : [];
+export async function fetchAdminProducts(after?: string | null, query = '', brand = ''): Promise<Page<Product>> {
+  const params = new URLSearchParams({ limit: '50' });
+  if (after) params.set('after', after);
+  if (query) params.set('q', query);
+  if (brand) params.set('brand', brand);
+  const page = await fetchAdmin<Page<Product>>(`/api/x9k2/products?${params}`);
+  return { ...page, items: page.items.map(sanitizeProduct) };
 }
 export async function createAdminProduct(payload: AdminProductPayload) {
   return fetchAdmin<{ success?: boolean; product?: Product; error?: string }>(

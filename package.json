@@ -2,10 +2,18 @@
   "name": "calvac-react",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test --test-concurrency=1 tests/*.test.ts",
+    "preview": "vite preview",
+    "test:browser": "node tests/browser.mjs",
+    "dev:api": "python -m scripts.dev_api"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.104.1",
@@ -13,16 +21,17 @@
     "lucide-react": "^0.383.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.30.4",
-    "three": "^0.128.0",
-    "ws": "^8.21.0"
+    "react-router-dom": "^7.18.4"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.10",
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^22.0.0",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
-    "@types/three": "^0.128.0",
-    "@vitejs/plugin-react": "^4.3.1",
+    "@vitejs/plugin-react": "^6.1.2",
+    "tsx": "^4.0.0",
     "typescript": "^5.5.3",
-    "vite": "^5.4.2"
+    "vite": "^8.3.4"
   }
 }

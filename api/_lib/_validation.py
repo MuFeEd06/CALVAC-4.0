@@ -203,14 +203,15 @@ ALLOWED_SITE_SETTING_KEYS = (
     | NUMERIC_FIELDS
     | set(ENUM_FIELDS.keys())
     | TEXT_FIELDS
-    | {"theme_settings", "primary_color"}
+    | {"theme_settings", "primary_color", "payment_methods"}
 )
 
 
-def clean_str(value, max_len):
+def clean_str(value, max_len, multiline=False):
     if not isinstance(value, str):
         return ""
-    value = "".join(ch for ch in value if ch >= " " and ch != "\x7f").strip()
+    value = value.replace('\r\n', '\n').replace('\r', '\n')
+    value = "".join(ch for ch in value if (ch >= " " and ch != "\x7f") or (multiline and ch in '\n\t')).strip()
     return value[:max_len]
 
 
@@ -233,6 +234,7 @@ def normalize_size_unit(value, fallback="UK"):
 
 
 def clean_size_label(value):
+    if isinstance(value, (int, float)) and not isinstance(value, bool): value = str(value)
     size = clean_str(value, 20)
     size = re.sub(r"^(UK|EURO?|EUR)\s+", "", size, flags=re.IGNORECASE).strip()
     if not size or not SIZE_LABEL_RE.fullmatch(size):
@@ -336,6 +338,8 @@ def is_safe_url(value, allow_external=True):
     if not isinstance(value, str):
         return False
     value = value.strip()
+    if re.search(r'[\\\x00-\x20\x7f]', value):
+        return False
     if not value:
         return True
     if value.startswith("/") and not value.startswith("//"):
@@ -384,6 +388,11 @@ def _sanitize_number(key, value):
 
 
 def _sanitize_setting_value(key, value):
+    if key == 'payment_methods':
+        defaults = {'whatsapp': True, 'cod': True, 'razorpay': False}
+        if not isinstance(value, dict) or set(value) - set(defaults) or any(not isinstance(v, bool) for v in value.values()):
+            raise ApiError(400, 'Invalid payment method settings')
+        return {**defaults, **value}
     if key in BOOLEAN_FIELDS:
         if not isinstance(value, bool):
             raise ApiError(400, f"Invalid value for {key}")
@@ -402,7 +411,7 @@ def _sanitize_setting_value(key, value):
         return sanitize_link(value)
     if key in TEXT_FIELDS:
         max_len = 12000 if key.startswith("policy_") else 500
-        return clean_str(value, max_len)
+        return clean_str(value, max_len, multiline=key.startswith('policy_'))
     raise ApiError(400, f"Unexpected settings field: {key}")
 
 
@@ -458,7 +467,7 @@ def normalize_settings_response(data):
 def validate_order_payload(body):
     if not isinstance(body, dict):
         raise ApiError(400, "Order payload must be an object")
-    if body.get("paymentMethod") != "cod":
+    if body.get("paymentMethod") not in ('cod', 'whatsapp', 'razorpay'):
         raise ApiError(400, "Unsupported payment method")
 
     items = body.get("items")
@@ -473,12 +482,14 @@ def validate_order_payload(body):
         if not isinstance(item, dict):
             raise ApiError(400, "Invalid cart item")
         product_id = str(item.get("productId") or "").strip()
+        if not re.fullmatch(r'[1-9][0-9]{0,15}', product_id) or int(product_id) > 9007199254740991:
+            raise ApiError(400, 'Invalid product ID')
         raw_size = item.get("size", "")
         size_unit = normalize_size_unit(
             item.get("sizeUnit") if "sizeUnit" in item else item.get("size_unit"),
             infer_size_unit(raw_size),
         )
-        size = clean_size_label(raw_size) if raw_size else ""
+        size = clean_size_label(raw_size)
         color = clean_str(item.get("color", ""), 80)
         key = (product_id, size_unit, size, color)
         if not product_id:
@@ -486,15 +497,17 @@ def validate_order_payload(body):
         if key in seen:
             raise ApiError(400, "Duplicate cart item")
         seen.add(key)
-        try:
-            qty = int(item.get("quantity"))
-        except Exception:
-            raise ApiError(400, "Invalid quantity")
+        qty = item.get('quantity')
+        if not isinstance(qty, int) or isinstance(qty, bool):
+            raise ApiError(400, 'Quantity must be an integer')
         if qty < 1 or qty > MAX_QTY:
             raise ApiError(400, "Invalid quantity")
         parsed_items.append({"productId": product_id, "quantity": qty, "size": size, "sizeUnit": size_unit, "color": color})
 
-    customer = body.get("customer")
+    return parsed_items, validate_customer(body.get('customer'))
+
+
+def validate_customer(customer):
     if not isinstance(customer, dict):
         raise ApiError(400, "Missing customer details")
     parsed_customer = {
@@ -510,4 +523,10 @@ def validate_order_payload(body):
     for field in ("name", "phone", "line1", "city", "state", "pin"):
         if not parsed_customer[field]:
             raise ApiError(400, "Missing required customer details")
-    return parsed_items, parsed_customer
+    phone = re.sub(r'\s', '', parsed_customer['phone'])
+    if not re.fullmatch(r'(?:\+91-?)?[6-9][0-9]{9}', phone):
+        raise ApiError(400, 'Enter a valid Indian mobile number')
+    if not re.fullmatch(r'[1-9][0-9]{5}', parsed_customer['pin']):
+        raise ApiError(400, 'Enter a valid six-digit PIN code')
+    parsed_customer['phone'] = phone
+    return parsed_customer

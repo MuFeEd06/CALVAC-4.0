@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 
 interface Props {
   children: React.ReactNode;
@@ -15,6 +15,7 @@ export default function HorizontalScroll({ children, padding = '4px 5% 20px' }: 
   const lastT = useRef(0);
   const rafId = useRef<number>();
   const dragDist = useRef(0);
+  useEffect(() => () => { if (rafId.current !== undefined) cancelAnimationFrame(rafId.current); }, []);
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     setDragging(true);
@@ -50,17 +51,18 @@ export default function HorizontalScroll({ children, padding = '4px 5% 20px' }: 
   }, [dragging]);
 
   const onClick = useCallback((e: React.MouseEvent) => {
-    if (dragDist.current > 6) e.stopPropagation();
+    if (dragDist.current > 6) { e.preventDefault(); e.stopPropagation(); }
   }, []);
 
   return (
     <div
       ref={wrapRef}
+      className="horizontal-scroll"
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
-      onClick={onClick}
+      onClickCapture={onClick}
       style={{
         overflowX: 'auto',
         overflowY: 'hidden',
@@ -72,7 +74,7 @@ export default function HorizontalScroll({ children, padding = '4px 5% 20px' }: 
         userSelect: 'none',
       }}
     >
-      <style>{`div::-webkit-scrollbar{display:none}`}</style>
+      <style>{`.horizontal-scroll::-webkit-scrollbar{display:none}`}</style>
       <div style={{ display: 'flex', gap: 14, width: 'max-content', paddingBottom: 4 }}>
         {children}
       </div>

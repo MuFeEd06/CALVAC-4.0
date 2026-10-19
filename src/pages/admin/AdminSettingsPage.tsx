@@ -1,5 +1,6 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { fetchAdminOffer, fetchAdminSettings, saveAdminOffer, saveAdminSettings } from '@/api/admin';
+import { getAdminAuthHeaders } from '@/lib/adminAuth';
 import { setCachedSiteSettings } from '@/api';
 import { BRANDS } from '@/utils';
 import { safeLink } from '@/utils/validation';
@@ -1190,13 +1191,26 @@ export default function AdminSettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('hero');
   const [themeSaveState, setThemeSaveState] = useState<SaveState>('idle');
   const [themeError, setThemeError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const saveLock = useRef(false);
 
-  useEffect(()=>{
-    fetchAdminSettings().then(s => setSettings(normalizeSiteSettings(s))).catch(()=>{});
-    fetchAdminOffer().then(setOffer).catch(()=>{});
-  },[]);
-
-  const flash = (msg:string) => { setStatus(msg); setTimeout(()=>setStatus(''),3000); };
+  const loadSettings = () => {
+    setLoaded(false); setLoadError('');
+    Promise.all([fetchAdminSettings(), fetchAdminOffer()]).then(([settings, offer]) => {
+      setSettings(normalizeSiteSettings(settings)); setOffer(offer); setLoaded(true);
+    }).catch(error => setLoadError(error instanceof Error ? error.message : 'Could not load settings.'));
+  };
+  useEffect(loadSettings, []);
+  const flash = (msg: string) => { setStatus(msg); };
+  const safeSave = <T extends unknown[]>(action: (...args: T) => Promise<void>) => async (...args: T) => {
+    if (saveLock.current || !loaded) return;
+    saveLock.current = true; setSaving(true); setStatus('');
+    try { await action(...args); }
+    catch (error) { flash(error instanceof Error ? error.message : 'Save failed. Please try again.'); }
+    finally { saveLock.current = false; setSaving(false); }
+  };
   const setField = useCallback((k:string, v:unknown) => setSettings(prev=>({...prev,[k]:v})), []);
   const currentTheme = normalizeThemeSettings(settings.theme_settings, settings.primary_color);
   const setThemeField = useCallback(<K extends keyof ThemeSettings>(key: K, value: ThemeSettings[K]) => {
@@ -1216,7 +1230,8 @@ export default function AdminSettingsPage() {
     setSettings(prev => ({ ...prev, theme_settings: { ...DEFAULT_THEME_SETTINGS } }));
   }, []);
   const saveTheme = useCallback(async () => {
-    if (themeSaveState === 'saving') return;
+    if (themeSaveState === 'saving' || saveLock.current || !loaded) return;
+    saveLock.current = true; setSaving(true);
     setThemeSaveState('saving');
     setThemeError('');
     try {
@@ -1232,11 +1247,13 @@ export default function AdminSettingsPage() {
       const message = err instanceof Error ? err.message : 'Save failed';
       setThemeError(message);
       setThemeSaveState('error');
+    } finally {
+      saveLock.current = false; setSaving(false);
     }
-  }, [currentTheme, settings, themeSaveState]);
+  }, [currentTheme, settings, themeSaveState, loaded]);
 
   /* ── Save handlers ── */
-  const saveHero = async (e: FormEvent) => {
+  const saveHero = safeSave(async (e: FormEvent) => {
     e.preventDefault();
     const hero_keys = [
       'hero_font',
@@ -1265,27 +1282,28 @@ export default function AdminSettingsPage() {
     const res = await saveAdminSettings(payload);
     if (res.success) setSettings(setCachedSiteSettings(res.settings ?? { ...settings, ...payload }));
     flash(res.success ? 'Hero Studio saved! ✓' : (res.error||'Save failed'));
-  };
+  });
 
-  const saveStore = async () => {
+  const saveStore = safeSave(async () => {
     const payload: S = { show_new_arrivals:settings.show_new_arrivals!==false, show_categories:settings.show_categories!==false, show_brands_section:settings.show_brands_section!==false, hidden_brands:settings.hidden_brands||'' };
     CAT_SLUGS.forEach(slug => { payload[`cat_${slug}`] = settings[`cat_${slug}`]!==false; });
+    payload.payment_methods={whatsapp:true,cod:true,razorpay:false,...(settings.payment_methods as Record<string,boolean>||{})};
     const res = await saveAdminSettings(payload);
     if (res.success) setSettings(setCachedSiteSettings(res.settings ?? { ...settings, ...payload }));
     flash(res.success?'Store settings saved! ✓':(res.error||'Save failed'));
-  };
+  });
 
-  const saveOffer = async () => {
+  const saveOffer = safeSave(async () => {
     const res = await saveAdminOffer(offer);
     flash(res.success?'Offer ribbon saved! ✓':(res.error||'Save failed'));
-  };
+  });
 
-  const savePolicies = async () => {
+  const savePolicies = safeSave(async () => {
     const payload = { policy_privacy:settings.policy_privacy||'', policy_return:settings.policy_return||'', policy_shipping:settings.policy_shipping||'' };
     const res = await saveAdminSettings(payload);
     if (res.success) setSettings(setCachedSiteSettings(res.settings ?? { ...settings, ...payload }));
     flash(res.success?'Policies saved! ✓':(res.error||'Save failed'));
-  };
+  });
 
   const hiddenBrands = new Set(String(settings.hidden_brands||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean));
   const toggleBrand = (slug:string) => {
@@ -1309,10 +1327,9 @@ export default function AdminSettingsPage() {
   const testConnection = async () => {
     setTestStatus('Testing…');
     try {
-      const token = (() => { try { for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i)||'';if(k.includes('-auth-token')||k.startsWith('sb-')){const v=JSON.parse(localStorage.getItem(k)||'null');const t=v?.access_token??v?.session?.access_token??null;if(t)return t;}}  } catch{} return null; })();
-      const r = await fetch('/api/x9k2/site-settings', { credentials:'include', headers: token?{'Authorization':`Bearer ${token}`}:{} });
+      const r = await fetch('/api/x9k2/site-settings', { headers: await getAdminAuthHeaders() });
       if (r.ok) setTestStatus('✅ Connected! Settings will save.');
-      else if (r.status===401||r.status===403) setTestStatus('🔐 Auth rejected — deploy to Vercel for full admin.');
+      else if (r.status===401||r.status===403) setTestStatus('Sign-in rejected. Check your admin account and configured API.');
       else setTestStatus(`⚠️ Status ${r.status} — may not save locally.`);
     } catch { setTestStatus('❌ Cannot reach /api/x9k2 — proxy error.'); }
     setTimeout(()=>setTestStatus(''),7000);
@@ -1320,50 +1337,10 @@ export default function AdminSettingsPage() {
 
   return (
     <section className="admin-panel">
-
-      {/* ── Local dev banner ── */}
-      {LOCAL && (
-        <div style={{ background:'#fffbeb', border:'1px solid #fcd34d', borderRadius:10,
-          padding:'12px 16px', marginBottom:20, display:'flex', alignItems:'flex-start', gap:10, flexWrap:'wrap' }}>
-          <span style={{ fontSize:'1.1rem', flexShrink:0, marginTop:2 }}>⚠️</span>
-          <div style={{ flex:1, minWidth:260, fontSize:'0.82rem', color:'#92400e', lineHeight:1.7 }}>
-            <strong>Local dev — settings may not persist.</strong><br/>
-            Flask's <code style={{ background:'#fef3c7', padding:'1px 5px', borderRadius:3 }}>/api/x9k2/*</code> routes
-            require the old Flask session cookie (set by <code style={{ background:'#fef3c7', padding:'1px 5px', borderRadius:3 }}>/manage-store-x9k2</code>),
-            which can't be forwarded from React's Supabase login.
-            <strong> Deploy to Vercel</strong> to fully save — or manage settings at{' '}
-            <a href="https://calvac.in/manage-store-x9k2" target="_blank" rel="noopener noreferrer"
-              style={{ color:'#2B9FD8', fontWeight:700 }}>calvac.in/manage-store-x9k2</a>.
-          </div>
-          <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
-            <button type="button" onClick={testConnection}
-              style={{ padding:'5px 12px', border:'1px solid #d97706', borderRadius:8, background:'#fff',
-                color:'#92400e', cursor:'pointer', fontSize:'0.78rem', fontWeight:700, fontFamily:'inherit' }}>
-              Test connection
-            </button>
-            {testStatus && <span style={{ fontSize:'0.78rem', fontWeight:700, color:'#92400e' }}>{testStatus}</span>}
-          </div>
-        </div>
-      )}
-
-      {saveErr && (
-        <div style={{ background:'#fff1f2', border:'1px solid #fecdd3', borderRadius:8,
-          padding:'10px 14px', marginBottom:14, fontSize:'0.82rem', color:'#be123c', display:'flex', alignItems:'center', gap:8 }}>
-          ⚠️ {saveErr}
-          <button type="button" onClick={()=>setSaveErr('')}
-            style={{ marginLeft:'auto', background:'none', border:'none', cursor:'pointer', color:'#be123c', fontSize:'1rem' }}>✕</button>
-        </div>
-      )}
-
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
-        <h2 style={{ margin:0 }}>Site Settings</h2>
-        {status && (
-          <span style={{ fontSize:'0.84rem', color:'#10b981', fontWeight:700,
-            background:'#f0fdf4', padding:'6px 14px', borderRadius:20, border:'1px solid #86efac' }}>
-            ✓ {status}
-          </span>
-        )}
-      </div>
+      {loadError && <div role="alert">{loadError} <button onClick={loadSettings}>Try again</button></div>}
+      {status && <p role="status" aria-live="polite" className="admin-save-feedback">{status}</p>}
+      {!loaded && !loadError && <p role="status">Loading settings…</p>}
+      <fieldset disabled={saving || !loaded} style={{ border: 0, padding: 0, minWidth: 0 }}>
 
       {/* Tab strip */}
       <div style={{ display:'flex', gap:8, marginBottom:24, flexWrap:'wrap' }}>
@@ -1400,6 +1377,15 @@ export default function AdminSettingsPage() {
             </Field>
           </div>
 
+          <h4 className="admin-subtitle">Checkout methods</h4>
+          {(['whatsapp','cod','razorpay'] as const).map(method=>{
+            const methods={whatsapp:true,cod:true,razorpay:false,...(settings.payment_methods as Record<string,boolean>||{})};
+            return <label key={method} className="admin-check"><input type="checkbox" checked={methods[method]}
+              onChange={event=>setField('payment_methods',{...methods,[method]:event.target.checked})}/>
+              {method==='whatsapp'?'WhatsApp':method==='cod'?'Cash on Delivery':'Pay Online / Razorpay'}
+            </label>;
+          })}
+          <p>Disabled methods remain visible as unavailable. Online payment also requires the gateway configuration.</p>
           <h4 className="admin-subtitle">Homepage Sections</h4>
           {[
             { key:'show_new_arrivals',   label:'Show New Arrivals section'       },
@@ -2043,7 +2029,7 @@ export default function AdminSettingsPage() {
           {/* Save */}
           <div style={{ display:'flex', justifyContent:'flex-end', paddingTop:14, borderTop:'1px solid #d0e6f5' }}>
             <button type="button"
-              onClick={async()=>{
+              onClick={safeSave(async()=>{
                 const mobileKeys = [
                   'hero_m_intro_font_size_rem','hero_m_eyebrow_size_px','hero_m_sub_size_rem',
                   'hero_m_prompt_size_px','hero_m_intro_y_pct','hero_m_intro_max_width_px',
@@ -2068,7 +2054,7 @@ export default function AdminSettingsPage() {
                 const res = await saveAdminSettings(payload);
                 if (res.success) setSettings(setCachedSiteSettings(res.settings ?? { ...settings, ...payload }));
                 flash(res.success?'Mobile hero saved!':(res.error||'Save failed'));
-              }}
+              })}
               style={{ padding:'11px 28px', background:'linear-gradient(135deg,#6366f1,#4f46e5)',
                 color:'#fff', border:'none', borderRadius:10, fontWeight:700,
                 fontSize:'0.9rem', cursor:'pointer', fontFamily:'inherit' }}>
@@ -2078,6 +2064,7 @@ export default function AdminSettingsPage() {
         </div>
       )}
 
+      </fieldset>
     </section>
   );
 }

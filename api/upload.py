@@ -1,6 +1,6 @@
 import base64
-import cgi
-import io
+from email.parser import BytesParser
+from email.policy import default as email_policy
 import json
 import os
 import urllib.request
@@ -149,27 +149,24 @@ class handler(BaseHTTPRequestHandler):
             cors = require_cors(self, "POST,OPTIONS")
             require_rate_limit(self, "upload")
             require_admin(self.headers)
-            length = int(self.headers.get("Content-Length", 0))
-            if length > MAX_BYTES * 2:
-                raise ApiError(413, "File too large")
+            try: length = int(self.headers.get('Content-Length', 0))
+            except ValueError: raise ApiError(400, 'Invalid request length')
+            if length < 1: raise ApiError(400, 'An image is required')
+            if length > MAX_BYTES * 2: raise ApiError(413, 'File too large')
+            content_type = self.headers.get('Content-Type', '')
+            if '\r' in content_type or '\n' in content_type or len(content_type) > 250:
+                raise ApiError(400, 'Invalid multipart request')
             raw = self.rfile.read(length)
-            fs = cgi.FieldStorage(
-                fp=io.BytesIO(raw),
-                headers=self.headers,
-                environ={
-                    "REQUEST_METHOD": "POST",
-                    "CONTENT_TYPE": self.headers.get("Content-Type", ""),
-                    "CONTENT_LENGTH": str(length),
-                },
-            )
-            if "image" not in fs:
-                raise ApiError(400, "No image field in form")
-            file_item = fs["image"]
-            if isinstance(file_item, list):
-                raise ApiError(400, "Only one image can be uploaded")
-            image_bytes = file_item.file.read()
-            mime = file_item.type or "image/webp"
-            filename = file_item.filename or "product.webp"
+            message = BytesParser(policy=email_policy).parsebytes(('Content-Type: ' + content_type + '\r\nMIME-Version: 1.0\r\n\r\n').encode() + raw)
+            if message.get_content_type() != 'multipart/form-data' or not message.is_multipart() or message.defects:
+                raise ApiError(400, 'Invalid multipart request')
+            parts = list(message.iter_parts())
+            if len(parts) != 1 or parts[0].get_param('name', header='content-disposition') != 'image' or parts[0].defects:
+                raise ApiError(400, 'Exactly one image is required')
+            part = parts[0]
+            image_bytes = part.get_payload(decode=True)
+            if not isinstance(image_bytes, bytes): raise ApiError(400, 'Invalid image')
+            mime, filename = part.get_content_type(), part.get_filename() or 'product.webp'
             if len(image_bytes) > MAX_BYTES:
                 raise ApiError(413, "Image too large")
             if len(image_bytes) < 100:

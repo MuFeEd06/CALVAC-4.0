@@ -1,92 +1,53 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { CartItem, Address } from '@/types';
-import { cleanSizeLabel, normalizeSizeUnit } from '@/utils/sizeUnits';
+import { migrateCart, sameCartItem, MAX_QTY, MAX_LINE_ITEMS } from '@/utils/cart';
+import { cleanStr, validateAddress } from '@/utils/validation';
 
 interface CartCtx {
   cart: CartItem[];
-  addItem: (item: Omit<CartItem, 'qty'>) => void;
-  removeItem: (idx: number) => void;
-  changeQty: (idx: number, delta: number) => void;
-  clearCart: () => void;
-  totalItems: number;
-  totalPrice: number;
-  address: Address | null;
-  saveAddress: (a: Address) => void;
+  addItem: (item: Omit<CartItem, 'qty'>, available?: number) => boolean;
+  removeItem: (idx: number) => void; changeQty: (idx: number, delta: number) => void; clearCart: () => void;
+  totalItems: number; totalPrice: number; address: Address | null; saveAddress: (a: Address) => void;
 }
-
 const CartContext = createContext<CartCtx>({} as CartCtx);
-
-function migrateCart(raw: unknown): CartItem[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.map((item: any) => {
-    const rawSize = String(item?.size || '').trim();
-    const unit = normalizeSizeUnit(item?.size_unit || item?.sizeUnit || rawSize);
-    const size = cleanSizeLabel(rawSize);
-    const id = Number(item?.id);
-    const price = Number(item?.price);
-    const qty = Math.max(1, Math.min(10, Number(item?.qty) || 1));
-    if (!Number.isFinite(id) || !Number.isFinite(price) || !size) return null;
-    return {
-      id,
-      name: String(item?.name || '').slice(0, 200),
-      brand: String(item?.brand || '').slice(0, 100),
-      price,
-      image: String(item?.image || ''),
-      size,
-      size_unit: unit,
-      color: item?.color ? String(item.color).slice(0, 80) : undefined,
-      colorHex: item?.colorHex ? String(item.colorHex).slice(0, 20) : undefined,
-      qty,
-    } satisfies CartItem;
-  }).filter(Boolean) as CartItem[];
+function readAddress(): Address | null {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem('calvac_address') || 'null');
+    if (saved?.ts > Date.now() - 86_400_000 && saved.data && !validateAddress(saved.data)) return saved.data;
+    localStorage.removeItem('claxxic_address');
+  } catch {}
+  return null;
 }
-
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>(() => {
     try { return migrateCart(JSON.parse(localStorage.getItem('calvac_cart') || '[]')); } catch { return []; }
   });
-  const [address, setAddress] = useState<Address | null>(() => {
-    try { return JSON.parse(localStorage.getItem('claxxic_address') || 'null'); } catch { return null; }
-  });
-
-  useEffect(() => {
-    localStorage.setItem('calvac_cart', JSON.stringify(cart));
-  }, [cart]);
-
-  const addItem = useCallback((item: Omit<CartItem, 'qty'>) => {
-    setCart(prev => {
-      const existing = prev.find(i => i.id === item.id && i.size === item.size && i.size_unit === item.size_unit && i.color === item.color);
-      if (existing) return prev.map(i => i === existing ? { ...i, qty: i.qty + 1 } : i);
-      return [...prev, { ...item, qty: 1 }];
-    });
-  }, []);
-
-  const removeItem = useCallback((idx: number) => {
-    setCart(prev => prev.filter((_, i) => i !== idx));
-  }, []);
-
+  const current = useRef(cart);
+  const [address, setAddress] = useState<Address | null>(readAddress);
+  useEffect(()=>{const clear=()=>setAddress(null);window.addEventListener('calvac:signout',clear);return()=>window.removeEventListener('calvac:signout',clear);},[]);
+  const update = useCallback((next: CartItem[]) => { current.current = next; setCart(next); }, []);
+  useEffect(() => { try { localStorage.setItem('calvac_cart', JSON.stringify(cart)); } catch {} }, [cart]);
+  const addItem = useCallback((item: Omit<CartItem, 'qty'>, available = MAX_QTY) => {
+    const prev = current.current;
+    const existing = prev.find(row => sameCartItem(row, item));
+    const limit = Math.min(MAX_QTY, Math.max(0, Math.floor(available)));
+    if ((existing && existing.qty >= limit) || (!existing && (prev.length >= MAX_LINE_ITEMS || limit < 1))) return false;
+    update(existing ? prev.map(row => row === existing ? { ...row, qty: row.qty + 1 } : row) : [...prev, { ...item, qty: 1 }]);
+    return true;
+  }, [update]);
+  const removeItem = useCallback((idx: number) => update(current.current.filter((_, i) => i !== idx)), [update]);
   const changeQty = useCallback((idx: number, delta: number) => {
-    setCart(prev => {
-      const next = prev.map((item, i) => i === idx ? { ...item, qty: item.qty + delta } : item);
-      return next.filter(item => item.qty > 0);
-    });
-  }, []);
-
-  const clearCart = useCallback(() => setCart([]), []);
-
+    if (!Number.isInteger(delta)) return;
+    update(current.current.map((row, i) => i === idx ? { ...row, qty: Math.min(MAX_QTY, row.qty + delta) } : row).filter(row => row.qty > 0));
+  }, [update]);
+  const clearCart = useCallback(() => update([]), [update]);
   const saveAddress = useCallback((a: Address) => {
-    setAddress(a);
-    localStorage.setItem('claxxic_address', JSON.stringify(a));
+    const normalized = Object.fromEntries(Object.entries(a).map(([key, value]) => [key, cleanStr(value, ['line1', 'line2', 'landmark'].includes(key) ? 200 : 100)])) as unknown as Address;
+    const error = validateAddress(normalized); if (error) throw new Error(error);
+    setAddress(normalized);
+    try { sessionStorage.setItem('calvac_address', JSON.stringify({ ts: Date.now(), data: normalized })); localStorage.removeItem('claxxic_address'); } catch {}
   }, []);
-
-  const totalItems = cart.reduce((s, i) => s + i.qty, 0);
-  const totalPrice = cart.reduce((s, i) => s + i.price * i.qty, 0);
-
-  return (
-    <CartContext.Provider value={{ cart, addItem, removeItem, changeQty, clearCart, totalItems, totalPrice, address, saveAddress }}>
-      {children}
-    </CartContext.Provider>
-  );
+  return <CartContext.Provider value={{ cart, addItem, removeItem, changeQty, clearCart,
+    totalItems: cart.reduce((sum, row) => sum + row.qty, 0), totalPrice: cart.reduce((sum, row) => sum + row.price * row.qty, 0), address, saveAddress }}>{children}</CartContext.Provider>;
 }
-
 export const useCart = () => useContext(CartContext);

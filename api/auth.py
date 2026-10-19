@@ -1,6 +1,6 @@
 from http.server import BaseHTTPRequestHandler
 
-from api._lib._auth import is_admin_user
+from api._lib._auth import is_admin_user, require_admin
 from api._lib._cors import handle_options, require_cors
 from api._lib._rate_limit import client_ip, require_rate_limit
 from api._lib._responses import ApiError, read_json, send_error, send_json
@@ -9,16 +9,27 @@ from api._lib._validation import clean_str
 
 
 class handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        cors = None
+        try:
+            cors = require_cors(self, 'GET,POST,OPTIONS')
+            require_rate_limit(self, 'admin-read')
+            user = require_admin(self.headers)
+            send_json(self, 200, {'admin': True, 'id': user['id']}, cors)
+        except Exception as error:
+            send_error(self, error, cors)
+
     def do_OPTIONS(self):
-        handle_options(self, "POST,OPTIONS")
+        handle_options(self, "GET,POST,OPTIONS")
 
     def do_POST(self):
         cors = None
         try:
-            cors = require_cors(self, "POST,OPTIONS")
+            cors = require_cors(self, "GET,POST,OPTIONS")
             body = read_json(self, 8 * 1024)
             email = clean_str(body.get("email"), 254).lower()
             password = body.get("password") if isinstance(body.get("password"), str) else ""
+            require_rate_limit(self, 'admin-login-ip')
             require_rate_limit(self, "admin-login", subject=f"{client_ip(self)}:{email}")
             if not email or not password or len(password) > 256:
                 raise ApiError(400, "Invalid login request")

@@ -1,7 +1,8 @@
+import { imageFallback, FALLBACK_IMAGE } from '@/utils/images';
 "use client";
 
 import * as React from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import type { PanInfo } from "framer-motion";
 import { ChevronLeft, ChevronRight, ArrowUpRight } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -62,6 +63,7 @@ export function FocusRail({
   interval = 4000,
   style,
 }: FocusRailProps) {
+  const reducedMotion = useReducedMotion();
   const [active, setActive] = React.useState(initialIndex);
   const [isHovering, setIsHovering] = React.useState(false);
   const [isDragging, setIsDragging] = React.useState(false);
@@ -108,10 +110,10 @@ export function FocusRail({
 
   /* ── Autoplay ── */
   React.useEffect(() => {
-    if (!autoPlay || isHovering) return;
+    if (!autoPlay || isHovering || reducedMotion) return;
     const t = setInterval(handleNext, interval);
     return () => clearInterval(t);
-  }, [autoPlay, isHovering, handleNext, interval]);
+  }, [autoPlay, isHovering, handleNext, interval, reducedMotion]);
 
   /* ── Keyboard ── */
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -435,10 +437,7 @@ export function FocusRail({
                   src={item.imageSrc}
                   alt={item.title}
                   style={S.cardImg}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src =
-                      "https://placehold.co/260x346/1a1a1a/2B9FD8?text=👟";
-                  }}
+                  onError={imageFallback}
                 />
                 <div style={S.cardShineTop} />
                 <div style={S.cardShineDark} />

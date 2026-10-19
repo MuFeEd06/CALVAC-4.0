@@ -68,7 +68,7 @@
   }
   function readSettings() {
     try {
-      var keys = ['calvac_settings_v4', 'calvac_settings_v5'];
+      var keys = ['calvac_settings_v7'];
       var newest = null;
       for (var i = 0; i < keys.length; i += 1) {
         var raw = localStorage.getItem(keys[i]);

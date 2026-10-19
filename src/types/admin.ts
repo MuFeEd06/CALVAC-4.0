@@ -32,6 +32,7 @@ export interface AdminOrder {
   notes?: string;
   created_at?: string;
   items: OrderItem[];
+  user_id?:string|null; payment_method?:string; payment_status?:string; razorpay_order_id?:string; razorpay_payment_id?:string;
 }
 
 export type AdminProductPayload = Omit<Product, 'id'>;

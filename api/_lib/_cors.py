@@ -1,4 +1,5 @@
 import os
+import re
 
 from api._lib._responses import ApiError, send_json
 
@@ -16,6 +17,9 @@ def _is_production():
 def allowed_origins():
     raw = os.environ.get("ALLOWED_ORIGINS", "")
     origins = {o.strip().rstrip("/") for o in raw.split(",") if o.strip()}
+    deployment_host=os.environ.get('VERCEL_URL','')
+    if re.fullmatch(r'[A-Za-z0-9.-]+\.vercel\.app',deployment_host):
+        origins.add('https://'+deployment_host)
     if not origins and not _is_production():
         origins = set(DEFAULT_DEV_ORIGINS)
     return origins

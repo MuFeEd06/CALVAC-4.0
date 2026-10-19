@@ -1,3 +1,4 @@
+import { imageFallback, FALLBACK_IMAGE } from '@/utils/images';
 import React, { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createAdminProduct, deleteAdminProduct,
@@ -5,6 +6,8 @@ import {
 } from '@/api/admin';
 import type { Product, ProductColor, ProductSizeUnit } from '@/types';
 import type { AdminProductPayload } from '@/types/admin';
+import { getAdminAuthHeaders } from '@/lib/adminAuth';
+import { requestJson } from '@/api';
 import { sanitizeProductPayload } from '@/utils/validation';
 import { cleanSizeLabel, normalizeSizeList, normalizeSizeUnit, SIZE_OPTIONS, SIZE_UNITS } from '@/utils/sizeUnits';
 
@@ -100,7 +103,7 @@ function ImageUploader({ value, onChange }: { value:string; onChange:(url:string
       };
       tryEncode();
     };
-    img.onerror = () => reject(new Error('Could not load image'));
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Could not load image')); };
     img.src = objectUrl;
   });
 
@@ -121,24 +124,9 @@ function ImageUploader({ value, onChange }: { value:string; onChange:(url:string
       const fd = new FormData();
       fd.append('image', blob, 'product.webp');
 
-      // Get auth token for the upload endpoint
-      let authHeader: Record<string,string> = {};
-      try {
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i) || '';
-          if (k.includes('-auth-token') || k.startsWith('sb-')) {
-            const v = JSON.parse(localStorage.getItem(k) || 'null');
-            const t = v?.access_token ?? v?.session?.access_token ?? null;
-            if (t) { authHeader = { 'Authorization': `Bearer ${t}` }; break; }
-          }
-        }
-      } catch {}
-
-      const res = await fetch('/api/x9k2/upload', {
-        method: 'POST', body: fd, headers: authHeader,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `Upload failed (${res.status})`);
+      const data = await requestJson<{url: string}>('/api/x9k2/upload', {
+        method: 'POST', body: fd, headers: await getAdminAuthHeaders(),
+      }, 35_000);
       onChange(data.url || '');
       setProgress('');
     } catch (e: any) {
@@ -707,18 +695,37 @@ export default function AdminProductsPage() {
   const [toast, setToast]       = useState('');
   const [loading, setLoading]   = useState(true);
 
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState('');
+  const [retry, setRetry] = useState(0);
+  const generation = useRef(0);
+  const reload = async () => {
+    const page = await fetchAdminProducts(null, query, brandFilter);
+    setProducts(page.items); setNextCursor(page.nextCursor);
+  };
   useEffect(() => {
-    fetchAdminProducts().then(p=>{setProducts(p);setLoading(false);}).catch(()=>setLoading(false));
-  }, []);
+    const request = ++generation.current;
+    setLoading(true); setLoadError('');
+    const timer = setTimeout(() => fetchAdminProducts(null, query, brandFilter).then(page => {
+      if (request === generation.current) { setProducts(page.items); setNextCursor(page.nextCursor); }
+    }).catch(() => { if (request === generation.current) setLoadError('Could not load products. Please try again.'); })
+      .finally(() => { if (request === generation.current) setLoading(false); }), 250);
+    return () => { clearTimeout(timer); generation.current++; };
+  }, [query, brandFilter, retry]);
+  const loadMore = async () => {
+    if (!nextCursor || loading) return;
+    const request = generation.current;
+    setLoading(true); setLoadError('');
+    try {
+      const page = await fetchAdminProducts(nextCursor, query, brandFilter);
+      if (request === generation.current) { setProducts(prev => [...prev, ...page.items]); setNextCursor(page.nextCursor); }
+    } catch { setLoadError('Could not load more products. Please try again.'); }
+    finally { if (request === generation.current) setLoading(false); }
+  };
 
   const brands = useMemo(()=>[...new Set(products.map(p=>p.brand))].sort(),[products]);
 
-  const visible = useMemo(()=>
-    products.filter(p=>{
-      const matchQ = p.name.toLowerCase().includes(query.toLowerCase())||p.brand.toLowerCase().includes(query.toLowerCase());
-      const matchB = !brandFilter || p.brand===brandFilter;
-      return matchQ && matchB;
-    }), [products, query, brandFilter]);
+  const visible = products;
 
   const showToast = (msg:string) => { setToast(msg); setTimeout(()=>setToast(''),3000); };
 
@@ -748,22 +755,25 @@ export default function AdminProductsPage() {
     if (!draft.name||!draft.brand||!draft.price) { showToast('⚠️ Name, brand and price are required'); return; }
     if (draft.original_price && draft.original_price < draft.price) { showToast('⚠️ MRP must be higher than sale price'); return; }
     // Sanitize all string fields before sending to backend
-    const safeDraft = sanitizeProductPayload(draft as unknown as Record<string,unknown>) as unknown as AdminProductPayload;
+    if (saving) return;
     setSaving(true);
     try {
+      const safeDraft = sanitizeProductPayload(draft as unknown as Record<string,unknown>) as unknown as AdminProductPayload;
       if (editing) { await updateAdminProduct(editing.id, safeDraft); showToast(`✓ "${safeDraft.name}" updated`); }
       else          { await createAdminProduct(safeDraft);            showToast(`✓ "${safeDraft.name}" created`); }
-      setProducts(await fetchAdminProducts());
+      await reload();
       closeModal();
-    } catch { showToast('✗ Save failed — check network / backend'); }
+    } catch (error) { showToast(error instanceof Error ? error.message : 'Save failed'); }
     finally  { setSaving(false); }
   };
 
   const remove = async (p:Product) => {
     if (!window.confirm(`Delete "${p.name}"? This cannot be undone.`)) return;
-    await deleteAdminProduct(p.id);
-    setProducts(prev=>prev.filter(x=>x.id!==p.id));
-    showToast(`🗑 "${p.name}" deleted`);
+    try {
+      await deleteAdminProduct(p.id);
+      setProducts(prev=>prev.filter(x=>x.id!==p.id));
+      showToast(`Deleted ${p.name}`);
+    } catch (error) { showToast(error instanceof Error ? error.message : 'Delete failed'); }
   };
 
   return (
@@ -827,7 +837,7 @@ export default function AdminProductsPage() {
                 )}
                 <img src={p.image} alt={p.name}
                   style={{ transition:'transform 0.3s' }}
-                  onError={e=>{(e.target as HTMLImageElement).src='https://placehold.co/200x130/eaf3fa/2B9FD8?text=👟';}} />
+                  onError={imageFallback} />
                 <h3 title={p.name}>{p.name}</h3>
                 <p>{p.brand}</p>
                 <div style={{ display:'flex',alignItems:'center',gap:6,marginBottom:2 }}>
@@ -848,6 +858,8 @@ export default function AdminProductsPage() {
             ))}
           </div>
         )}
+        {loadError && <div role="alert">{loadError} <button onClick={() => setRetry(n => n + 1)}>Try again</button></div>}
+        {nextCursor && <button className="admin-primary-btn" disabled={loading} onClick={loadMore}>{loading ? 'Loading…' : 'Load more products'}</button>}
       </section>
 
       <ProductModal open={modalOpen} onClose={closeModal}

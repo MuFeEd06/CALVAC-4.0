@@ -1,23 +1,30 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
-interface ToastCtx { showToast: (msg: string, ok?: boolean) => void; }
-const ToastContext = createContext<ToastCtx>({ showToast: () => {} });
+interface ToastCtx { showToast: (msg: string, ok?: boolean) => void; clearToasts: () => void; }
+const ToastContext = createContext<ToastCtx>({ showToast: () => {}, clearToasts: () => {} });
 
 let _id = 0;
 interface ToastItem { id: number; msg: string; ok: boolean; }
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
+  const clearToasts = useCallback(() => {
+    for (const timer of timers.current) clearTimeout(timer);
+    timers.current.clear(); setToasts([]);
+  }, []);
+  useEffect(() => () => { for (const timer of timers.current) clearTimeout(timer); timers.current.clear(); }, []);
 
   const showToast = useCallback((msg: string, ok = true) => {
     const id = ++_id;
     setToasts(prev => [...prev, { id, msg, ok }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 2500);
+    const timer = setTimeout(() => { timers.current.delete(timer); setToasts(prev => prev.filter(t => t.id !== id)); }, 2500);
+    timers.current.add(timer);
   }, []);
 
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext.Provider value={{ showToast, clearToasts }}>
       {children}
       <div className="toast-container">
         <AnimatePresence>

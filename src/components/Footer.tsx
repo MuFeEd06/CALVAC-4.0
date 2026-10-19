@@ -53,23 +53,9 @@ export default function Footer() {
         </div>
 
         <div>
-          <h3 style={{ fontFamily: 'var(--font-display)', color: 'var(--primary)', marginBottom: 12, fontSize: '0.9rem', letterSpacing: '1px', textTransform: 'uppercase' }}>Newsletter</h3>
-          <input type="email" placeholder="Your email" style={{
-            width: '100%', padding: '10px 14px',
-            background: 'var(--surface-2)', border: '1.5px solid var(--border)',
-            borderRadius: 'var(--button-radius)', color: 'var(--text)', fontSize: '0.88rem',
-            outline: 'none', marginBottom: 10, fontFamily: 'var(--font-body)',
-          }} />
-          <button style={{
-            padding: '10px 20px', background: 'var(--primary)',
-            color: '#fff', border: 'none', borderRadius: 'var(--button-radius)',
-            fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)',
-            transition: 'background 0.2s',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-dark)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'var(--primary)')}>
-            Subscribe
-          </button>
+          <h3 style={{ marginBottom: 12 }}>Stay connected</h3>
+          <p style={{ color: 'var(--text-muted)', lineHeight: 1.7 }}>Follow our latest arrivals or contact us about sizing and availability.</p>
+          <a className="primary-link" href="https://www.instagram.com/clc.india__" target="_blank" rel="noopener noreferrer">Follow on Instagram</a>
         </div>
       </div>
 

@@ -5,6 +5,8 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 
 from api._lib._cors import handle_options, require_cors
 from api._lib._rate_limit import require_rate_limit
+from api._lib._pagination import page_options, page_response, filter_value
+from api._lib._inventory import refresh_expired_reservations
 from api._lib._responses import ApiError, send_error, send_json
 from api._lib._supabase import public_rest_request
 from api._lib._validation import clean_size_label, normalize_settings_response, normalize_size_unit
@@ -136,44 +138,67 @@ def _fix_product(p):
     }
 
 
+PUBLIC_CACHE = {'Cache-Control': 'public, max-age=0, s-maxage=15, stale-while-revalidate=15', 'Vercel-CDN-Cache-Control': 'max-age=15, stale-while-revalidate=15'}
+
+
+def _catalog_filters(qs):
+    filters = ['active=eq.true']
+    for field in ('brand', 'tag', 'category'):
+        value = _first(qs, field).strip()[:100]
+        if value: filters.append(f'{field}=ilike.{filter_value(value)}')
+    for name, operator in (('max_price', 'lte'), ('min_price', 'gte')):
+        value = _first(qs, name)
+        if value:
+            try:
+                number = float(value)
+                if not 0 <= number <= 1000000: raise ValueError()
+            except ValueError: raise ApiError(400, 'Invalid price filter')
+            filters.append(f'price={operator}.{number}')
+    if _first(qs, 'sale'): filters.append('on_sale=eq.true')
+    query = _first(qs, 'q').strip()[:100]
+    if query:
+        pattern = filter_value('*' + query + '*')
+        filters.append(f'or=(name.ilike.{pattern},brand.ilike.{pattern})')
+    return filters
+
+
 def _get_products(handler, qs, cors):
+    refresh_expired_reservations()
     pid = _product_id(handler, qs)
+    filters = _catalog_filters(qs)
     if pid:
-        safe_id = quote(pid, safe="")
-        data = public_rest_request("GET", f"products?select={PUBLIC_PRODUCT_SELECT}&id=eq.{safe_id}&limit=1")
-        if not data:
-            raise ApiError(404, "Product not found")
-        body = _fix_product(data[0])
+        if not re.fullmatch(r'[1-9][0-9]{0,18}', pid): raise ApiError(400, 'Invalid product ID')
+        rows = public_rest_request('GET', f'products?select={PUBLIC_PRODUCT_SELECT}&id=eq.{pid}&active=eq.true&limit=1')
+        if not rows: raise ApiError(404, 'Product not found')
+        body = _fix_product(rows[0])
     else:
-        data = public_rest_request("GET", f"products?select={PUBLIC_PRODUCT_SELECT}&order=id&limit=500")
-        body = [_fix_product(p) for p in data]
-    send_json(handler, 200, body, cors)
+        limit, cursor = page_options(qs, 24)
+        if cursor: filters.append('id=gt.' + cursor)
+        rows = public_rest_request('GET', f'products?select={PUBLIC_PRODUCT_SELECT}&order=id.asc&limit={limit + 1}&' + '&'.join(filters))
+        body = page_response([_fix_product(row) for row in rows], limit)
+    send_json(handler, 200, body, cors, PUBLIC_CACHE)
 
 
 def _get_search(handler, qs, cors):
-    require_rate_limit(handler, "search")
-    q = (_first(qs, "q")).strip()[:100]
-    q = re.sub(r"<[^>]+>", "", q).strip()
-    if not q or len(q) < 2:
-        send_json(handler, 200, [], cors)
+    require_rate_limit(handler, 'search')
+    query = _first(qs, 'q').strip()[:100]
+    if len(query) < 2:
+        send_json(handler, 200, [], cors, PUBLIC_CACHE)
         return
-    enc = quote(q)
-    data = public_rest_request(
-        "GET",
-        f"products?select={PUBLIC_PRODUCT_SELECT}&or=(name.ilike.*{enc}*,brand.ilike.*{enc}*)&limit=20",
-    )
-    send_json(handler, 200, data, cors)
+    pattern = filter_value('*' + query + '*')
+    rows = public_rest_request('GET', f'products?select={PUBLIC_PRODUCT_SELECT}&active=eq.true&or=(name.ilike.{pattern},brand.ilike.{pattern})&order=id&limit=20')
+    send_json(handler, 200, [_fix_product(row) for row in rows], cors, PUBLIC_CACHE)
 
 
 def _get_site_settings(handler, cors):
     rows = public_rest_request("GET", "site_settings?select=data&limit=1")
     data = rows[0].get("data") or {} if rows else {}
-    send_json(handler, 200, normalize_settings_response(data), cors, {"Cache-Control": "no-store"})
+    send_json(handler, 200, normalize_settings_response(data), cors, PUBLIC_CACHE)
 
 
 def _get_offer(handler, cors):
     data = public_rest_request("GET", "offer?select=active,text,bg_color,text_color,show_logo&limit=1")
-    send_json(handler, 200, data[0] if data else DEFAULT_OFFER, cors)
+    send_json(handler, 200, data[0] if data else DEFAULT_OFFER, cors, PUBLIC_CACHE)
 
 
 class handler(BaseHTTPRequestHandler):

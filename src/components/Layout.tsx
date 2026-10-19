@@ -1,9 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import Header from './Header';
 import Footer from './Footer';
-import { fetchSiteSettings, refreshSiteSettings } from '@/api';
+import { fetchSiteSettings } from '@/api';
 import { applyThemeSettings } from '@/theme';
 
 /** Apply normalized theme settings to CSS variables. */
@@ -12,9 +11,6 @@ function useTheme() {
   useEffect(() => {
     let cancelled = false;
     fetchSiteSettings()
-      .then(s => { if (!cancelled) applyThemeSettings(s.theme_settings); })
-      .catch(() => {});
-    refreshSiteSettings()
       .then(s => { if (!cancelled) applyThemeSettings(s.theme_settings); })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -26,32 +22,39 @@ function CustomCursor() {
   const ringRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    let raf: number;
-    let rx = 0, ry = 0, tx = 0, ty = 0;
-
-    const onMove = (e: MouseEvent) => { tx = e.clientX; ty = e.clientY; };
-    document.addEventListener('mousemove', onMove);
-
-    const tick = () => {
-      rx += (tx - rx) * 0.15;
-      ry += (ty - ry) * 0.15;
-      if (dotRef.current)  { dotRef.current.style.left  = `${tx}px`; dotRef.current.style.top  = `${ty}px`; }
-      if (ringRef.current) { ringRef.current.style.left = `${rx}px`; ringRef.current.style.top = `${ry}px`; }
-      raf = requestAnimationFrame(tick);
+    if (!matchMedia('(hover: hover) and (pointer: fine)').matches || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let raf: number | undefined;
+    let rx = 0, ry = 0, tx = 0, ty = 0, initialized = false;
+    const place = (element: HTMLDivElement | null, x: number, y: number) => {
+      if (element) element.style.transform = `translate3d(${x}px,${y}px,0) translate(-50%,-50%)`;
     };
-    tick();
-
-    // Grow ring on clickable elements
-    const grow = () => { ringRef.current && Object.assign(ringRef.current.style, { width: '48px', height: '48px', opacity: '0.3' }); };
-    const shrink = () => { ringRef.current && Object.assign(ringRef.current.style, { width: '32px', height: '32px', opacity: '0.5' }); };
-    document.querySelectorAll('a, button, [role="button"]').forEach(el => {
-      el.addEventListener('mouseenter', grow);
-      el.addEventListener('mouseleave', shrink);
-    });
-
+    const tick = () => {
+      raf = undefined;
+      rx += (tx - rx) * .2; ry += (ty - ry) * .2;
+      place(ringRef.current, rx, ry);
+      if (Math.abs(rx - tx) + Math.abs(ry - ty) > .2) raf = requestAnimationFrame(tick);
+    };
+    const move = (event: MouseEvent) => {
+      if (document.hidden) return;
+      tx = event.clientX; ty = event.clientY;
+      if (!initialized) { rx = tx; ry = ty; initialized = true; }
+      if (dotRef.current) dotRef.current.style.opacity = '1';
+      if (ringRef.current) ringRef.current.style.opacity = '.5';
+      place(dotRef.current, tx, ty);
+      if (raf === undefined) raf = requestAnimationFrame(tick);
+    };
+    const over = (event: MouseEvent) => {
+      const interactive = event.target instanceof Element && event.target.closest('a,button,[role="button"]');
+      if (ringRef.current) Object.assign(ringRef.current.style, { width: interactive ? '48px' : '32px', height: interactive ? '48px' : '32px' });
+    };
+    const visibility = () => { if (document.hidden && raf !== undefined) { cancelAnimationFrame(raf); raf = undefined; } };
+    document.addEventListener('mousemove', move, { passive: true });
+    document.addEventListener('mouseover', over);
+    document.addEventListener('visibilitychange', visibility);
     return () => {
-      document.removeEventListener('mousemove', onMove);
-      cancelAnimationFrame(raf);
+      document.removeEventListener('mousemove', move); document.removeEventListener('mouseover', over);
+      document.removeEventListener('visibilitychange', visibility);
+      if (raf !== undefined) cancelAnimationFrame(raf);
     };
   }, []);
 
@@ -71,15 +74,7 @@ export default function Layout() {
     <>
       <CustomCursor />
       <Header />
-      <AnimatePresence mode="sync">
-        <motion.div key={location.pathname}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}>
-          <Outlet />
-        </motion.div>
-      </AnimatePresence>
+      <div key={location.pathname} className="page-content"><Outlet /></div>
       <Footer />
 
       {/* WhatsApp float button */}

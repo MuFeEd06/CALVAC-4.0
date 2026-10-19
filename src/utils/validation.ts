@@ -5,9 +5,13 @@
 import { normalizeSizeList, normalizeSizeUnit } from './sizeUnits';
 
 /** Strip control characters and limit length */
-export function cleanStr(s: unknown, maxLen = 500): string {
+export function cleanInput(s: unknown, maxLen = 500): string {
   if (typeof s !== 'string') return '';
-  return s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').slice(0, maxLen).trim();
+  return s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').slice(0, maxLen);
+}
+
+export function cleanStr(s: unknown, maxLen = 500): string {
+  return cleanInput(s, maxLen).trim();
 }
 
 /** Validate Indian PIN code */
@@ -24,6 +28,7 @@ export function isValidPhone(phone: string): boolean {
 export function isSafeUrl(url: string): boolean {
   const trimmed = url.trim();
   if (!trimmed) return true;
+  if (/[\\\x00-\x20\x7F]/.test(trimmed)) return false;
   if (trimmed.startsWith('/') && !trimmed.startsWith('//')) return true;
   try {
     const u = new URL(trimmed);
@@ -43,6 +48,18 @@ export function isSafeUrl(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+export function isSafeImageUrl(value: string): boolean {
+  const url = value.trim();
+  if (!url) return true;
+  if (/[\\\x00-\x20\x7F]/.test(url)) return false;
+  if (url.startsWith('/') && !url.startsWith('//')) return true;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' && !parsed.username && !parsed.password
+      && ['ik.imagekit.io', 'placehold.co', 'calvac.in', 'www.calvac.in', 'calvac-4-0.vercel.app'].includes(parsed.hostname);
+  } catch { return false; }
 }
 
 export function safeLink(url: unknown, fallback = '/shop'): string {
@@ -71,6 +88,8 @@ export function validateAddress(form: {
 
 /** Sanitize a product payload — trim all string fields, clamp numbers */
 export function sanitizeProductPayload(draft: Record<string, unknown>): Record<string, unknown> {
+  const image = cleanStr(draft.image, 500);
+  if (!isSafeImageUrl(image)) throw new Error('Use a valid ImageKit or store image URL.');
   return {
     ...draft,
     name:           cleanStr(draft.name as string, 200),
@@ -82,6 +101,6 @@ export function sanitizeProductPayload(draft: Record<string, unknown>): Record<s
     size_unit:      normalizeSizeUnit(draft.size_unit),
     sizes:          normalizeSizeList(draft.sizes),
     specs:          cleanStr(draft.specs as string, 2000),
-    image:          isSafeUrl(String(draft.image || '')) ? String(draft.image) : '',
+    image,
   };
 }

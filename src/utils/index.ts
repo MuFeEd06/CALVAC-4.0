@@ -25,14 +25,6 @@ export function getBrandConfig(name: string): BrandConfig {
   return found || { name, slug: name, color: '#2B9FD8', logo: '' };
 }
 
-export function getRating(id: number): { score: number; count: number } {
-  const seed = (id * 9301 + 49297) % 233280;
-  const rand = seed / 233280;
-  const score = Math.round((3.5 + rand * 1.5) * 10) / 10;
-  const count = 18 + Math.floor(((id * 6271 + 28411) % 233280) / 233280 * 402);
-  return { score, count };
-}
-
 export function formatPrice(num: number): string {
   return '₹' + num.toLocaleString('en-IN');
 }
@@ -63,38 +55,3 @@ export const CATEGORIES = [
   { label: 'Premium',    slug: 'premium',   emoji: '💎', path: '/shop?min_price=2500'  },
   { label: 'All Shoes',  slug: 'all',       emoji: '👟', path: '/shop'                 },
 ];
-
-const DESC_TEMPLATES = {
-  comfort: [
-    'engineered with responsive foam cushioning that absorbs impact and returns energy',
-    'built on a plush midsole that cradles your foot in cloud-like comfort all day long',
-    'featuring a padded collar and cushioned insole that keep fatigue at bay',
-    'designed with multi-zone cushioning that adapts to your stride for a personalised fit',
-  ],
-  material: [
-    'crafted from premium full-grain leather upper that ages beautifully',
-    'made with engineered mesh that offers superior breathability while keeping its structure',
-    'constructed from high-abrasion rubber on the outsole for lasting grip on any surface',
-    'assembled with vulcanised rubber and canvas that deliver timeless durability',
-  ],
-  style: [
-    'Its clean silhouette and tonal colourway make it an effortless match for any outfit.',
-    'The bold profile and contrasting sole unit command attention on the street and off it.',
-    'A minimalist design language keeps it versatile enough to pair with casual or smart looks.',
-    'Retro-inspired lines and modern proportions give it a timeless appeal.',
-  ],
-};
-
-function seededPick<T>(arr: T[], seed: number): T {
-  return arr[seed % arr.length];
-}
-
-export function getProductDescription(id: number, name: string): string {
-  const s1 = (id * 7919) % 233280;
-  const s2 = (id * 6271 + 1000) % 233280;
-  const s3 = (id * 9301 + 49297) % 233280;
-  const comfort = seededPick(DESC_TEMPLATES.comfort, s1);
-  const material = seededPick(DESC_TEMPLATES.material, s2);
-  const style = seededPick(DESC_TEMPLATES.style, s3);
-  return `The ${name} is ${comfort}, while ${material}. ${style}`;
-}

@@ -1,14 +1,16 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
+import { useState } from 'react';
+import { customerSignOut } from '@/lib/customerAuth';
 
 const BASE = '/manage-store-x9k2';
 
 export default function AdminLayout() {
   const navigate = useNavigate();
+  const [error,setError]=useState('');
 
   const logout = async () => {
-    if (supabase) await supabase.auth.signOut();
-    navigate(`${BASE}/login`, { replace: true });
+    try{await customerSignOut();navigate(`${BASE}/login`, { replace: true });}
+    catch(error){setError(error instanceof Error?error.message:'Could not sign out.');}
   };
 
   return (
@@ -25,6 +27,7 @@ export default function AdminLayout() {
         </button>
       </header>
       <main className="admin-page-wrap">
+        {error&&<p role="alert" className="admin-error">{error}</p>}
         <Outlet />
       </main>
     </div>

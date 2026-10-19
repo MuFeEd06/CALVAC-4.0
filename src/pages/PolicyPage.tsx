@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { fetchSiteSettings } from '@/api';
 import { safeMd } from '@/utils/sanitize';
 
 type PolicyType = 'privacy' | 'return' | 'shipping';
@@ -33,14 +34,18 @@ function renderMarkdown(md: string): string {
 
 export default function PolicyPage() {
   const { type } = useParams<{ type: string }>();
-  const policyType = (type as PolicyType) || 'privacy';
+  const policyType: PolicyType = ['privacy', 'return', 'shipping'].includes(type || '') ? type as PolicyType : 'privacy';
   const [content, setContent] = useState('');
 
   useEffect(() => {
-    fetch('/api/site-settings').then(r => r.json()).then((s: Record<string, string>) => {
-      const key = `policy_${policyType}`;
-      setContent(s[key] || DEFAULT_CONTENT[policyType] || '');
-    }).catch(() => setContent(DEFAULT_CONTENT[policyType] || ''));
+    let active = true;
+    setContent('');
+    fetchSiteSettings().then(settings => {
+      if (!active) return;
+      const text = (settings as unknown as Record<string, unknown>)[`policy_${policyType}`];
+      setContent(typeof text === 'string' && text ? text : DEFAULT_CONTENT[policyType]);
+    }).catch(() => { if (active) setContent('This policy is temporarily unavailable. Please contact us for details.'); });
+    return () => { active = false; };
   }, [policyType]);
 
   const tabs: PolicyType[] = ['privacy', 'return', 'shipping'];

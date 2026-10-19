@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { fetchAdminOrders, updateOrderNotes, updateOrderStatus } from '@/api/admin';
 import type { AdminOrder } from '@/types/admin';
 import { formatSizeWithUnit } from '@/utils/sizeUnits';
@@ -13,7 +13,7 @@ const STATUS_COLORS: Record<AdminOrder['status'], string> = {
   Cancelled: '#ef4444',
 };
 
-const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
 
 export default function AdminDashboardPage() {
   const [orders, setOrders]   = useState<AdminOrder[]>([]);
@@ -21,20 +21,18 @@ export default function AdminDashboardPage() {
   const [error, setError]     = useState('');
   const [filter, setFilter]   = useState<'all' | AdminOrder['status']>('all');
 
-  const load = () => {
-    setLoading(true);
-    setError('');
-    fetchAdminOrders()
-      .then(data => { setOrders(data); setError(''); })
-      .catch(() => setError(
-        isLocal
-          ? 'Could not reach the orders API. This usually happens in local dev because the Flask admin session cookie belongs to calvac.in — deploy to Vercel or open calvac.in/admin to manage orders.'
-          : 'Failed to load orders. Please refresh or check your connection.'
-      ))
-      .finally(() => setLoading(false));
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const generation = useRef(0);
+  const load = async (append = false) => {
+    const request = ++generation.current;
+    setLoading(true); setError('');
+    try {
+      const page = await fetchAdminOrders(append ? nextCursor : null, filter);
+      if (request === generation.current) { setOrders(prev => append ? [...prev, ...page.items] : page.items); setNextCursor(page.nextCursor); }
+    } catch (error) { if (request === generation.current) setError(error instanceof Error ? error.message : 'Failed to load orders. Please try again.'); }
+    finally { if (request === generation.current) setLoading(false); }
   };
-
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); return () => { generation.current++; }; }, [filter]);
 
   const filtered = useMemo(
     () => filter === 'all' ? orders : orders.filter(o => o.status === filter),
@@ -42,19 +40,23 @@ export default function AdminDashboardPage() {
   );
 
   const saveStatus = async (id: number, status: AdminOrder['status']) => {
-    const res = await updateOrderStatus(id, status);
-    if (res.success) setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
+    try {
+      const res = await updateOrderStatus(id, status);
+      if (res.success) setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
+    } catch (error) { setError(error instanceof Error ? error.message : 'Status update failed'); }
   };
 
   const saveNotes = async (id: number, notes: string) => {
-    const res = await updateOrderNotes(id, notes);
-    if (res.success) setOrders(prev => prev.map(o => o.id === id ? { ...o, notes } : o));
+    try {
+      const res = await updateOrderNotes(id, notes);
+      if (res.success) setOrders(prev => prev.map(o => o.id === id ? { ...o, notes } : o));
+    } catch (error) { setError(error instanceof Error ? error.message : 'Notes update failed'); }
   };
 
   return (
     <section className="admin-panel">
       <div className="admin-section-head">
-        <h2>Orders {orders.length > 0 && <span style={{ fontSize: '0.8rem', color: '#5a6a7a', fontWeight: 400 }}>({orders.length} total)</span>}</h2>
+        <h2>Orders {orders.length > 0 && <span style={{ fontSize: '0.8rem', color: '#5a6a7a', fontWeight: 400 }}>({orders.length} loaded)</span>}</h2>
         <div className="admin-filters">
           <button type="button" className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>All</button>
           {STATUSES.map(s => (
@@ -64,18 +66,6 @@ export default function AdminDashboardPage() {
           ))}
         </div>
       </div>
-
-      {/* Local dev notice */}
-      {isLocal && !loading && (
-        <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: '0.82rem', color: '#92400e', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-          <span style={{ fontSize: '1rem', flexShrink: 0 }}>⚠️</span>
-          <span>
-            <strong>Local development:</strong> The orders API requires a Flask admin session from{' '}
-            <a href="https://calvac.in" target="_blank" rel="noopener noreferrer" style={{ color: '#2B9FD8', fontWeight: 600 }}>calvac.in</a>.
-            Products and Settings work fine here. Deploy to Vercel to manage orders.
-          </span>
-        </div>
-      )}
 
       {loading && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '20px 0', color: '#5a6a7a' }}>
@@ -90,8 +80,8 @@ export default function AdminDashboardPage() {
           <span style={{ flexShrink: 0 }}>⚠️</span>
           <div>
             <div>{error}</div>
-            {!isLocal && (
-              <button onClick={load} style={{ marginTop: 6, background: 'none', border: '1px solid #fecdd3', borderRadius: 6, padding: '4px 10px', color: '#b91c1c', cursor: 'pointer', fontSize: '0.8rem' }}>
+            {(
+              <button onClick={() => void load()} style={{ marginTop: 6, background: 'none', border: '1px solid #fecdd3', borderRadius: 6, padding: '4px 10px', color: '#b91c1c', cursor: 'pointer', fontSize: '0.8rem' }}>
                 Retry
               </button>
             )}
@@ -139,6 +129,10 @@ export default function AdminDashboardPage() {
             <p className="order-address">
               📍 {order.line1}, {order.city}, {order.state} — {order.pin}
             </p>
+            <p><strong>{order.payment_method==='razorpay'?'Online / Razorpay':order.payment_method==='cod'?'Cash on Delivery':order.payment_method==='whatsapp'?'WhatsApp':'Legacy order'}</strong>
+              {' · '}{(order.payment_status||'legacy').replace(/_/g,' ')}{order.user_id?' · Customer account':' · Guest'}</p>
+            {order.razorpay_payment_id&&<p>Payment reference: {order.razorpay_payment_id}</p>}
+            {order.payment_status==='refund_required'&&<p role="alert" className="admin-error">Refund review required. Process and verify the refund in Razorpay before closing this case.</p>}
 
             {/* Items */}
             {order.items?.length > 0 && (
@@ -154,7 +148,7 @@ export default function AdminDashboardPage() {
             <div className="admin-order-controls">
               <select value={order.status} onChange={e => saveStatus(order.id, e.target.value as AdminOrder['status'])}
                 style={{ borderLeft: `3px solid ${STATUS_COLORS[order.status]}` }}>
-                {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                {STATUSES.map(s => <option key={s} value={s} disabled={order.payment_method==='razorpay'&&order.payment_status!=='paid'&&['Confirmed','Shipped','Delivered'].includes(s)}>{s}</option>)}
               </select>
               <input
                 defaultValue={order.notes || ''}
@@ -171,6 +165,7 @@ export default function AdminDashboardPage() {
           </article>
         ))}
       </div>
+      {nextCursor && <button className="admin-primary-btn" disabled={loading} onClick={() => void load(true)}>{loading ? 'Loading…' : 'Load more orders'}</button>}
     </section>
   );
 }

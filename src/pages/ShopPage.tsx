@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { fetchProducts } from '@/api';
+import { fetchProductsPage, type ProductFilters } from '@/api';
 import type { Product } from '@/types';
 import ProductCard from '@/components/ProductCard';
 import { BRANDS } from '@/utils';
@@ -12,6 +12,10 @@ export default function ShopPage() {
   const [params] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
+  const generation = useRef(0);
 
   const brand    = params.get('brand') || '';
   const tag      = params.get('tag') || '';
@@ -20,32 +24,27 @@ export default function ShopPage() {
   const maxPrice = parseInt(params.get('max_price') || '0');
   const minPrice = parseInt(params.get('min_price') || '0');
 
+  const filters: ProductFilters = { brand, q, sale, max_price: maxPrice || undefined, min_price: minPrice || undefined,
+    ...(['boots', 'crocs', 'girls'].includes(tag) ? { category: tag } : { tag }) };
   useEffect(() => {
-    setLoading(true);
-    fetchProducts().then(all => {
-      let filtered = [...all];
-      if (q) {
-        const nq = norm(q);
-        filtered = filtered.filter(p => norm(p.name).includes(nq) || norm(p.brand).includes(nq));
-      } else if (brand) {
-        const nb = norm(brand);
-        filtered = filtered.filter(p => norm(p.brand) === nb || norm(p.brand).includes(nb));
-      } else if (tag) {
-        const CAT = new Set(['boots','crocs','girls']);
-        filtered = CAT.has(tag)
-          ? filtered.filter(p => p.category === tag)
-          : filtered.filter(p => p.tag === tag);
-      } else if (sale) {
-        filtered = filtered.filter(p => p.original_price && p.original_price > p.price);
-      } else if (maxPrice) {
-        filtered = filtered.filter(p => p.price <= maxPrice);
-      } else if (minPrice) {
-        filtered = filtered.filter(p => p.price >= minPrice);
-      }
-      setProducts(filtered);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [brand, tag, q, sale, maxPrice, minPrice]);
+    const request = ++generation.current;
+    setLoading(true); setError(''); setProducts([]); setNextCursor(null);
+    fetchProductsPage(filters).then(page => {
+      if (request === generation.current) { setProducts(page.items); setNextCursor(page.nextCursor); }
+    }).catch(() => { if (request === generation.current) setError('Could not load shoes. Please try again.'); })
+      .finally(() => { if (request === generation.current) setLoading(false); });
+    return () => { generation.current++; };
+  }, [brand, tag, q, sale, maxPrice, minPrice, retry]);
+  const loadMore = async () => {
+    if (!nextCursor || loading) return;
+    const request = generation.current;
+    setLoading(true); setError('');
+    try {
+      const page = await fetchProductsPage({ ...filters, after: nextCursor });
+      if (request === generation.current) { setProducts(prev => [...prev, ...page.items]); setNextCursor(page.nextCursor); }
+    } catch { if (request === generation.current) setError('Could not load more shoes. Please try again.'); }
+    finally { if (request === generation.current) setLoading(false); }
+  };
 
   // Page title derivation
   const brandCfg = brand ? BRANDS.find(b => norm(b.slug) === norm(brand)) : null;
@@ -82,19 +81,20 @@ export default function ShopPage() {
             {pageTitle}
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            {loading ? 'Loading…' : `${products.length} style${products.length !== 1 ? 's' : ''} available`}
+            {loading && !products.length ? 'Loading…' : `${products.length} style${products.length !== 1 ? 's' : ''} loaded`}
           </p>
         </div>
       </div>
 
       {/* Grid */}
-      {loading ? (
+      {error && <div role="alert"><p>{error}</p><button onClick={() => nextCursor ? loadMore() : setRetry(n => n + 1)}>Try again</button></div>}
+      {loading && !products.length ? (
         <div className="product-grid">
           {Array(8).fill(0).map((_, i) => (
             <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, height: 340, animation: 'pulse 1.5s ease-in-out infinite' }} />
           ))}
         </div>
-      ) : products.length === 0 ? (
+      ) : products.length === 0 && !error ? (
         <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text-muted)' }}>
           <div style={{ fontSize: '3rem', marginBottom: 16 }}>🔍</div>
           <h2 style={{ fontFamily: 'var(--font-display)', marginBottom: 8 }}>No products found</h2>
@@ -108,6 +108,7 @@ export default function ShopPage() {
         </motion.div>
       )}
 
+      {nextCursor && <button className="primary-link" disabled={loading} onClick={loadMore}>{loading ? 'Loading…' : 'Load more shoes'}</button>}
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
       `}</style>

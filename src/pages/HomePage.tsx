@@ -24,12 +24,27 @@ export default function HomePage() {
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
   const [offer, setOffer] = useState<Offer>({ active: false, text: '', bg_color: '#FF6B35', text_color: '#fff' });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
-    Promise.all([fetchProducts(), fetchSiteSettings(), fetchOffer()])
-      .then(([prods, s, o]) => { setProducts(prods); setSettings(s); setOffer(o); })
-      .finally(() => setLoading(false));
-  }, []);
+    let active = true;
+    setLoading(true); setError('');
+    const catalog = Promise.all([fetchProducts({ tag: 'new', limit: 12 }), fetchProducts({ tag: 'trending', limit: 12 })])
+      .then(async ([fresh, trending]) => {
+        const items = [...new Map([...fresh, ...trending].map(p => [p.id, p])).values()];
+        return items.length ? items : fetchProducts({ limit: 12 });
+      });
+    Promise.allSettled([catalog, fetchSiteSettings(), fetchOffer()]).then(([products, settings, offer]) => {
+      if (!active) return;
+      if (products.status === 'fulfilled') setProducts(products.value);
+      else setError('Could not load the catalog. Please try again.');
+      if (settings.status === 'fulfilled') setSettings(settings.value);
+      if (offer.status === 'fulfilled') setOffer(offer.value);
+      setLoading(false);
+    });
+    return () => { active = false; };
+  }, [retry]);
 
   const trending = products.filter(p => p.tag === 'trending');
 
@@ -38,6 +53,7 @@ export default function HomePage() {
       <OfferRibbon offer={offer} />
       <ScrollyShoeExperience settings={settings as SiteSettings & Record<string, unknown>} />
 
+      {error && <div role="alert" className="load-error"><p>{error}</p><button onClick={() => setRetry(n => n + 1)}>Try again</button></div>}
       {settings.show_new_arrivals && <NewArrivals products={products} />}
       {(settings as any).show_brands_section !== false && (
         <BrandTiles hiddenBrands={(settings as any).hidden_brands || ''} />

@@ -1,4 +1,5 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { FALLBACK_IMAGE } from '@/utils/images';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import type { Product, SiteSettings } from '@/types';
 import { BRANDS, CATEGORIES, formatPrice, getDeal } from '@/utils';
@@ -6,6 +7,7 @@ import HorizontalScroll from './HorizontalScroll';
 import { ikResize } from '@/api';
 import { FocusRail } from './FocusRail';
 import type { FocusRailItem } from './FocusRail';
+const MotionLink = motion(Link);
 
 /* ── New Arrivals — FocusRail carousel ── */
 export function NewArrivals({ products }: { products: Product[] }) {
@@ -26,7 +28,7 @@ export function NewArrivals({ products }: { products: Product[] }) {
         : safeSizes.length
           ? `Available in sizes ${safeSizes.slice(0, 4).join(', ')}${safeSizes.length > 4 ? '…' : ''}`
           : 'Premium quality sneaker',
-      imageSrc:    ikResize(p.image, 600, 80) || 'https://placehold.co/300x400/1a1a1a/2B9FD8?text=👟',
+      imageSrc:    ikResize(p.image, 600, 80) || FALLBACK_IMAGE,
       href:        `/product/${p.id}`,
       meta:        deal
         ? `${p.brand}  ·  ${deal.pct}% OFF`
@@ -74,7 +76,6 @@ export function NewArrivals({ products }: { products: Product[] }) {
 
 /* ── Brand Tiles ── */
 export function BrandTiles({ hiddenBrands = '' }: { hiddenBrands?: string }) {
-  const navigate = useNavigate();
   const hidden = new Set(hiddenBrands.split(',').map(s => s.trim().toLowerCase()).filter(Boolean));
   const visible = BRANDS.filter(b => !hidden.has(b.slug.toLowerCase()));
 
@@ -87,10 +88,9 @@ export function BrandTiles({ hiddenBrands = '' }: { hiddenBrands?: string }) {
         {visible.map((brand, i) => {
           const initials = brand.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
           return (
-            <motion.div key={brand.slug}
+            <MotionLink key={brand.slug} to={`/shop?brand=${encodeURIComponent(brand.slug)}`}
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
               whileHover={{ y: -6, boxShadow: 'var(--shadow-hover)', borderColor: 'var(--primary)' }}
-              onClick={() => navigate(`/shop?brand=${encodeURIComponent(brand.slug)}`)}
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
                 padding: '18px 10px 14px', borderRadius: 16, border: '1px solid var(--border)',
@@ -106,7 +106,7 @@ export function BrandTiles({ hiddenBrands = '' }: { hiddenBrands?: string }) {
               </div>
               <span style={{ fontSize: '0.72rem', fontWeight: 600, textAlign: 'center', color: 'var(--text-muted)', lineHeight: 1.2 }}>{brand.name}</span>
               <span style={{ fontSize: '0.82rem', color: `${brand.color}88` }}>→</span>
-            </motion.div>
+            </MotionLink>
           );
         })}
       </div>
@@ -116,7 +116,6 @@ export function BrandTiles({ hiddenBrands = '' }: { hiddenBrands?: string }) {
 
 /* ── Category Scroll ── */
 export function CategoryScroll({ settings }: { settings: SiteSettings }) {
-  const navigate = useNavigate();
   if (!settings.show_categories) return null;
 
   const visible = CATEGORIES.filter(c => (settings as any)[`cat_${c.slug}`] !== false);
@@ -130,9 +129,8 @@ export function CategoryScroll({ settings }: { settings: SiteSettings }) {
       </div>
       <HorizontalScroll>
         {[...visible, ...visible].map((cat, i) => (
-          <motion.div key={`${cat.slug}-${i}`}
+          <MotionLink key={`${cat.slug}-${i}`} to={cat.path}
             whileHover={{ y: -3, borderColor: 'var(--primary)', boxShadow: '0 8px 24px rgba(0,0,0,0.1)' }}
-            onClick={() => navigate(cat.path)}
             style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center',
               width: 160, flexShrink: 0, background: 'var(--surface)',
@@ -149,7 +147,7 @@ export function CategoryScroll({ settings }: { settings: SiteSettings }) {
             <span style={{ fontSize: '0.72rem', fontWeight: 700, textAlign: 'center', color: 'var(--text)', letterSpacing: '0.3px', textTransform: 'uppercase', padding: '8px 6px 10px', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {cat.label}
             </span>
-          </motion.div>
+          </MotionLink>
         ))}
       </HorizontalScroll>
     </section>

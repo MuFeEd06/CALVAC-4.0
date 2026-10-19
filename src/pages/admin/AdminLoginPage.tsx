@@ -1,8 +1,9 @@
-import { FormEvent, useState, useRef, useCallback } from 'react';
+import { FormEvent, useState, useRef, useCallback, useEffect } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { adminLogin } from '@/api/admin';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 import { supabase } from '@/lib/supabase';
+import { ApiError } from '@/api';
 
 /* ── Rate-limit: max 5 attempts per 15 minutes ── */
 const MAX_ATTEMPTS = 5;
@@ -54,6 +55,8 @@ export default function AdminLoginPage() {
   const [locked,   setLocked]   = useState(false);
   const [lockSec,  setLockSec]  = useState(0);
   const { check, record } = useRateLimit();
+  const countdown = useRef<ReturnType<typeof setInterval>>();
+  useEffect(() => () => { if (countdown.current) clearInterval(countdown.current); }, []);
 
   const from = safePath((location.state as { from?: string } | undefined)?.from);
 
@@ -75,6 +78,7 @@ export default function AdminLoginPage() {
           return s - 1;
         });
       }, 1000);
+      countdown.current = iv;
       return;
     }
 
@@ -106,7 +110,8 @@ export default function AdminLoginPage() {
 
     if (signInError) {
       // Don't reveal whether it's the email or password that's wrong
-      setError('Invalid credentials. Please try again.');
+      setError(signInError instanceof ApiError && [408, 429, 502, 503].includes(signInError.status)
+        ? signInError.message : 'Invalid credentials. Please try again.');
       setPassword(''); // clear password field on failure
       return;
     }

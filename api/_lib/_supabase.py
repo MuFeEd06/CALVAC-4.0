@@ -1,6 +1,6 @@
 import json
 import os
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from api._lib._responses import ApiError
@@ -49,13 +49,23 @@ def _json_request(url, method="GET", headers=None, body=None, timeout=10):
             raw = res.read()
             return json.loads(raw) if raw.strip() else {}
     except HTTPError as exc:
-        safe = "Supabase request failed"
+        safe = 'Service temporarily unavailable. Please try again.'
         try:
-            detail = exc.read().decode()
-            print(f"Supabase HTTP {exc.code}: {detail[:300]}")
+            detail = json.loads(exc.read())
+            print(f"Supabase HTTP {exc.code}, code={detail.get('code', 'unknown')}")
+            public_messages = {'Insufficient stock', 'Product is unavailable', 'Invalid product size', 'Invalid product color',
+                'Invalid order status transition', 'Order not found', 'This order needs a manual inventory review before cancellation',
+                'Idempotency key was already used for another order', 'Product configuration is unavailable', 'Invalid product price'}
+            public_messages.update({'Online payment is not confirmed', 'Payment is already being prepared. Please retry shortly',
+                'This payment reservation has expired', 'This order is not eligible for payment', 'Order does not match this account',
+                'This payment method is currently unavailable'})
+            if detail.get('message') in public_messages:
+                safe = detail['message']
         except Exception:
             print(f"Supabase HTTP {exc.code}")
         raise SupabaseError(exc.code if exc.code < 500 else 502, safe)
+    except (URLError, TimeoutError):
+        raise SupabaseError(502, 'Service temporarily unavailable. Please retry the same request.')
 
 
 def auth_get_user(token):

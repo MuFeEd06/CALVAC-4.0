@@ -1,3 +1,4 @@
+import { FALLBACK_IMAGE, imageFallback } from '@/utils/images';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -25,9 +26,15 @@ export default function Header() {
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
   const timerRef  = useRef<ReturnType<typeof setTimeout>>();
+  const searchAbort = useRef<AbortController | null>(null);
+  const searchVersion = useRef(0);
+  const [searchError, setSearchError] = useState('');
+  useEffect(() => () => { clearTimeout(timerRef.current); searchAbort.current?.abort(); searchVersion.current++; }, []);
 
   /* Close search when navigating */
   useEffect(() => {
+    clearTimeout(timerRef.current); searchAbort.current?.abort(); searchVersion.current++;
+    setSearchError('');
     setMenuOpen(false);
     setSearchOpen(false);
     setSearchQ('');
@@ -38,6 +45,7 @@ export default function Header() {
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        clearTimeout(timerRef.current); searchAbort.current?.abort(); searchVersion.current++;
         setSearchOpen(false);
         setResults([]);
       }
@@ -46,13 +54,19 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const handleSearch = useCallback(async (q: string) => {
-    setSearchQ(q);
-    clearTimeout(timerRef.current);
-    if (!q.trim()) { setResults([]); return; }
+  const handleSearch = useCallback((q: string) => {
+    setSearchQ(q); setSearchError(''); setResults([]);
+    clearTimeout(timerRef.current); searchAbort.current?.abort();
+    const version = ++searchVersion.current;
+    if (q.trim().length < 2) return;
     timerRef.current = setTimeout(async () => {
-      const res = await searchProducts(q);
-      setResults(res.slice(0, 5));
+      const controller = new AbortController(); searchAbort.current = controller;
+      try {
+        const results = await searchProducts(q, controller.signal);
+        if (version === searchVersion.current && !controller.signal.aborted) setResults(results.slice(0, 5));
+      } catch {
+        if (version === searchVersion.current && !controller.signal.aborted) setSearchError('Search is unavailable. Please try again.');
+      }
     }, 320);
   }, []);
 
@@ -66,6 +80,7 @@ export default function Header() {
 
   return (
     <>
+      {searchError && searchOpen && <p role="alert" className="load-error">{searchError}</p>}
       <header style={{
         position: 'sticky', top: 0, zIndex: 1000,
         background: 'color-mix(in srgb, var(--surface) 92%, transparent)',
@@ -103,7 +118,7 @@ export default function Header() {
         </button>
 
         {/* ── Logo ── */}
-        <Link to="/" style={{ display:'flex', alignItems:'center', gap:8, flex:1, minWidth:0, textDecoration:'none' }}>
+        <Link to="/" className={searchOpen?'header-brand searching':'header-brand'} style={{ display:'flex', alignItems:'center', gap:8, flex:1, minWidth:0, textDecoration:'none' }}>
           <span style={{
             fontFamily: 'var(--font-display)', fontWeight: 800,
             fontSize: 'clamp(1rem, 2.5vw, 1.5rem)',
@@ -133,6 +148,10 @@ export default function Header() {
               onClick={() => {
                 setSearchOpen(v => !v);
                 if (!searchOpen) setTimeout(() => inputRef.current?.focus(), 50);
+                else {
+                  clearTimeout(timerRef.current); searchAbort.current?.abort(); searchVersion.current++;
+                  setResults([]); setSearchError('');
+                }
               }}
               style={{ background:'none', border:'none', cursor:'pointer',
                 padding:'0 8px', flexShrink:0, display:'flex', alignItems:'center', color:'var(--primary)' }}
@@ -180,7 +199,7 @@ export default function Header() {
                     onMouseEnter={e=>(e.currentTarget.style.background='var(--surface-2)')}
                     onMouseLeave={e=>(e.currentTarget.style.background='transparent')}
                   >
-                    <img src={p.image||'https://placehold.co/40x40/eaf3fa/2B9FD8?text=👟'}
+                    <img onError={imageFallback} src={p.image||FALLBACK_IMAGE}
                       alt="" style={{ width:40, height:40, borderRadius:8, objectFit:'contain',
                         background:'var(--surface-2)', flexShrink:0 }} />
                     <div style={{ minWidth:0 }}>
@@ -204,6 +223,7 @@ export default function Header() {
         </div>
 
         {/* ── Cart ── */}
+        {!searchOpen&&<Link to="/account" aria-label="My account" style={{fontSize:'0.78rem',color:'var(--primary)',flexShrink:0}}>Account</Link>}
         <Link to="/cart" aria-label={`Cart, ${totalItems} items`}
           style={{ position:'relative', display:'flex', alignItems:'center',
             color:'var(--primary)', fontWeight:700, fontSize:'1.15rem', flexShrink:0 }}>

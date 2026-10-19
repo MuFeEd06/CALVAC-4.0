@@ -1,4 +1,5 @@
 import json
+import math
 import re
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, quote, unquote, urlparse
@@ -6,6 +7,7 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 from api._lib._auth import require_admin
 from api._lib._cors import handle_options, require_cors
 from api._lib._rate_limit import require_rate_limit
+from api._lib._pagination import page_options, page_response, filter_value
 from api._lib._responses import ApiError, read_json, send_error, send_json
 from api._lib._supabase import rest_request
 from api._lib._validation import (
@@ -169,16 +171,20 @@ def _clean_product_payload(body):
         raise ApiError(400, "Missing product name or brand")
     payload["tag"] = clean_str(payload.get("tag", ""), 50)
     payload["category"] = clean_str(payload.get("category", ""), 50)
-    payload["specs"] = clean_str(payload.get("specs", ""), 2000)
+    payload["specs"] = clean_str(payload.get("specs", ""), 2000, multiline=True)
     image = clean_str(payload.get("image", ""), 500)
     if image and not is_safe_url(image):
         raise ApiError(400, "Invalid product image URL")
     payload["image"] = image
     for key in ("price", "original_price"):
         try:
-            payload[key] = max(0, min(float(payload.get(key) or 0), 1000000))
+            value = float(payload.get(key) or 0)
+            if not math.isfinite(value) or value < 0 or value > 1000000: raise ValueError()
+            payload[key] = round(value, 2)
         except Exception:
             raise ApiError(400, "Invalid product price")
+    if payload['price'] <= 0: raise ApiError(400, 'Product price must be positive')
+    if payload['original_price'] and payload['original_price'] < payload['price']: raise ApiError(400, 'MRP must not be below price')
     payload["size_unit"] = normalize_size_unit(payload.get("size_unit"), "UK")
     raw_sizes = payload.get("sizes", [])
     payload["sizes"] = normalize_size_list([] if raw_sizes is None else raw_sizes)
@@ -197,7 +203,9 @@ def _clean_product_payload(body):
         if image_url and not is_safe_url(image_url):
             raise ApiError(400, "Invalid color image URL")
         try:
-            price = max(0, min(float(color.get("price") or 0), 1000000))
+            price = float(color.get('price') or 0)
+            if not math.isfinite(price) or price < 0 or price > 1000000: raise ValueError()
+            price = round(price, 2)
         except Exception:
             raise ApiError(400, "Invalid color price")
         clean_colors.append({
@@ -236,23 +244,29 @@ def _clean_product_payload(body):
 
 
 def _clean_offer(body):
-    if not isinstance(body, dict):
-        return {}
-    return {
-        "active": bool(body.get("active")),
-        "text": clean_str(body.get("text", ""), 300),
-        "bg_color": clean_str(body.get("bg_color", "#FF6B35"), 20),
-        "text_color": clean_str(body.get("text_color", "#ffffff"), 20),
-        "show_logo": body.get("show_logo") is not False,
-    }
+    if not isinstance(body, dict): raise ApiError(400, 'Offer must be an object')
+    if type(body.get('active', False)) is not bool or type(body.get('show_logo', True)) is not bool:
+        raise ApiError(400, 'Invalid offer flag')
+    bg = clean_str(body.get('bg_color', '#FF6B35'), 20)
+    fg = clean_str(body.get('text_color', '#FFFFFF'), 20)
+    if not HEX_RE.fullmatch(bg) or not HEX_RE.fullmatch(fg): raise ApiError(400, 'Invalid offer color')
+    return {'active': body.get('active', False), 'text': clean_str(body.get('text', ''), 300), 'bg_color': bg, 'text_color': fg, 'show_logo': body.get('show_logo', True)}
 
 
 def _get_products(handler, cors):
-    require_rate_limit(handler, "admin-read")
+    require_rate_limit(handler, 'admin-read')
     require_admin(handler.headers)
-    data = rest_request("GET", "products?select=*&order=id&limit=500")
-    rows = [_fix_product(p) for p in (data if isinstance(data, list) else [])]
-    send_json(handler, 200, rows, cors)
+    qs = _query(handler)
+    limit, cursor = page_options(qs)
+    filters = []
+    if cursor: filters.append('id=gt.' + cursor)
+    if _first(qs, 'brand'): filters.append('brand=ilike.' + filter_value(_first(qs, 'brand')[:100]))
+    query = _first(qs, 'q').strip()[:100]
+    if query:
+        pattern = filter_value('*' + query + '*')
+        filters.append(f'or=(name.ilike.{pattern},brand.ilike.{pattern})')
+    rows = rest_request('GET', f'products?select=*&order=id.asc&limit={limit + 1}&' + '&'.join(filters))
+    send_json(handler, 200, page_response([_fix_product(row) for row in rows], limit), cors)
 
 
 def _write_product(handler, cors, method):
@@ -283,10 +297,30 @@ def _delete_product(handler, cors):
 
 
 def _get_orders(handler, cors):
-    require_rate_limit(handler, "admin-read")
+    require_rate_limit(handler, 'admin-read')
     require_admin(handler.headers)
-    data = rest_request("GET", "orders?select=*&order=created_at.desc")
-    send_json(handler, 200, data if isinstance(data, list) else [], cors)
+    qs = _query(handler)
+    limit, cursor = page_options(qs)
+    query = f'orders?select=*&order=id.desc&limit={limit + 1}'
+    if cursor: query += '&id=lt.' + cursor
+    status = _first(qs, 'status')
+    if status:
+        if status not in STATUSES: raise ApiError(400, 'Invalid order status')
+        query += '&status=eq.' + quote(status, safe='')
+    rows = rest_request('GET', query)
+    # The old storefront may still write relational items during the cutover.
+    legacy = {str(row['id']): row for row in rows
+              if not row.get('checkout_v2') and not row.get('items')}
+    if legacy:
+        item_rows = rest_request('GET', 'order_items?select=order_id,product_id,name,brand,size,color,qty,price,image'
+                                 '&order_id=in.(' + ','.join(legacy) + ')&order=id.asc')
+        for row in legacy.values():
+            row['items'] = []
+        for item in item_rows:
+            order = legacy.get(str(item.get('order_id')))
+            if order is not None:
+                order['items'].append({key: value for key, value in item.items() if key != 'order_id'})
+    send_json(handler, 200, page_response(rows, limit), cors)
 
 
 def _patch_order(handler, cors):
@@ -302,7 +336,9 @@ def _patch_order(handler, cors):
         status = clean_str(body.get("status"), 40)
         if status not in STATUSES:
             raise ApiError(400, "Invalid order status")
-        patch = {"status": status}
+        rest_request('POST', 'rpc/set_order_status_v3', {'p_order_id': oid, 'p_status': status})
+        send_json(handler, 200, {'success': True}, cors)
+        return
     elif action == "notes":
         patch = {"notes": clean_str(body.get("notes", ""), 1000)}
     else:

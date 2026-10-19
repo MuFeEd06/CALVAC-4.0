@@ -1,269 +1,153 @@
 import type { Product, SiteSettings, Offer } from '@/types';
+import type { Page, ConfirmedOrder } from '@/types/api';
 import { DEFAULT_THEME_SETTINGS, normalizeSiteSettings } from '@/theme';
 import { normalizeSizeList, normalizeSizeUnit } from '@/utils/sizeUnits';
+import { TimedCache } from './cache';
 
-const BASE = '';
-const V = 'v6';
+const cache = new TimedCache();
+const SETTINGS_KEY = 'calvac_settings_v7';
+const TTL = 30_000;
 
-// TTLs
-const PRODUCTS_TTL = 12 * 60 * 60 * 1000;
-const SETTINGS_TTL = 30 * 1000;
-const SEARCH_TTL   =  1 * 60 * 60 * 1000;
-const OFFER_TTL    =  5 * 60 * 60 * 1000;
-const PRODUCT_TTL  =  8 * 60 * 60 * 1000;
-
-// ── ImageKit helpers ─────────────────────────────────────────────────
-function ikResize(url: string, width: number, quality: number): string {
-  if (!url || !url.includes('ik.imagekit.io')) return url;
-  const base = url.split('?')[0];
-  return `${base}?tr=w-${width},q-${quality},f-webp,c-at_max,pr-true,dpr-2`;
+export function ikResize(url: string, width: number, quality: number): string {
+  if (!url) return '';
+  try {
+    const parsed = new URL(url, location.origin);
+    if (parsed.hostname !== 'ik.imagekit.io') return url;
+    parsed.search = `tr=w-${width},q-${quality},f-webp,c-at_max,pr-true`;
+    return parsed.toString();
+  } catch { return ''; }
 }
-
 export function ikSrcSet(url: string, quality = 75): string {
-  if (!url || !url.includes('ik.imagekit.io')) return '';
-  const base = url.split('?')[0];
-  return [320, 480, 640, 800, 1080, 1440]
-    .map(w => `${base}?tr=w-${w},q-${quality},f-webp,c-at_max,pr-true ${w}w`)
-    .join(', ');
+  if (!url.includes('ik.imagekit.io')) return '';
+  return [320, 480, 640, 800, 1080, 1440].map(w => `${ikResize(url, w, quality)} ${w}w`).join(', ');
 }
-
-function fixImage(img: string | undefined): string {
-  if (!img) return '';
-  if (img.startsWith('http')) return ikResize(img, 400, 75);
-  if (img.startsWith('/static/')) return img;
-  return '';
-}
-
-/** Parse a field that might be a JSON string, Postgres array, or native array */
-function parseJsonField<T>(v: unknown, fallback: T): T {
-  if (v === null || v === undefined) return fallback;
-  if (Array.isArray(v) || (typeof v === 'object' && !Array.isArray(v))) return v as T;
-  if (typeof v === 'string') {
-    const s = v.trim();
-    // JSON array
-    if (s.startsWith('[')) { try { return JSON.parse(s) as T; } catch {} }
-    // Postgres array literal {a,b,c}
-    if (s.startsWith('{') && s.endsWith('}')) {
-      const items = s.slice(1,-1).split(',').map(i => i.trim().replace(/^"|"$/g,''));
-      return items as unknown as T;
-    }
-    // JSON object
-    if (s.startsWith('{')) { try { return JSON.parse(s) as T; } catch {} }
+function parseField(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  try { return JSON.parse(value); } catch {
+    if (value.startsWith('{') && value.endsWith('}')) return value.slice(1, -1).split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+    return null;
   }
-  return fallback;
+}
+export function normalizeProduct(p: Product): Product {
+  const colors = parseField(p.colors), stock = parseField(p.stock);
+  return {
+    ...p, name: String(p.name || '').slice(0, 200), brand: String(p.brand || '').slice(0, 100),
+    price: Math.max(0, Number(p.price) || 0), image: ikResize(p.image, 400, 75),
+    size_unit: normalizeSizeUnit(p.size_unit), sizes: normalizeSizeList(parseField(p.sizes)),
+    colors: Array.isArray(colors) ? colors.filter(c => c && typeof c === 'object').map(c => ({ ...c, image: ikResize(c.image || '', 400, 75) })) : [],
+    stock: stock && typeof stock === 'object' && !Array.isArray(stock) ? stock as Record<string, number> : {},
+  };
 }
 
-function fixProducts(list: unknown[]): Product[] {
-  if (!Array.isArray(list)) return [];
-  return list.map((p: any) => ({
-    ...p,
-    name:   String(p.name  || '').slice(0, 200),
-    brand:  String(p.brand || '').slice(0, 100),
-    price:  Math.max(0, Number(p.price) || 0),
-    image:  fixImage(p.image),
-    size_unit: normalizeSizeUnit(p.size_unit),
-    sizes:  normalizeSizeList(parseJsonField<string[]>(p.sizes, [])),
-    colors: (parseJsonField<any[]>(p.colors, [])).map((c: any) => ({
-      ...c, image: fixImage(c.image)
-    })),
-    stock:  parseJsonField<Record<string,number>>(p.stock, {}),
-  }));
+export class ApiError extends Error {
+  constructor(message: string, public status: number) { super(message); }
 }
-
-// ── Fetch with timeout (8 seconds) ───────────────────────────────────
-async function fetchWithTimeout(url: string, options?: RequestInit, timeoutMs = 8000): Promise<Response> {
+export async function requestJson<T>(url: string, options: RequestInit = {}, timeoutMs = 12_000): Promise<T> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const abort = () => controller.abort();
+  if (options.signal?.aborted) controller.abort();
+  options.signal?.addEventListener('abort', abort, { once: true });
+  const timer = setTimeout(abort, timeoutMs);
   try {
-    const res = await fetch(url, { ...options, signal: controller.signal });
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) throw new ApiError(body?.error || `Request failed (${response.status})`, response.status);
+    if (body === null) throw new Error('The server returned an invalid response.');
+    return body as T;
+  } catch (error) {
+    if (controller.signal.aborted && !options.signal?.aborted) throw new ApiError('The request timed out. Retry to check the same order.', 408);
+    throw error;
+  } finally {
     clearTimeout(timer);
-    return res;
-  } catch (e: any) {
-    clearTimeout(timer);
-    if (e.name === 'AbortError') throw new Error('Request timed out — please refresh');
-    throw e;
+    options.signal?.removeEventListener('abort', abort);
   }
 }
 
-// ── Safe localStorage ─────────────────────────────────────────────────
-function lsGet<T>(key: string): { ts: number; data: T } | null {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (typeof parsed?.ts !== 'number') return null;
-    if (parsed.data === undefined || parsed.data === null) return null;
-    if (Array.isArray(parsed.data) && parsed.data.length === 0) return null;
-    return parsed as { ts: number; data: T };
-  } catch { return null; }
+export interface ProductFilters {
+  limit?: number; after?: string | null; brand?: string; tag?: string; category?: string;
+  q?: string; sale?: string; max_price?: number; min_price?: number;
 }
-function lsSet(key: string, data: unknown): void {
-  try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); } catch {}
+export async function fetchProductsPage(filters: ProductFilters = {}): Promise<Page<Product>> {
+  const params = new URLSearchParams();
+  Object.entries({ limit: 24, ...filters }).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
+  });
+  const url = `/api/products?${params}`;
+  return cache.get(url, TTL, async () => {
+    const page = await requestJson<Page<Product>>(url);
+    if (!Array.isArray(page.items)) throw new Error('Invalid product response.');
+    return { items: page.items.map(normalizeProduct), nextCursor: page.nextCursor ?? null };
+  });
 }
-function lsDel(key: string): void {
-  try { localStorage.removeItem(key); } catch {}
+export async function fetchProducts(filters: ProductFilters = {}): Promise<Product[]> {
+  return (await fetchProductsPage(filters)).items;
 }
-
-// ── Products (12hr) ───────────────────────────────────────────────────
-let _productsPromise: Promise<Product[]> | null = null;
-
-export async function fetchProducts(): Promise<Product[]> {
-  if (_productsPromise) return _productsPromise;
-
-  const cached = lsGet<Product[]>(`calvac_products_${V}`);
-  if (cached && Date.now() - cached.ts < PRODUCTS_TTL) {
-    _productsPromise = Promise.resolve(fixProducts(cached.data));
-    return _productsPromise;
-  }
-
-  _productsPromise = fetchWithTimeout(`${BASE}/api/products`)
-    .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
-    .then((data: Product[]) => {
-      if (Array.isArray(data) && data.length > 0) lsSet(`calvac_products_${V}`, data);
-      return fixProducts(data);
-    })
-    .catch(e => { _productsPromise = null; throw e; });
-
-  return _productsPromise;
-}
-
 export function clearProductsCache(): void {
-  _productsPromise = null;
-  lsDel(`calvac_products_${V}`);
+  cache.invalidate('/api/products'); cache.invalidate('/api/search');
+  try {
+    for (const key of Object.keys(localStorage)) {
+      if (/^calvac_(products|product_|search_)/.test(key)) localStorage.removeItem(key);
+    }
+  } catch { /* Storage may be disabled. */ }
+}
+export async function fetchProduct(id: number): Promise<Product | null> {
+  if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Invalid product ID');
+  const key = `/api/products?id=${id}`;
+  return cache.get(key, 15_000, async () => {
+    try { return normalizeProduct(await requestJson<Product>(key)); }
+    catch (error) { if (error instanceof ApiError && error.status === 404) return null; throw error; }
+  });
 }
 
-export function clearSettingsCache(): void {
-  _settingsPromise = null;
-  lsDel(`calvac_settings_${V}`);
-}
-
-export function setCachedSiteSettings(settings: Partial<SiteSettings> & Record<string, unknown>): SiteSettings & Record<string, unknown> {
-  const normalized = normalizeSiteSettings({ ...DEFAULT_SETTINGS, ...settings });
-  _settingsPromise = Promise.resolve(normalized);
-  lsSet(`calvac_settings_${V}`, normalized);
-  return normalized as SiteSettings & Record<string, unknown>;
-}
-
-// ── Site settings (12hr) ──────────────────────────────────────────────
-let _settingsPromise: Promise<SiteSettings> | null = null;
-
-const DEFAULT_SETTINGS: SiteSettings = {
-  theme_settings: DEFAULT_THEME_SETTINGS,
-  primary_color: DEFAULT_THEME_SETTINGS.primaryColor,
-  hero_font: 'default',
-  model_path: '/static/sneaker.glb', model_scale: 3.0, model_y: 0.8, model_speed: 0.006,
+export const DEFAULT_SETTINGS: SiteSettings = {
+  theme_settings: DEFAULT_THEME_SETTINGS, primary_color: DEFAULT_THEME_SETTINGS.primaryColor,
+  hero_font: 'default', model_path: '', model_scale: 3, model_y: .8, model_speed: .006,
   show_new_arrivals: true, show_categories: true,
   cat_boots: true, cat_crocs: true, cat_girls: true, cat_sale: true,
   cat_under1000: true, cat_under1500: true, cat_under2500: true,
   cat_new: true, cat_premium: true, cat_all: true,
 };
-
+export function setCachedSiteSettings(settings: Partial<SiteSettings> & Record<string, unknown>, invalidate = true): SiteSettings & Record<string, unknown> {
+  const normalized = normalizeSiteSettings({ ...DEFAULT_SETTINGS, ...settings });
+  if (invalidate) cache.invalidate('/api/site-settings');
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ts: Date.now(), data: normalized }));
+    localStorage.removeItem('calvac_settings_v4'); localStorage.removeItem('calvac_settings_v5'); localStorage.removeItem('calvac_settings_v6');
+  } catch { /* Keep the in-memory theme usable when storage is unavailable. */ }
+  return normalized;
+}
+export function clearSettingsCache() { cache.invalidate('/api/site-settings'); }
 export async function fetchSiteSettings(options: { force?: boolean } = {}): Promise<SiteSettings> {
-  if (!options.force && _settingsPromise) return _settingsPromise;
-
-  const cached = lsGet<Partial<SiteSettings> & Record<string, unknown>>(`calvac_settings_${V}`);
-  if (!options.force && cached && Date.now() - cached.ts < SETTINGS_TTL) {
-    _settingsPromise = Promise.resolve(normalizeSiteSettings({ ...DEFAULT_SETTINGS, ...cached.data }));
-    return _settingsPromise;
-  }
-
-  _settingsPromise = fetchWithTimeout(`${BASE}/api/site-settings`)
-    .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
-    .then((data: Partial<SiteSettings> & Record<string, unknown>) => {
-      const normalized = normalizeSiteSettings({ ...DEFAULT_SETTINGS, ...data });
-      lsSet(`calvac_settings_${V}`, normalized);
-      return normalized;
-    })
-    .catch(() => { _settingsPromise = null; return DEFAULT_SETTINGS; });
-
-  return _settingsPromise;
-}
-
-export function refreshSiteSettings(): Promise<SiteSettings> {
-  _settingsPromise = null;
-  return fetchSiteSettings({ force: true });
-}
-
-// ── Offer (5hr) ───────────────────────────────────────────────────────
-export async function fetchOffer(): Promise<Offer> {
-  const cached = lsGet<Offer>(`calvac_offer_${V}`);
-  if (cached && Date.now() - cached.ts < OFFER_TTL) return cached.data;
-  try {
-    const r = await fetchWithTimeout(`${BASE}/api/offer`);
-    if (!r.ok) throw new Error(`${r.status}`);
-    const data: Offer = await r.json();
-    lsSet(`calvac_offer_${V}`, data);
-    return data;
-  } catch {
-    return { active: false, text: '', bg_color: '#FF6B35', text_color: '#ffffff', show_logo: true };
-  }
-}
-
-// ── Single product (8hr) ──────────────────────────────────────────────
-export async function fetchProduct(id: number): Promise<Product | null> {
-  if (!Number.isInteger(id) || id <= 0) throw new Error('Invalid product ID');
-  const cacheKey = `calvac_product_${id}_${V}`;
-  const cached = lsGet<Product>(cacheKey);
-  if (cached && Date.now() - cached.ts < PRODUCT_TTL) return cached.data;
-  const r = await fetchWithTimeout(`${BASE}/api/products?id=${id}`);
-  if (r.status === 404) return null;
-  if (!r.ok) throw new Error('Could not load product');
-  const p: Product = await r.json();
-  const fixed = fixProducts([p])[0];
-  if (!fixed?.id) return null;
-  lsSet(cacheKey, fixed);
-  return fixed;
-}
-
-// ── Search (1hr) ──────────────────────────────────────────────────────
-export async function searchProducts(q: string): Promise<Product[]> {
-  const safe = q.replace(/<[^>]*>/g, '').slice(0, 100).trim();
-  if (!safe) return [];
-  const cacheKey = `calvac_search_${safe.toLowerCase()}_${V}`;
-  const cached = lsGet<Product[]>(cacheKey);
-  if (cached && Date.now() - cached.ts < SEARCH_TTL) return cached.data;
-  try {
-    const r = await fetchWithTimeout(`${BASE}/api/search?q=${encodeURIComponent(safe)}`);
-    if (!r.ok) throw new Error(`${r.status}`);
-    const data: Product[] = await r.json();
-    const fixed = fixProducts(data);
-    if (fixed.length > 0) lsSet(cacheKey, fixed);
-    return fixed;
-  } catch { return []; }
-}
-
-// ── Create order ──────────────────────────────────────────────────────
-export interface OrderPayload {
-  items: Array<{ productId: number | string; quantity: number; size?: string; sizeUnit?: 'UK' | 'EU'; color?: string }>;
-  customer: {
-    name: string;
-    phone: string;
-    address: string;
-    line1: string;
-    line2?: string;
-    city: string;
-    state: string;
-    pin: string;
-    landmark?: string;
-  };
-  paymentMethod: 'cod';
-}
-
-export async function createOrder(payload: OrderPayload, idempotencyKey: string): Promise<{ success: boolean; order?: unknown }> {
-  const res = await fetchWithTimeout(`${BASE}/api/orders`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
-    body: JSON.stringify(payload),
+  if (options.force) clearSettingsCache();
+  return cache.get('/api/site-settings', TTL, async () => {
+    const data = await requestJson<Partial<SiteSettings> & Record<string, unknown>>('/api/site-settings');
+    return setCachedSiteSettings(data, false);
   });
-  if (!res.ok) {
-    let message = 'Could not place order';
-    try {
-      const body = await res.json();
-      if (body?.error) message = body.error;
-    } catch {}
-    throw new Error(message);
-  }
-  return res.json();
 }
-
-export { ikResize };
+export function refreshSiteSettings() { return fetchSiteSettings({ force: true }); }
+export function clearOfferCache() { cache.invalidate('/api/offer'); }
+export function fetchOffer(): Promise<Offer> {
+  return cache.get('/api/offer', TTL, () => requestJson<Offer>('/api/offer'));
+}
+export async function searchProducts(q: string, signal?: AbortSignal): Promise<Product[]> {
+  const safe = q.replace(/<[^>]*>/g, '').slice(0, 100).trim();
+  if (safe.length < 2) return [];
+  const url = `/api/search?q=${encodeURIComponent(safe)}`;
+  const data = await requestJson<Product[]>(url, { signal });
+  return Array.isArray(data) ? data.map(normalizeProduct) : [];
+}
+export interface OrderPayload {
+  items: Array<{ productId: number | string; quantity: number; size: string; sizeUnit: 'UK' | 'EU'; color?: string }>;
+  customer: { name: string; phone: string; address: string; line1: string; line2?: string; city: string; state: string; pin: string; landmark?: string };
+  paymentMethod: 'cod'|'whatsapp'|'razorpay';
+}
+export async function createOrder(payload: OrderPayload, idempotencyKey: string): Promise<{ success: true; order: ConfirmedOrder }> {
+  const {customerAuthHeaders}=await import('@/lib/customerAuth');
+  const auth=await customerAuthHeaders(payload.paymentMethod==='razorpay');
+  const result = await requestJson<{ success: true; order: ConfirmedOrder }>('/api/orders', {
+    method: 'POST', headers: { ...auth, 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(payload),
+  }, 60_000);
+  if (!result.success || !result.order?.id) throw new Error('Order confirmation is incomplete. Retry to check the same order.');
+  clearProductsCache();
+  return result;
+}

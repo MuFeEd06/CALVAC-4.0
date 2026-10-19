@@ -1,40 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { motion, useScroll, useTransform, useMotionValueEvent } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import { useShoeFrames } from './useShoeFrames';
 import type { SiteSettings } from '@/types';
 import { safeLink } from '@/utils/validation';
-
-/* ─── Frame configuration ────────────────────────────────────────────
-   FRAME_COUNT : how many frames in your sequence (you have 120)
-   FRAMES_BASE : where frames live. Options:
-     1. '/frames'                               → Vite public/ (Vercel CDN, 30-day cache)
-     2. 'https://ik.imagekit.io/yocxectr4/frames' → ImageKit CDN (better global edge)
-   Set VITE_FRAMES_BASE in .env to switch to ImageKit without code changes.
-───────────────────────────────────────────────────────────────────── */
-const FRAME_COUNT = 120;
-const FRAMES_BASE: string =
-  (import.meta.env.VITE_FRAMES_BASE as string | undefined) ?? '/frames';
-const FRAMES_EXT = FRAMES_BASE.includes('ik.imagekit.io') ? 'gif' : 'gif';
-
-/* ImageKit transform params for frames — smaller quality = faster load */
-const IK_FRAME_PARAMS = FRAMES_BASE.includes('ik.imagekit.io')
-  ? '?tr=q-60,f-webp,pr-true'   // 60% quality WebP + progressive
-  : '';                           // static files: no transform needed
-
-function frameSrc(i: number): string {
-  const name = `ffout${String(i + 1).padStart(3, '0')}.${FRAMES_EXT}`;
-  return `${FRAMES_BASE}/${name}${IK_FRAME_PARAMS}`;
-}
-
-/* ─── Loading strategy ───────────────────────────────────────────────
-   Priority 1 (immediate): frame 0 — shown before any scroll
-   Priority 2 (fast):      frames 1-29 — cover first scroll movement
-   Priority 3 (idle):      frames 30-119 — loaded when browser is idle
-───────────────────────────────────────────────────────────────────── */
-const PRIORITY_BATCHES = [
-  { start: 0,  end: 0,   label: 'first-frame'  }, // instant
-  { start: 1,  end: 29,  label: 'early-frames' }, // fast
-  { start: 30, end: FRAME_COUNT - 1, label: 'rest' }, // idle
-];
 
 /* ─── Types ─────────────────────────────────────────────────────── */
 interface Props { settings?: SiteSettings & Record<string, unknown>; }
@@ -66,12 +34,7 @@ function useResponsive() {
 export default function ScrollyShoeExperience({ settings }: Props) {
   const sectionRef = useRef<HTMLElement>(null);
   const canvasRef  = useRef<HTMLCanvasElement>(null);
-  const framesRef  = useRef<(HTMLImageElement | null)[]>(Array(FRAME_COUNT).fill(null));
-  const loadedRef  = useRef<boolean[]>(Array(FRAME_COUNT).fill(false));
-  const [activeFrame, setActiveFrame] = useState(0);
-  const [bgColor, setBgColor]         = useState('#F4F8FB');
-  const [skipped, setSkipped]         = useState(false);
-  const [loadProgress, setLoadProgress] = useState(0); // 0-100
+  const [skipped, setSkipped] = useState(false);
   const isMobile = useResponsive();
 
   /* ─── Mobile-aware settings ──────────────────────────────────── */
@@ -164,135 +127,17 @@ export default function ScrollyShoeExperience({ settings }: Props) {
     [1, 1, 0]
   );
 
-  useMotionValueEvent(scrollYProgress,'change',latest=>{
-    const frame = Math.min(FRAME_COUNT-1, Math.max(0, Math.round(latest*(FRAME_COUNT-1))));
-    setActiveFrame(frame);
+  const { ready, error, bgColor, limitedMotion } = useShoeFrames({
+    canvasRef, progress: scrollYProgress, isMobile, skipped,
+    imageScale: heroImageScale, imageVisible,
   });
 
-  /* ─── Canvas draw helper ─────────────────────────────────────── */
-  const drawOnCanvas = (canvas: HTMLCanvasElement, img: HTMLImageElement, bg: string) => {
-    const ctx = canvas.getContext('2d',{alpha:false});
-    if (!ctx) return;
-    const rect = canvas.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio||1,2);
-    const nw = Math.max(1,Math.floor(rect.width*dpr));
-    const nh = Math.max(1,Math.floor(rect.height*dpr));
-    if (canvas.width!==nw||canvas.height!==nh){canvas.width=nw;canvas.height=nh;}
-    ctx.setTransform(1,0,0,1,0,0);
-    ctx.fillStyle=bg; ctx.fillRect(0,0,canvas.width,canvas.height);
-    if (!imageVisible) return;
-    const ir=img.width/img.height, cr=canvas.width/canvas.height;
-    const sc=ir>cr?canvas.width/img.width:canvas.height/img.height;
-    const dw=img.width*sc*heroImageScale, dh=img.height*sc*heroImageScale;
-    const x=(canvas.width-dw)/2, y=(canvas.height-dh)/2;
-    ctx.imageSmoothingQuality='high';
-    ctx.drawImage(img,1,1,img.width-2,img.height-2,x,y,dw,dh);
-  };
-
-  /* ─── Smart frame loading ─────────────────────────────────────────
-     Strategy:
-     1. Load frame 0 synchronously (shown immediately)
-     2. Load frames 1-29 right after (covers first scroll zone)
-     3. Load frames 30-119 via requestIdleCallback (background)
-     This cuts first-paint cost while ensuring smooth scrubbing.
-  ────────────────────────────────────────────────────────────────── */
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    let loadedCount = 0;
-
-    const onLoad = (i: number, img: HTMLImageElement, bg: string) => {
-      loadedRef.current[i] = true;
-      loadedCount++;
-      setLoadProgress(Math.round((loadedCount / FRAME_COUNT) * 100));
-
-      if (i === 0) {
-        // Sample background colour from first frame corners
-        try {
-          const sc = document.createElement('canvas');
-          const sx = sc.getContext('2d');
-          if (sx) {
-            sc.width = img.naturalWidth || img.width;
-            sc.height = img.naturalHeight || img.height;
-            sx.drawImage(img, 0, 0);
-            const w = sc.width, h = sc.height;
-            if (w > 4 && h > 4) {
-              const pts = [[2,2],[w-3,2],[2,h-3],[w-3,h-3]] as const;
-              let r=0,g=0,b=0;
-              pts.forEach(([px,py])=>{ const d=sx.getImageData(px,py,1,1).data; r+=d[0];g+=d[1];b+=d[2]; });
-              const hex=(n:number)=>Math.round(n).toString(16).padStart(2,'0');
-              setBgColor(`#${hex(r/4)}${hex(g/4)}${hex(b/4)}`);
-            }
-          }
-        } catch {}
-        drawOnCanvas(canvas, img, bg);
-      }
-    };
-
-    const loadFrame = (i: number, bg: string): Promise<void> => new Promise(resolve => {
-      if (framesRef.current[i]?.complete) { resolve(); return; }
-      const img = new Image();
-      img.decoding = 'async';
-      img.onload = () => { onLoad(i, img, bg); resolve(); };
-      img.onerror = () => { loadedCount++; resolve(); };
-      img.src = frameSrc(i);
-      framesRef.current[i] = img;
-    });
-
-    // Priority 1: frame 0 — blocks until loaded to paint immediately
-    loadFrame(0, '#F4F8FB').then(() => {
-      const bg = bgColor;
-
-      // Priority 2: frames 1-29 — load sequentially, fast
-      const loadBatch = async (start: number, end: number) => {
-        for (let i = start; i <= end && i < FRAME_COUNT; i++) {
-          await loadFrame(i, bg);
-        }
-      };
-
-      loadBatch(1, 29).then(() => {
-        // Priority 3: frames 30-end — idle loading
-        const loadIdle = (i: number) => {
-          if (i >= FRAME_COUNT) return;
-          const doLoad = () => loadFrame(i, bg).then(() => loadIdle(i + 1));
-          if ('requestIdleCallback' in window) {
-            (window as any).requestIdleCallback(doLoad, { timeout: 2000 });
-          } else {
-            setTimeout(doLoad, 50);
-          }
-        };
-        loadIdle(30);
-      });
-    });
-
-    const onResize = () => {
-      const img = framesRef.current[activeFrame];
-      if (img?.complete && img.naturalWidth > 0) drawOnCanvas(canvas, img, bgColor);
-    };
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
-
-  // Redraw on frame change
-  useEffect(() => {
-    const canvas = canvasRef.current; if (!canvas) return;
-    const img = framesRef.current[activeFrame];
-    if (!img?.complete || img.naturalWidth <= 0) return;
-    const raf = requestAnimationFrame(() => drawOnCanvas(canvas, img, bgColor));
-    return () => cancelAnimationFrame(raf);
-  }, [activeFrame, bgColor, heroImageScale, imageVisible]);
-
-  /* ── Skip handler ─────────────────────────────────────────────────
-     Calculate target BEFORE setSkipped changes section height (420vh→100vh).
-     Target = hero offsetTop + one viewport = first content below the sticky frame.
-  ──────────────────────────────────────────────────────────────────── */
   const handleSkip = () => {
-    const el = sectionRef.current; if (!el) return;
-    const target = el.offsetTop + window.innerHeight;
+    const el = sectionRef.current;
+    if (!el) return;
+    const top = el.offsetTop + window.innerHeight;
     setSkipped(true);
-    requestAnimationFrame(() => {
-      window.scrollTo({ top: target, behavior: 'smooth' });
-    });
+    requestAnimationFrame(() => window.scrollTo({ top, behavior: 'auto' }));
   };
   /* ─── Star polygon ────────────────────────────────────────────── */
   const starPolygon = (s: number) => {
@@ -309,17 +154,13 @@ export default function ScrollyShoeExperience({ settings }: Props) {
   const overlayRightY = num(settings?.hero_overlay_right_y, 16);
 
   return (
-    <main style={{background:bgColor,color:'var(--primary)',fontFamily:'Inter,SF Pro Display,system-ui,sans-serif'}}>
-      <section ref={sectionRef} style={{position:'relative',height:skipped?'100vh':`${scrollHeightVh}vh`,background:bgColor}}>
+    <div style={{background:bgColor,color:'var(--primary)',fontFamily:'Inter,SF Pro Display,system-ui,sans-serif'}}>
+      <section ref={sectionRef} style={{position:'relative',height:limitedMotion?'100vh':`${Math.max(100, scrollHeightVh)}vh`,background:bgColor}}>
         <div style={{position:'sticky',top:0,height:'100vh',width:'100%',overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center'}}>
-          <canvas ref={canvasRef} style={{width:'100%',height:'100%',background:bgColor}}/>
+          <canvas ref={canvasRef} role="img" aria-label="Sneaker rotating as you scroll" style={{width:'100%',height:'100%',background:bgColor}}/>
 
-          {/* Loading progress bar — disappears when fully loaded */}
-          {loadProgress < 100 && (
-            <div style={{position:'absolute',bottom:0,left:0,right:0,height:2,background:'rgba(var(--primary-rgb),0.15)',zIndex:20,pointerEvents:'none'}}>
-              <div style={{height:'100%',background:'var(--primary)',transition:'width 0.3s ease',width:`${loadProgress}%`}}/>
-            </div>
-          )}
+          {!ready && !error && <span role="status" className="sr-only">Loading sneaker image…</span>}
+          {error && <span role="status" className="sr-only">Sneaker preview is unavailable.</span>}
 
           {/* Gradients */}
           {gradientVisible && <>
@@ -501,7 +342,7 @@ export default function ScrollyShoeExperience({ settings }: Props) {
                     width:isMobile?4:6,height:isMobile?4:6,
                     marginLeft:isMobile?-2:-3,borderRadius:'50%',background:'var(--primary)'}}
                   animate={{y:[0,isMobile?8:12,0],opacity:[0.9,0.35,0.9]}}
-                  transition={{duration:1.45,repeat:Infinity,ease:'easeInOut'}}/>
+                  transition={{duration:1.45,repeat:limitedMotion?0:Infinity,ease:'easeInOut'}}/>
               </span>
             </motion.div>
           )}
@@ -512,7 +353,7 @@ export default function ScrollyShoeExperience({ settings }: Props) {
             return (
               <motion.div style={{position:'absolute',left:`${starX}%`,top:`${starY}%`,
                 transform:'translate(-50%,-50%)',zIndex:6,pointerEvents:'none',opacity:persistentOpacity}}
-                animate={{rotate:360}} transition={{duration:starSpeed,repeat:Infinity,ease:'linear'}}>
+                animate={{rotate:360}} transition={{duration:starSpeed,repeat:limitedMotion?0:Infinity,ease:'linear'}}>
                 <svg width={starSize} height={starSize} viewBox={`0 0 ${starSize} ${starSize}`} fill={starColor}>
                   <polygon points={pts}/>
                 </svg>
@@ -564,7 +405,7 @@ export default function ScrollyShoeExperience({ settings }: Props) {
           )}
 
           {/* Skip button */}
-          {skipVisible && !skipped && (
+          {skipVisible && !limitedMotion && (
             <motion.button onClick={handleSkip}
               style={{
                 position:'absolute',
@@ -599,6 +440,6 @@ export default function ScrollyShoeExperience({ settings }: Props) {
           .overlay-right{right:16px;bottom:14%;max-width:45vw;}
         }
       `}</style>
-    </main>
+    </div>
   );
 }

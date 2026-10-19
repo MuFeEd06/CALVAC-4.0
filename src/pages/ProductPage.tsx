@@ -1,13 +1,13 @@
+import { imageFallback, FALLBACK_IMAGE } from '@/utils/images';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fetchProduct, fetchProducts, ikResize } from '@/api';
 import type { Product, ProductColor } from '@/types';
-import { getRating, formatPrice, getDeal, getProductDescription } from '@/utils';
+import { formatPrice, getDeal } from '@/utils';
 import { formatSizeWithUnit } from '@/utils/sizeUnits';
 import { useCart } from '@/context/CartContext';
 import { useToast } from '@/context/ToastContext';
-import { StarDisplay } from '@/components/ProductCard';
 import ProductCard from '@/components/ProductCard';
 
 function ProductStateMessage({
@@ -48,12 +48,13 @@ function stockFor(product: Product, selectedColor: ProductColor | null, size: st
     `default|${size}`,
     `${colorKey}|${unit} ${size}`,
     `default|${unit} ${size}`,
+    colorKey,
     ...(unit === 'EU' ? [`${colorKey}|EURO ${size}`, `default|EURO ${size}`] : []),
   ];
   for (const key of candidates) {
-    if (stock[key] !== undefined) return Number(stock[key]) || 0;
+    if (stock[key] !== undefined) return Math.min(Number(stock[key]) || 0, product.total_stock ?? Infinity);
   }
-  return null;
+  return product.total_stock ?? null;
 }
 
 export default function ProductPage() {
@@ -107,11 +108,12 @@ export default function ProductPage() {
         setProduct(nextProduct);
         const firstColor = nextProduct.colors?.[0] || null;
         setSelectedColor(firstColor);
-        setCurrentPrice(firstColor?.price || nextProduct.price);
+        setCurrentPrice(firstColor?.price ?? nextProduct.price);
         setMainImg(ikResize(firstColor?.image || nextProduct.image, 800, 85));
 
+        setLoading(false);
         try {
-          const all = await fetchProducts();
+          const all = await fetchProducts({ brand: nextProduct.brand, limit: 9 });
           if (!active) return;
           const sameBrand = all.filter(x => x.id !== productId && x.brand.toLowerCase() === nextProduct.brand.toLowerCase());
           const rest = all.filter(x => x.id !== productId && !sameBrand.some(s => s.id === x.id));
@@ -134,14 +136,15 @@ export default function ProductPage() {
 
   useEffect(() => {
     if (!product) return;
-    setCurrentPrice(selectedColor?.price || product.price);
+    setSelectedSize('');
+    setCurrentPrice(selectedColor?.price ?? product.price);
     setMainImg(ikResize(selectedColor?.image || product.image, 800, 85));
   }, [selectedColor, product]);
 
   const deal = product ? getDeal(currentPrice, product.original_price) : null;
-  const { score, count } = product ? getRating(product.id) : { score: 0, count: 0 };
   const hasSizes = Boolean(product?.sizes?.length);
-  const canAdd = Boolean(product && hasSizes && selectedSize && !product.out_of_stock);
+  const available = product && selectedSize ? stockFor(product, selectedColor, selectedSize) : null;
+  const canAdd = Boolean(product && hasSizes && selectedSize && !product.out_of_stock && (available === null || available > 0));
 
   const sizeButtons = useMemo(() => product?.sizes || [], [product]);
 
@@ -149,7 +152,8 @@ export default function ProductPage() {
     if (!product) return;
     if (!hasSizes) { showToast('Size unavailable', false); return; }
     if (!selectedSize) { showToast('Please select a size first', false); return; }
-    addItem({
+    if (!canAdd) { showToast('This size or color is unavailable', false); return; }
+    const added = addItem({
       id: product.id,
       name: product.name,
       brand: product.brand,
@@ -159,7 +163,8 @@ export default function ProductPage() {
       size_unit: product.size_unit,
       color: selectedColor?.name,
       colorHex: selectedColor?.hex,
-    });
+    }, available ?? 10);
+    if (!added) { showToast('Cart quantity or item limit reached', false); return; }
     showToast(`Added to cart - ${formatSizeWithUnit(product.size_unit, selectedSize)}${selectedColor ? ' / ' + selectedColor.name : ''}`);
     if (goBuy) navigate('/cart');
   };
@@ -212,7 +217,7 @@ export default function ProductPage() {
               <motion.img key={mainImg || product.id}
                 initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
-                src={mainImg || 'https://placehold.co/400x300/eaf3fa/2B9FD8'}
+                src={mainImg || FALLBACK_IMAGE}
                 srcSet={mainImg?.includes('ik.imagekit.io')
                   ? [400,600,800,1080].map(w=>`${mainImg.split('?')[0]}?tr=w-${w},q-85,f-webp,c-at_max,pr-true ${w}w`).join(', ')
                   : undefined}
@@ -220,7 +225,7 @@ export default function ProductPage() {
                 alt={product.name}
                 loading="eager"
                 decoding="async"
-                onError={e => { (e.target as HTMLImageElement).src = 'https://placehold.co/400x300/eaf3fa/2B9FD8'; }}
+                onError={imageFallback}
                 style={{ width: '100%', borderRadius: 14, background: 'var(--surface-2)', padding: 16 }} />
             </AnimatePresence>
           </motion.div>
@@ -232,7 +237,6 @@ export default function ProductPage() {
 
             <p style={{ fontSize: '0.72rem', color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600, marginBottom: 6 }}>{product.brand}</p>
             <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.9rem', fontWeight: 800, lineHeight: 1.15, marginBottom: 12 }}>{product.name}</h1>
-            <div style={{ marginBottom: 16 }}><StarDisplay score={score} count={count} /></div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
               <motion.span key={currentPrice} initial={{ scale: 1.1 }} animate={{ scale: 1 }}
@@ -249,7 +253,7 @@ export default function ProductPage() {
             </div>
 
             <p style={{ color: 'var(--text-muted)', lineHeight: 1.8, margin: '16px 0', fontSize: '0.95rem', borderLeft: '2px solid var(--primary)', paddingLeft: 14 }}>
-              {getProductDescription(product.id, product.name)}
+              {product.specs?.trim() ? 'See the product details below for specifications.' : 'Contact us for details about this product.'}
             </p>
 
             {product.colors?.length > 0 && (

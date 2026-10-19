@@ -1,36 +1,41 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { CartProvider } from '@/context/CartContext';
 import { ToastProvider } from '@/context/ToastContext';
-import { AdminAuthProvider } from '@/context/AdminAuthContext';
 import Layout from '@/components/Layout';
-import AdminLayout from '@/components/admin/AdminLayout';
-import AdminRoute from '@/components/admin/AdminRoute';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import ScrollToTop from '@/components/ScrollToTop';
-import HomePage from '@/pages/HomePage';
-import ShopPage from '@/pages/ShopPage';
-import ProductPage from '@/pages/ProductPage';
-import CartPage from '@/pages/CartPage';
-import ContactPage from '@/pages/ContactPage';
-import PolicyPage from '@/pages/PolicyPage';
-import AdminLoginPage from '@/pages/admin/AdminLoginPage';
-import AdminDashboardPage from '@/pages/admin/AdminDashboardPage';
-import AdminProductsPage from '@/pages/admin/AdminProductsPage';
-import AdminSettingsPage from '@/pages/admin/AdminSettingsPage';
+const HomePage = lazy(() => import('@/pages/HomePage'));
+const ShopPage = lazy(() => import('@/pages/ShopPage'));
+const ProductPage = lazy(() => import('@/pages/ProductPage'));
+const CartPage = lazy(() => import('@/pages/CartPage'));
+const ContactPage = lazy(() => import('@/pages/ContactPage'));
+const PolicyPage = lazy(() => import('@/pages/PolicyPage'));
+const CustomerAuthPage = lazy(() => import('@/pages/CustomerAuthPage'));
+const AuthCallback = lazy(() => import('@/pages/CustomerAuthPage').then(module=>({default:module.AuthCallback})));
+const AccountPage = lazy(() => import('@/pages/AccountPage'));
+const AdminShell = lazy(() => import('@/components/admin/AdminShell'));
+const AdminLayout = lazy(() => import('@/components/admin/AdminLayout'));
+const AdminRoute = lazy(() => import('@/components/admin/AdminRoute'));
+const AdminLoginPage = lazy(() => import('@/pages/admin/AdminLoginPage'));
+const AdminDashboardPage = lazy(() => import('@/pages/admin/AdminDashboardPage'));
+const AdminProductsPage = lazy(() => import('@/pages/admin/AdminProductsPage'));
+const AdminSettingsPage = lazy(() => import('@/pages/admin/AdminSettingsPage'));
 
-/* ── Admin base path — obscured, matches old Flask convention ── */
+// Authorization is enforced by the API; this path is only a routing convention.
 const ADMIN_BASE = '/manage-store-x9k2';
 
 export default function App() {
   return (
     <BrowserRouter>
-      <AdminAuthProvider>
         <CartProvider>
           <ToastProvider>
             <ScrollToTop />
             <ErrorBoundary>
+            <Suspense fallback={<main role="status" className="page-loading">Loading…</main>}>
             <Routes>
               {/* ── Admin routes (obscured path) ── */}
+              <Route element={<AdminShell />}>
               <Route path={`${ADMIN_BASE}/login`} element={<AdminLoginPage />} />
               <Route
                 path={ADMIN_BASE}
@@ -46,12 +51,18 @@ export default function App() {
                 <Route path="settings"  element={<AdminSettingsPage />} />
               </Route>
 
+              </Route>
               {/* ── Public routes ── */}
               <Route element={<Layout />}>
                 <Route path="/"              element={<HomePage />} />
                 <Route path="/shop"          element={<ShopPage />} />
                 <Route path="/product/:id"   element={<ProductPage />} />
                 <Route path="/cart"          element={<CartPage />} />
+                <Route path="/checkout" element={<Navigate to="/cart" replace/>}/>
+                {['login','signup','forgot-password','reset-password'].map(path=><Route key={path} path={'/'+path} element={<CustomerAuthPage/>}/>)}
+                <Route path="/auth/callback" element={<AuthCallback/>}/>
+                <Route path="/account" element={<AccountPage/>}/>
+                <Route path="/account/orders" element={<AccountPage/>}/>
                 <Route path="/contact"       element={<ContactPage />} />
                 <Route path="/policy/:type"  element={<PolicyPage />} />
                 {/* Legacy policy redirects */}
@@ -62,10 +73,10 @@ export default function App() {
                 <Route path="*"         element={<NotFound />} />
               </Route>
             </Routes>
+            </Suspense>
             </ErrorBoundary>
           </ToastProvider>
         </CartProvider>
-      </AdminAuthProvider>
     </BrowserRouter>
   );
 }

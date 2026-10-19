@@ -2,10 +2,11 @@ import json
 
 
 class ApiError(Exception):
-    def __init__(self, status, message):
+    def __init__(self, status, message, headers=None):
         super().__init__(message)
         self.status = status
         self.message = message
+        self.headers = headers or {}
 
 
 def read_json(handler, max_bytes=64 * 1024):
@@ -14,13 +15,17 @@ def read_json(handler, max_bytes=64 * 1024):
     except ValueError:
         raise ApiError(400, "Invalid request length")
     if length <= 0:
-        return {}
+        raise ApiError(400, 'JSON body is required')
     if length > max_bytes:
         raise ApiError(413, "Request body too large")
     try:
-        return json.loads(handler.rfile.read(length))
+        def reject_constant(value): raise ValueError('Invalid JSON number')
+        body = json.loads(handler.rfile.read(length), parse_constant=reject_constant)
     except Exception:
         raise ApiError(400, "Invalid JSON body")
+    if not isinstance(body, dict):
+        raise ApiError(400, 'JSON body must be an object')
+    return body
 
 
 def send_json(handler, status, body, cors=None, extra_headers=None):
@@ -46,6 +51,6 @@ def send_json(handler, status, body, cors=None, extra_headers=None):
 
 def send_error(handler, error, cors=None):
     if isinstance(error, ApiError):
-        return send_json(handler, error.status, {"error": error.message}, cors)
+        return send_json(handler, error.status, {"error": error.message}, cors, error.headers)
     print(f"Unhandled API error: {type(error).__name__}")
     return send_json(handler, 500, {"error": "Internal server error"}, cors)
