@@ -120,7 +120,7 @@ class AssistantTests(unittest.TestCase):
         def response(answer):
             return io.BytesIO(json.dumps({'candidates':[{'finishReason':'STOP','content':{'parts':[{'text':json.dumps(answer)}]}}]}).encode())
         with patch.dict(os.environ,{'GEMINI_API_KEY':'fixture-secret'}):
-            good={'scope':'products','reply':'Nike Air Force is ₹1,900.','product_ids':[2]}
+            good={'scope':'products','reply':'Prices are in INR, and Nike Air Force is ₹1,900.','product_ids':[2]}
             with patch.object(guide,'urlopen',return_value=response(good)) as model:
                 reply,ids=guide.generate_reply('Show Nike',[],data)
                 self.assertEqual(ids,[2]);self.assertIn('1,900',reply)

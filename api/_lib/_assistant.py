@@ -288,7 +288,7 @@ def generate_reply(question, previous, context):
     prices={float(p.get('_matched_price',p['price'])) for p in context['products']}
     prices.update(float(p['original_price']) for p in context['products'] if p.get('original_price'))
     prices.update(value for key,value in context['filters'].items() if key in ('min','max') and value is not None)
-    for amount in re.findall(r'(?:₹|\bINR|\bRs\.?)\s*([\d,]+(?:\.\d+)?)',reply,re.I):
+    for amount in re.findall(r'(?:₹|\bINR|\bRs\.?)\s*([0-9][\d,]*(?:\.\d+)?)',reply,re.I):
         if float(amount.replace(',','')) not in prices:raise ValueError('Ungrounded price')
     return reply,list(dict.fromkeys(ids))
 
