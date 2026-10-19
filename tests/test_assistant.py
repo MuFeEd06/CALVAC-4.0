@@ -130,7 +130,7 @@ class AssistantTests(unittest.TestCase):
                 sent=json.loads(request.data)
                 self.assertNotIn('tools',sent)
                 self.assertLessEqual(len(json.loads(sent['contents'][0]['parts'][0]['text'])['products']),8)
-            for invalid in [dict(good,product_ids=[999]),dict(good,reply='A special price of ₹99.'),dict(good,reply='Visit https://evil.invalid'),dict(good,product_ids=[True])]:
+            for invalid in [dict(good,product_ids=[999]),dict(good,reply='A special price of ₹99.'),dict(good,reply='A special price of 99 INR.'),dict(good,reply='Visit https://evil.invalid'),dict(good,product_ids=[True])]:
                 with self.subTest(invalid=invalid),patch.object(guide,'urlopen',return_value=response(invalid)),self.assertRaises(ValueError):guide.generate_reply('Show Nike',[],data)
 
     def test_provider_failure_and_global_budget_exhaustion_keep_catalog_help_working(self):
