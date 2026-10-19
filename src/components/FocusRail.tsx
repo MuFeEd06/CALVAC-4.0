@@ -148,7 +148,7 @@ export function FocusRail({
       width: "100%",
       overflow: "hidden",
       background: "#080808",
-      color: "#fff",
+      color: "var(--on-primary)",
       outline: "none",
       userSelect: "none" as const,
       borderRadius: 20,
@@ -234,8 +234,8 @@ export function FocusRail({
       position: "absolute" as const,
       top: 12,
       left: 12,
-      background: "var(--primary, #2B9FD8)",
-      color: "#fff",
+      background: "var(--primary, var(--primary))",
+      color: "var(--on-primary)",
       fontSize: "0.6rem",
       fontWeight: 800,
       padding: "3px 9px",
@@ -250,7 +250,7 @@ export function FocusRail({
       right: 12,
       background: "rgba(0,0,0,0.72)",
       backdropFilter: "blur(8px)",
-      color: "#fff",
+      color: "var(--on-primary)",
       fontSize: "0.88rem",
       fontWeight: 800,
       padding: "4px 10px",
@@ -285,14 +285,14 @@ export function FocusRail({
       fontWeight: 600,
       textTransform: "uppercase" as const,
       letterSpacing: "0.12em",
-      color: "var(--primary, #2B9FD8)",
+      color: "var(--primary, var(--primary))",
       marginBottom: 6,
     },
     title: {
       fontSize: "clamp(1.5rem, 3vw, 2rem)",
       fontWeight: 800,
       letterSpacing: "-0.03em",
-      color: "#fff",
+      color: "var(--on-primary)",
       lineHeight: 1.1,
       fontFamily: "var(--font-display, system-ui)",
       marginBottom: 8,
@@ -343,7 +343,7 @@ export function FocusRail({
       alignItems: "center",
       gap: 8,
       borderRadius: 999,
-      background: "#fff",
+      background: "var(--surface)",
       padding: "12px 22px",
       fontSize: "0.85rem",
       fontWeight: 700,
@@ -533,7 +533,7 @@ export function FocusRail({
               width: i === activeIndex ? 24 : 6,
               background:
                 i === activeIndex
-                  ? "var(--primary, #2B9FD8)"
+                  ? "var(--primary, var(--primary))"
                   : "rgba(255,255,255,0.25)",
             }}
             transition={{ duration: 0.3 }}

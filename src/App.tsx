@@ -87,7 +87,7 @@ function NotFound() {
       <div style={{ fontSize:'4rem', marginBottom:16 }}>👟</div>
       <h1 style={{ fontFamily:'var(--font-display)', fontSize:'2rem', marginBottom:12 }}>Page Not Found</h1>
       <p style={{ color:'var(--text-muted)', marginBottom:32 }}>The page you're looking for doesn't exist.</p>
-      <Link to="/" style={{ padding:'12px 32px', background:'var(--primary)', color:'#fff', borderRadius:8, fontWeight:700, textDecoration:'none' }}>Go Home</Link>
+      <Link to="/" style={{ padding:'12px 32px', background:'var(--primary)', color:'var(--on-primary)', borderRadius:8, fontWeight:700, textDecoration:'none' }}>Go Home</Link>
     </main>
   );
 }

@@ -1,0 +1,10 @@
+# Shoe image credits
+
+- `/hero/shoe/shoe-*.webp` — "Materials Variants Shoe" glTF sample © 2021 Shopify, CC BY 4.0 (https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/MaterialsVariantsShoe). Rendered with three.js.
+- `/hero/shoes/cloud-knit-*.webp` — "ADIDAS ULTRABOOST ‘JAPAN’ FEATURING FIREWORKS" by EpicFireworks, CC BY 2.0 (http://www.flickr.com/photos/30048753@N05/48665042891). Background removed, cropped and resized.
+- `/hero/shoes/air-cushion-trainer-*.webp` — "Jordan Air Max CMFT 12 Leather Men's Shoe" by buyeasyshop.com, CC BY 2.0 (https://www.flickr.com/photos/61617080@N05/5612734324). Background removed, cropped and resized.
+- `/hero/shoes/suede-chelsea-*.webp` — "Boss Boss Tailored T-Purien Chelsea-Boot 50273890 Veloursleder braun (1)" by spera.de, CC BY 2.0 (https://www.flickr.com/photos/130010866@N02/15859937414). Background removed, cropped and resized.
+- `/hero/shoes/polished-brogue-*.webp` — "Corvari Chelsea-Boot Brogue D109 Kalbsleder Kupferfarben metallic (1)" by spera.de, CC BY 2.0 (https://www.flickr.com/photos/130010866@N02/19119648513). Background removed, cropped and resized.
+- `/hero/shoes/heritage-derby-*.webp` — "Carmina Derby Shoes" by Menswear Market, CC BY 2.0 (https://www.flickr.com/photos/85546319@N04/38038193495). Background removed, cropped and resized.
+
+CC BY licences require this attribution to be shown wherever the images are published.

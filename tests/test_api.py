@@ -29,6 +29,26 @@ class Handler:
 
 
 class ApiTests(unittest.TestCase):
+    def test_duplicate_order_returns_a_bounded_cooldown_without_customer_data(self):
+        handler = Handler(payload())
+        with patch.object(orders,'require_cors'), patch.object(orders,'require_rate_limit'), patch.object(orders,'require_method'), \
+             patch.object(orders,'rest_request',side_effect=[0,{'duplicate':True,'retry_after':120}]):
+            orders.handler.do_POST(handler)
+        self.assertEqual(handler.status,409)
+        self.assertEqual(handler.sent_headers['Retry-After'],'120')
+        response=json.loads(handler.wfile.getvalue())
+        self.assertEqual(response['retryAfter'],120)
+        self.assertNotIn('order',response)
+
+    def test_particle_settings_preserve_separate_views_and_reject_unsafe_values(self):
+        data={'hero_type':'particles','particle_hero':{'headline':'Form that\nmoves you.',
+            'desktop':{'shoe':'retro-court-hi','scale':1,'x':0,'y':0},'mobile':{'shoe':'cloud-knit','scale':.8,'x':3,'y':-5}}}
+        safe=sanitize_settings_payload(data)
+        self.assertEqual(safe['particle_hero']['mobile']['shoe'],'cloud-knit')
+        self.assertIn('\n',safe['particle_hero']['headline'])
+        for view in ({'image':'javascript:alert(1)'},{'image':'https://example.com/shoe.png'},{'shoe':'missing'},{'scale':True},{'x':100}):
+            with self.assertRaises(ApiError):sanitize_settings_payload({'particle_hero':{'mobile':view}})
+
     def test_legacy_orders_created_during_cutover_load_relational_items(self):
         handler = Handler({}); handler.path = '/api/x9k2/orders?limit=2'
         rows = [{'id': 9, 'items': [], 'checkout_v2': False},
@@ -79,7 +99,7 @@ class ApiTests(unittest.TestCase):
             orders.handler.do_POST(first); orders.handler.do_POST(retry)
             self.assertEqual((first.status, retry.status), (502, 200))
             self.assertEqual(rpc.call_count, 4)
-            self.assertEqual(rpc.call_args.args[1], 'rpc/create_order_with_stock_v3')
+            self.assertEqual(rpc.call_args.args[1], 'rpc/create_order_with_stock_v4')
             self.assertEqual(rpc.call_args.args[2]['p_idempotency_key'], first.headers['Idempotency-Key'])
 
     def test_invalid_order_does_not_claim_idempotency_or_call_database(self):

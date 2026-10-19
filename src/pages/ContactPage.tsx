@@ -27,14 +27,14 @@ export default function ContactPage() {
       <motion.a href="https://wa.me/919645087584" target="_blank" rel="noopener noreferrer"
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
         whileHover={{ y: -3, boxShadow: '0 12px 32px rgba(37,211,102,0.3)' }}
-        style={{ display: 'flex', alignItems: 'center', gap: 24, background: 'linear-gradient(135deg, #25D366, #128C7E)', borderRadius: 18, padding: '36px 32px', textDecoration: 'none', marginBottom: 24 }}>
+        style={{ display: 'flex', alignItems: 'center', gap: 24, background: 'var(--surface)', border:'1px solid var(--border)', borderRadius: 18, padding: '36px 32px', textDecoration: 'none', marginBottom: 24 }}>
         <img src="https://ik.imagekit.io/yocxectr4/logos/whatsapp.png?tr=w-55,q-80,f-webp" alt="WhatsApp" style={{ width: 64, height: 64, flexShrink: 0 }} />
         <div>
-          <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff', marginBottom: 4, fontFamily: 'var(--font-display)' }}>Chat on WhatsApp</h3>
-          <p style={{ color: 'rgba(255,255,255,0.82)', fontSize: '0.9rem', lineHeight: 1.5, marginBottom: 10 }}>
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text)', marginBottom: 4, fontFamily: 'var(--font-display)' }}>Chat on WhatsApp</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.5, marginBottom: 10 }}>
             Fastest way to reach us. Ask about stock, sizing, custom orders, or track your delivery.
           </p>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 700, fontSize: '0.88rem', padding: '8px 18px', borderRadius: 'var(--button-radius)' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.2)', color: 'var(--text)', fontWeight: 700, fontSize: '0.88rem', padding: '8px 18px', borderRadius: 'var(--button-radius)' }}>
             💬 Start Chat →
           </span>
         </div>
@@ -44,19 +44,19 @@ export default function ContactPage() {
       <motion.a href="https://www.instagram.com/clc.india__?igsh=MTNvbDhseWQ0dzc0aA==" target="_blank" rel="noopener noreferrer"
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
         whileHover={{ y: -3, boxShadow: '0 12px 32px rgba(220,39,67,0.3)' }}
-        style={{ display: 'flex', alignItems: 'center', gap: 24, background: 'linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)', borderRadius: 18, padding: '28px 32px', textDecoration: 'none', marginBottom: 32 }}>
+        style={{ display: 'flex', alignItems: 'center', gap: 24, background: 'var(--surface)', border:'1px solid var(--border)', borderRadius: 18, padding: '28px 32px', textDecoration: 'none', marginBottom: 32 }}>
         <div style={{ fontSize: '2.6rem', flexShrink: 0 }}>
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-            <rect width="24" height="24" rx="6" fill="white" fillOpacity="0.3"/>
-            <rect x="6" y="6" width="12" height="12" rx="3.5" stroke="white" strokeWidth="1.5" fill="none"/>
-            <circle cx="12" cy="12" r="3" stroke="white" strokeWidth="1.5" fill="none"/>
-            <circle cx="16.2" cy="7.8" r="0.9" fill="white"/>
+            <rect width="24" height="24" rx="6" fill="currentColor" fillOpacity="0.3"/>
+            <rect x="6" y="6" width="12" height="12" rx="3.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+            <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+            <circle cx="16.2" cy="7.8" r="0.9" fill="currentColor"/>
           </svg>
         </div>
         <div>
-          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 800, color: '#fff', marginBottom: 4 }}>Follow us on Instagram</h3>
-          <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.88rem', marginBottom: 6 }}>Stay updated with new drops & exclusive offers.</p>
-          <span style={{ fontWeight: 700, color: '#fff', fontSize: '0.9rem' }}>@clc.india__</span>
+          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>Follow us on Instagram</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginBottom: 6 }}>Stay updated with new drops & exclusive offers.</p>
+          <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: '0.9rem' }}>@clc.india__</span>
         </div>
       </motion.a>
 

@@ -29,7 +29,7 @@ export default class ErrorBoundary extends React.Component<
           </p>
           <button
             onClick={() => { this.setState({ hasError: false }); window.location.reload(); }}
-            style={{ padding:'10px 28px', background:'var(--primary)', color:'#fff',
+            style={{ padding:'10px 28px', background:'var(--primary)', color:'var(--on-primary)',
               border:'none', borderRadius:8, fontWeight:700, cursor:'pointer',
               fontFamily:'var(--font-body)', fontSize:'0.9rem' }}>
             Reload page

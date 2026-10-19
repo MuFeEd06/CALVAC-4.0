@@ -6,11 +6,11 @@ import { formatSizeWithUnit } from '@/utils/sizeUnits';
 const STATUSES: AdminOrder['status'][] = ['Pending', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled'];
 
 const STATUS_COLORS: Record<AdminOrder['status'], string> = {
-  Pending:   '#f59e0b',
-  Confirmed: '#3b82f6',
-  Shipped:   '#8b5cf6',
-  Delivered: '#10b981',
-  Cancelled: '#ef4444',
+  Pending:   'var(--warning)',
+  Confirmed: 'var(--primary)',
+  Shipped:   'var(--primary)',
+  Delivered: 'var(--success)',
+  Cancelled: 'var(--danger)',
 };
 
 
@@ -56,7 +56,7 @@ export default function AdminDashboardPage() {
   return (
     <section className="admin-panel">
       <div className="admin-section-head">
-        <h2>Orders {orders.length > 0 && <span style={{ fontSize: '0.8rem', color: '#5a6a7a', fontWeight: 400 }}>({orders.length} loaded)</span>}</h2>
+        <h2>Orders {orders.length > 0 && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 400 }}>({orders.length} loaded)</span>}</h2>
         <div className="admin-filters">
           <button type="button" className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>All</button>
           {STATUSES.map(s => (
@@ -68,8 +68,8 @@ export default function AdminDashboardPage() {
       </div>
 
       {loading && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '20px 0', color: '#5a6a7a' }}>
-          <div style={{ width: 18, height: 18, border: '2px solid #d0e6f5', borderTopColor: '#2B9FD8', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '20px 0', color: 'var(--text-muted)' }}>
+          <div style={{ width: 18, height: 18, border: '2px solid var(--border)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
           Loading orders…
           <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
@@ -90,11 +90,11 @@ export default function AdminDashboardPage() {
       )}
 
       {!loading && !error && filtered.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '48px 20px', color: '#9badb8' }}>
+        <div style={{ textAlign: 'center', padding: '48px 20px', color: 'var(--text-muted)' }}>
           <div style={{ fontSize: '2.5rem', marginBottom: 10 }}>📦</div>
           <p style={{ fontWeight: 600, marginBottom: 4 }}>No {filter === 'all' ? '' : filter.toLowerCase()} orders yet</p>
           {filter !== 'all' && (
-            <button onClick={() => setFilter('all')} style={{ marginTop: 8, background: 'none', border: '1px solid #d0e6f5', borderRadius: 6, padding: '5px 14px', color: '#2B9FD8', cursor: 'pointer', fontSize: '0.82rem' }}>
+            <button onClick={() => setFilter('all')} style={{ marginTop: 8, background: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 14px', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.82rem' }}>
               Show all orders
             </button>
           )}
@@ -116,9 +116,9 @@ export default function AdminDashboardPage() {
                   <span style={{
                     display: 'inline-block', fontSize: '0.7rem', fontWeight: 700,
                     padding: '2px 8px', borderRadius: 20,
-                    background: `${STATUS_COLORS[order.status]}18`,
+                    background: `color-mix(in srgb, ${STATUS_COLORS[order.status]} 10%, var(--surface))`,
                     color: STATUS_COLORS[order.status],
-                    border: `1px solid ${STATUS_COLORS[order.status]}44`,
+                    border: `1px solid color-mix(in srgb, ${STATUS_COLORS[order.status]} 30%, transparent)`,
                   }}>
                     {order.status}
                   </span>
@@ -138,7 +138,7 @@ export default function AdminDashboardPage() {
             {order.items?.length > 0 && (
               <div style={{ margin: '8px 0', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {order.items.map((item, i) => (
-                  <span key={i} style={{ fontSize: '0.75rem', background: '#eaf3fa', border: '1px solid #d0e6f5', borderRadius: 6, padding: '2px 8px', color: '#5a6a7a' }}>
+                  <span key={i} style={{ fontSize: '0.75rem', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 8px', color: 'var(--text-muted)' }}>
                     {item.name} × {item.qty} {item.size ? `(${formatSizeWithUnit(item.size_unit || item.sizeUnit, item.size)})` : ''}
                   </span>
                 ))}
@@ -158,7 +158,7 @@ export default function AdminDashboardPage() {
             </div>
 
             {order.created_at && (
-              <p style={{ fontSize: '0.72rem', color: '#9badb8', marginTop: 6 }}>
+              <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 6 }}>
                 🕐 {new Date(order.created_at).toLocaleString('en-IN')}
               </p>
             )}

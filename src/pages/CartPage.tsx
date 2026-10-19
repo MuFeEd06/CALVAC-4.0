@@ -1,3 +1,4 @@
+import OrderCooldown from '@/components/OrderCooldown';
 import { imageFallback, FALLBACK_IMAGE } from '@/utils/images';
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -21,6 +22,9 @@ export default function CartPage() {
   const [addrOpen, setAddrOpen] = useState(false);
   const [ordering, setOrdering] = useState(false);
   const orderLock = useRef(false);
+  const [cooldownUntil,setCooldownUntil]=useState(0),[cooldownOpen,setCooldownOpen]=useState(false),[now,setNow]=useState(Date.now);
+  const remaining=Math.max(0,Math.ceil((cooldownUntil-now)/1000));
+  useEffect(()=>{if(!cooldownUntil)return;const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer);},[cooldownUntil]);
   const attemptRef = useRef<{ fingerprint: string; key: string } | null>(null);
   const [confirmed, setConfirmed] = useState<ConfirmedOrder | null>(() => {
     try {
@@ -38,6 +42,7 @@ export default function CartPage() {
 
   const handleOrder = async () => {
     if (orderLock.current) return;
+    if (cooldownUntil>Date.now()) {setCooldownOpen(true);return;}
     if (!address) { showToast('Add a delivery address first', false); return; }
     const error = validateAddress(address);
     if (error) { showToast(error, false); return; }
@@ -59,6 +64,7 @@ export default function CartPage() {
       try { sessionStorage.setItem('calvac_confirmed_order', JSON.stringify({ ts: Date.now(), order: confirmation })); sessionStorage.removeItem('calvac_checkout_attempt'); } catch {}
       clearCart(); attemptRef.current = null;
     } catch (error) {
+      if(error instanceof ApiError && error.status===409 && error.retryAfter){setNow(Date.now());setCooldownUntil(Date.now()+error.retryAfter*1000);setCooldownOpen(true);return;}
       if (error instanceof ApiError && error.status === 401) { navigate('/login?redirect='+encodeURIComponent('/cart?payment=razorpay')); return; }
       showToast(error instanceof Error ? error.message : 'Could not place order. Retry to check the same order.', false);
     } finally { orderLock.current = false; setOrdering(false); }
@@ -77,7 +83,7 @@ export default function CartPage() {
         <h2 style={{ fontFamily:'var(--font-display)', fontSize:'1.6rem', marginBottom:10 }}>Your cart is empty</h2>
         <p style={{ color:'var(--text-muted)', marginBottom:30 }}>Looks like you haven't added any sneakers yet.</p>
         <Link to="/shop" style={{ display:'inline-block', padding:'12px 32px', border:'1.5px solid var(--primary)', color:'var(--primary)', borderRadius:'var(--button-radius)', fontWeight:600, transition:'all 0.2s' }}
-          onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.background='var(--primary)';(e.currentTarget as HTMLElement).style.color='#fff';}}
+          onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.background='var(--primary)';(e.currentTarget as HTMLElement).style.color='var(--on-primary)';}}
           onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.background='transparent';(e.currentTarget as HTMLElement).style.color='var(--primary)';}}>
           Continue Shopping
         </Link>
@@ -87,6 +93,8 @@ export default function CartPage() {
 
   return (
     <main style={{ maxWidth:900, margin:'0 auto', padding:'40px 5% 100px' }}>
+      {cooldownOpen&&<OrderCooldown remaining={remaining} onClose={()=>setCooldownOpen(false)}/>}
+
       <h1 style={{ fontFamily:'var(--font-display)', fontSize:'2rem', color:'var(--primary)', marginBottom:8 }}>Your Cart</h1>
       <p style={{ color:'var(--text-muted)', fontSize:'0.9rem', marginBottom:40 }}>{totalItems} item{totalItems !== 1 ? 's' : ''} in your cart</p>
 
@@ -190,11 +198,11 @@ export default function CartPage() {
           {method==='razorpay'&&<p>Online payment requires <Link to={'/login?redirect='+encodeURIComponent('/cart?payment=razorpay')}>sign-in</Link>.</p>}
           {configError&&<p role="alert" className="load-error">{configError} <button onClick={loadMethods}>Try again</button></p>}
           <button className="primary-link" disabled={ordering||!address||!methods?.[method]} onClick={()=>void handleOrder()}
-            style={{width:'100%',marginTop:16,background:method==='whatsapp'?'#128C4A':'var(--primary)'}}>
-            {ordering?'Placing order…':method==='whatsapp'?'Order via WhatsApp':method==='cod'?'Place Cash on Delivery Order':'Continue to payment'}
+            style={{width:'100%',marginTop:16,background:'var(--primary)'}}>
+            {ordering?'Placing order…':remaining>0?`Order cooldown · ${Math.floor(remaining/60)}:${String(remaining%60).padStart(2,'0')}`:method==='whatsapp'?'Order via WhatsApp':method==='cod'?'Place Cash on Delivery Order':'Continue to payment'}
           </button>
 
-          {!address && <p style={{ textAlign:'center', fontSize:'0.78rem', color:'#e53e3e', marginTop:6 }}>⚠️ Add a delivery address to order.</p>}
+          {!address && <p style={{ textAlign:'center', fontSize:'0.78rem', color:'var(--danger)', marginTop:6 }}>⚠️ Add a delivery address to order.</p>}
           <Link to="/shop" style={{ display:'block', textAlign:'center', marginTop:10, padding:12, border:'1.5px solid var(--border)', borderRadius:'var(--button-radius)', color:'var(--text-muted)', fontSize:'0.9rem' }}>← Continue Shopping</Link>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import ThemeSwitch from '../ThemeSwitch';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { customerSignOut } from '@/lib/customerAuth';
@@ -22,6 +23,7 @@ export default function AdminLayout() {
           <NavLink to={`${BASE}/products`}>Products</NavLink>
           <NavLink to={`${BASE}/settings`}>Site Settings</NavLink>
         </nav>
+        <ThemeSwitch />
         <button type="button" className="admin-logout" onClick={logout}>
           Sign Out
         </button>

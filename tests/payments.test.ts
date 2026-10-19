@@ -23,7 +23,7 @@ before(async () => {
     grant usage on schema auth to authenticated;
     insert into auth.users values('${user}'),('${other}');`);
   await db.exec(await readFile(new URL('./fixtures/live-schema.sql', import.meta.url),'utf8'));
-  for (const name of ['20261019111147_checkout_hardening.sql','20261019111159_customer_payments.sql'])
+  for (const name of ['20261019111147_checkout_hardening.sql','20261019111159_customer_payments.sql','20261019114546_hero_theme_whatsapp_cooldown.sql'])
     await db.exec(await readFile(new URL('../supabase/migrations/' + name, import.meta.url),'utf8'));
 });
 after(async () => { await db?.close(); });
@@ -48,6 +48,40 @@ test('online checkout requires an account, binds identity/method to retries, and
   await assert.rejects(create('razorpay',other),/already used/);
   await db.exec(`update site_settings set data='{"payment_methods":{"cod":false}}'`);
   await assert.rejects(create('cod',null,'disabled-payment-key-0001'),/unavailable/);
+});
+
+test('different WhatsApp request keys share a cooldown without another stock deduction; retries still replay',async()=>{
+  const call=(key:string,cart=items,person=customer)=>rpc('create_order_with_stock_v4',[JSON.stringify(cart),JSON.stringify(person),key,'whatsapp',null]);
+  const first=await call('whatsapp-first-key-0001');
+  assert.equal((await call('whatsapp-first-key-0001')).id,first.id);
+  const duplicate=await call('whatsapp-other-key-0002');
+  assert.equal(duplicate.duplicate,true);assert.ok(duplicate.retry_after>0&&duplicate.retry_after<=300);
+  assert.equal((await db.query('select count(*)::integer count from orders')).rows[0].count,1);
+  assert.equal(JSON.parse((await db.query('select stock from products where id=1')).rows[0].stock as string)['default|UK 8'],9);
+  // A changed address/name does not bypass the same-phone/cart guard.
+  assert.equal((await call('whatsapp-other-key-0003',items,{...customer,name:'Changed',line1:'Different street'})).duplicate,true);
+  assert.ok((await call('whatsapp-other-key-0004',items,{...customer,phone:'9876543211'})).id);
+  await db.exec(`update orders set created_at=now()-interval '6 minutes' where id=${first.id}`);
+  assert.ok((await call('whatsapp-other-key-0005')).id);
+});
+
+test('WhatsApp duplicate comparison is independent of cart order and cancellation releases the cooldown',async()=>{
+  await db.exec(`insert into products(id,name,brand,price,sizes,colors,stock) select 2,name,brand,price,sizes,colors,stock from products where id=1`);
+  const cart=[...items,{...items[0],productId:'2'}];
+  const call=(key:string,value=cart)=>rpc('create_order_with_stock_v4',[JSON.stringify(value),JSON.stringify(customer),key,'whatsapp',null]);
+  const first=await call('whatsapp-sort-key-0001');
+  assert.equal((await call('whatsapp-sort-key-0002',[...cart].reverse())).duplicate,true);
+  await rpc('set_order_status_v3',[first.id,'Cancelled']);
+  assert.ok((await call('whatsapp-sort-key-0003')).id);
+  await db.exec('set role anon');
+  await assert.rejects(call('whatsapp-denied-key-0004'),/permission denied/);
+});
+
+test('a recent WhatsApp order from the preceding deployment also activates the cooldown',async()=>{
+  await create('whatsapp',null,'whatsapp-preceding-version-001');
+  const result=await rpc('create_order_with_stock_v4',[JSON.stringify(items),JSON.stringify(customer),'whatsapp-new-version-key-001','whatsapp',null]);
+  assert.equal(result.duplicate,true);
+  assert.equal((await db.query('select count(*)::integer count from orders')).rows[0].count,1);
 });
 test('provider orders are leased once, owned by the account, and reused after binding', async () => {
   const order = await create();

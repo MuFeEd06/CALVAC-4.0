@@ -1,3 +1,5 @@
+import HeroSettings from '@/components/admin/HeroSettings';
+import { particleSettings } from '@/hero';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { fetchAdminOffer, fetchAdminSettings, saveAdminOffer, saveAdminSettings } from '@/api/admin';
 import { getAdminAuthHeaders } from '@/lib/adminAuth';
@@ -32,10 +34,10 @@ const ELEM_DEFS: {
 }[] = [
   { id:'intro',    label:'Intro Block',   emoji:'📝', color:'#3b82f6', visKey:'hero_intro_visible',         type:'intro'   },
   { id:'prompt',   label:'Scroll Prompt', emoji:'⬇️', color:'#8b5cf6', visKey:'hero_prompt_visible',        type:'prompt'  },
-  { id:'left',     label:'Left Overlay',  emoji:'◀',  color:'#10b981', visKey:'hero_overlay_left_visible',  type:'overlay' },
+  { id:'left',     label:'Left Overlay',  emoji:'◀',  color:'var(--success)', visKey:'hero_overlay_left_visible',  type:'overlay' },
   { id:'right',    label:'Right Overlay', emoji:'▶',  color:'#f59e0b', visKey:'hero_overlay_right_visible', type:'overlay' },
-  { id:'image',    label:'Hero Image',    emoji:'🖼️', color:'#64748b', visKey:'hero_image_visible',         type:'fixed'   },
-  { id:'gradient', label:'Gradient',      emoji:'🌊', color:'#2B9FD8', visKey:'hero_gradient_visible',      type:'fixed'   },
+  { id:'image',    label:'Hero Image',    emoji:'🖼️', color:'var(--text-muted)', visKey:'hero_image_visible',         type:'fixed'   },
+  { id:'gradient', label:'Gradient',      emoji:'🌊', color:'var(--primary)', visKey:'hero_gradient_visible',      type:'fixed'   },
   { id:'offer',    label:'Offer Tag',     emoji:'🏷️', color:'#e53e3e', visKey:'hero_offer_visible',          type:'fixed'   },
   { id:'skip',     label:'Skip Button',   emoji:'⏭️', color:'#8b5cf6', visKey:'hero_skip_visible',           type:'fixed'   },
   { id:'star',     label:'Spin Star',     emoji:'✨', color:'#FF6B35', visKey:'hero_star_visible',           type:'fixed'   },
@@ -88,7 +90,7 @@ function getOpacity(id: ElementId, scroll: number, s: S): number {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label style={{ display:'flex', flexDirection:'column', gap:5,
-      fontSize:'0.7rem', fontWeight:800, color:'#9badb8',
+      fontSize:'0.7rem', fontWeight:800, color:'var(--text-muted)',
       textTransform:'uppercase', letterSpacing:'0.6px' }}>
       {label}
       {children}
@@ -107,9 +109,9 @@ function TextInput({ value, onChange, placeholder, type='text', style }: {
       onFocus={()=>setF(true)} onBlur={()=>setF(false)}
       style={{
         width:'100%', padding:'8px 10px',
-        border:`1px solid ${f?'#2B9FD8':'#d0e6f5'}`, borderRadius:7,
+        border:`1px solid ${f?'var(--primary)':'var(--border)'}`, borderRadius:7,
         fontSize:'0.84rem', fontFamily:'inherit',
-        outline:'none', background:'#f4f8fb', color:'#1a1a2e',
+        outline:'none', background:'var(--bg)', color:'var(--text)',
         transition:'border-color 0.15s', ...style,
       }} />
   );
@@ -119,13 +121,13 @@ function ColourPick({ label, value, onChange }: { label:string; value:string; on
   return (
     <Field label={label}>
       <div style={{ display:'flex', alignItems:'center', gap:8, padding:'5px 8px',
-        border:'1px solid #d0e6f5', borderRadius:7, background:'#f4f8fb' }}>
+        border:'1px solid var(--border)', borderRadius:7, background:'var(--bg)' }}>
         <label style={{ width:22, height:22, borderRadius:5, overflow:'hidden',
-          border:'1px solid #d0e6f5', cursor:'pointer', flexShrink:0, display:'block' }}>
+          border:'1px solid var(--border)', cursor:'pointer', flexShrink:0, display:'block' }}>
           <input type="color" value={value||'#000000'} onChange={e=>onChange(e.target.value)}
             style={{ width:'200%', height:'200%', marginLeft:'-50%', marginTop:'-50%', border:'none', cursor:'pointer' }} />
         </label>
-        <span style={{ fontSize:'0.76rem', color:'#5a6a7a', fontFamily:'monospace' }}>{value}</span>
+        <span style={{ fontSize:'0.76rem', color:'var(--text-muted)', fontFamily:'monospace' }}>{value}</span>
       </div>
     </Field>
   );
@@ -138,7 +140,7 @@ function SliderRow({ label, min, max, step, value, onChange }: {
     <Field label={`${label}  ${value}`}>
       <input type="range" min={min} max={max} step={step} value={value}
         onChange={e=>onChange(Number(e.target.value))}
-        style={{ width:'100%', accentColor:'#2B9FD8' }} />
+        style={{ width:'100%', accentColor:'var(--primary)' }} />
     </Field>
   );
 }
@@ -152,13 +154,13 @@ function HeroPreview({ settings, playhead, activeId }: {
   const txt = (k:string, fb:string) => typeof settings[k]==='string' && (settings[k] as string).trim() ? settings[k] as string : fb;
   const opac = (id: ElementId) => getOpacity(id, playhead, settings);
   const gradStr = n(settings.hero_gradient_strength, 1);
-  const textCol = txt('hero_text_color','#2B9FD8');
-  const subCol  = txt('hero_sub_color','#5a6a7a');
-  const eyeCol  = txt('hero_overlay_color','#2B9FD8');
+  const textCol = txt('hero_text_color','var(--primary)');
+  const subCol  = txt('hero_sub_color','var(--text-muted)');
+  const eyeCol  = txt('hero_overlay_color','var(--primary)');
 
   return (
-    <div style={{ position:'relative', borderRadius:12, overflow:'hidden',
-      background:'#eaf3fa', border:'1px solid #d0e6f5', aspectRatio:'16/9' }}>
+    <div data-hero-preview="true" style={{ position:'relative', borderRadius:12, overflow:'hidden',
+      background:'var(--surface-2)', border:'1px solid var(--border)', aspectRatio:'16/9' }}>
 
       {/* Gradient */}
       {settings.hero_gradient_visible !== false && (
@@ -249,22 +251,22 @@ function HeroPreview({ settings, playhead, activeId }: {
           borderRadius:8,
         }}>
           <div style={{
-            background:(settings.hero_offer_bg as string)||'#fff',
-            border:`1px solid ${(settings.hero_offer_accent as string)||'#2B9FD8'}22`,
+            background:(settings.hero_offer_bg as string)||'var(--surface)',
+            border:`1px solid ${(settings.hero_offer_accent as string)||'var(--primary)'}22`,
             borderRadius:8, padding:'8px 10px',
             boxShadow:'0 4px 12px rgba(0,0,0,0.10)',
           }}>
-            <div style={{ background:(settings.hero_offer_accent as string)||'#2B9FD8', color:'#fff',
+            <div style={{ background:(settings.hero_offer_accent as string)||'var(--primary)', color:'var(--on-primary)',
               fontSize:'0.45rem', fontWeight:800, padding:'1px 5px', borderRadius:3,
               letterSpacing:'0.06em', textTransform:'uppercase', display:'inline-block', marginBottom:4 }}>
               {(settings.hero_offer_tag as string)||'Featured Drop'}
             </div>
-            <div style={{ fontSize:'0.6rem', fontWeight:700, color:(settings.hero_offer_text_color as string)||'#1a1a2e', lineHeight:1.2 }}>
+            <div style={{ fontSize:'0.6rem', fontWeight:700, color:(settings.hero_offer_text_color as string)||'var(--text)', lineHeight:1.2 }}>
               {(settings.hero_offer_title as string)||'New Arrivals'}
             </div>
             {(settings.hero_offer_price as string) && (
               <div style={{ display:'flex', alignItems:'center', gap:4, marginTop:4 }}>
-                <span style={{ fontSize:'0.65rem', fontWeight:800, color:(settings.hero_offer_accent as string)||'#2B9FD8' }}>
+                <span style={{ fontSize:'0.65rem', fontWeight:800, color:(settings.hero_offer_accent as string)||'var(--primary)' }}>
                   {settings.hero_offer_price as string}
                 </span>
                 {(settings.hero_offer_discount as string) && (
@@ -291,13 +293,13 @@ function HeroPreview({ settings, playhead, activeId }: {
           <div style={{
             display:'inline-flex', alignItems:'center', gap:4,
             background:(settings.hero_skip_bg as string)||'#E9F5FB',
-            border:`1px solid ${(settings.hero_skip_color as string)||'#2B9FD8'}44`,
+            border:`1px solid ${(settings.hero_skip_color as string)||'var(--primary)'}44`,
             borderRadius:20, padding:'4px 9px',
           }}>
             <svg width="8" height="8" viewBox="0 0 12 12" fill="none">
               <path d="M2 3l4 3-4 3V3zM7 3h1.5v6H7V3z" fill={(settings.hero_skip_color as string)||'#2B9FD8'}/>
             </svg>
-            <span style={{ fontSize:'0.45rem', fontWeight:700, color:(settings.hero_skip_color as string)||'#2B9FD8',
+            <span style={{ fontSize:'0.45rem', fontWeight:700, color:(settings.hero_skip_color as string)||'var(--primary)',
               letterSpacing:'0.06em', textTransform:'uppercase' }}>
               {(settings.hero_skip_text as string)||'Skip Animation'}
             </span>
@@ -333,7 +335,7 @@ function HeroPreview({ settings, playhead, activeId }: {
       {/* Playhead % badge */}
       {/* Playhead % badge */}
       <div style={{ position:'absolute', top:8, right:8, background:'rgba(239,68,68,0.9)',
-        color:'#fff', fontSize:'0.62rem', fontWeight:800, padding:'3px 8px', borderRadius:20 }}>
+        color:'var(--on-primary)', fontSize:'0.62rem', fontWeight:800, padding:'3px 8px', borderRadius:20 }}>
         {Math.round(playhead*100)}% scroll
       </div>
     </div>
@@ -360,23 +362,23 @@ function Inspector({ activeId, settings, setField }: {
           {def.emoji}
         </div>
         <div>
-          <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:'0.9rem', color:'#1a1a2e' }}>
+          <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:'0.9rem', color:'var(--text)' }}>
             {def.label}
           </div>
-          <div style={{ fontSize:'0.7rem', color:'#9badb8' }}>Edit content & appearance</div>
+          <div style={{ fontSize:'0.7rem', color:'var(--text-muted)' }}>Edit content & appearance</div>
         </div>
         <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:6 }}>
-          <span style={{ fontSize:'0.7rem', color:'#9badb8', fontWeight:600 }}>Visible</span>
+          <span style={{ fontSize:'0.7rem', color:'var(--text-muted)', fontWeight:600 }}>Visible</span>
           <button
             onClick={()=>setField(def.visKey, settings[def.visKey]===false ? true : false)}
             style={{
               width:40, height:22, borderRadius:11,
-              background: settings[def.visKey]===false ? '#d0e6f5' : def.color,
+              background: settings[def.visKey]===false ? 'var(--border)' : def.color,
               border:'none', cursor:'pointer', position:'relative', transition:'background 0.2s',
             }}>
             <span style={{
               position:'absolute', top:3, width:16, height:16, borderRadius:'50%',
-              background:'#fff', transition:'left 0.2s', boxShadow:'0 1px 3px rgba(0,0,0,0.2)',
+              background:'var(--surface)', transition:'left 0.2s', boxShadow:'0 1px 3px rgba(0,0,0,0.2)',
               left: settings[def.visKey]===false ? 3 : 21,
             }}/>
           </button>
@@ -432,9 +434,9 @@ function Inspector({ activeId, settings, setField }: {
               <button key={a} type="button"
                 onClick={()=>setField('hero_intro_align',a)}
                 style={{
-                  flex:1, padding:'7px', border:`1.5px solid ${settings.hero_intro_align===a?'#2B9FD8':'#d0e6f5'}`,
-                  borderRadius:8, background:settings.hero_intro_align===a?'#2B9FD8':'#f4f8fb',
-                  color:settings.hero_intro_align===a?'#fff':'#5a6a7a',
+                  flex:1, padding:'7px', border:`1.5px solid ${settings.hero_intro_align===a?'var(--primary)':'var(--border)'}`,
+                  borderRadius:8, background:settings.hero_intro_align===a?'var(--primary)':'var(--bg)',
+                  color:settings.hero_intro_align===a?'var(--on-primary)':'var(--text-muted)',
                   cursor:'pointer', fontWeight:700, fontSize:'0.78rem', fontFamily:'inherit',
                 }}>
                 {a[0].toUpperCase()+a.slice(1)}
@@ -450,7 +452,7 @@ function Inspector({ activeId, settings, setField }: {
           <TextInput value={txt('hero_prompt_text')} placeholder="Scroll to Explore"
             onChange={v=>setField('hero_prompt_text',v)} />
         </Field>
-        <p style={{ fontSize:'0.72rem', color:'#9badb8', fontStyle:'italic' }}>
+        <p style={{ fontSize:'0.72rem', color:'var(--text-muted)', fontStyle:'italic' }}>
           The scroll prompt always fades out in the first 8% of scroll. Its timing is fixed.
         </p>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
@@ -478,7 +480,7 @@ function Inspector({ activeId, settings, setField }: {
             value={num('hero_overlay_left_y',20)} onChange={v=>setField('hero_overlay_left_y',v)} />
         </div>
         <ColourPick label="Label colour" value={txt('hero_overlay_color')||'#2B9FD8'} onChange={v=>setField('hero_overlay_color',v)} />
-        <p style={{ fontSize:'0.72rem', color:'#9badb8', fontStyle:'italic' }}>
+        <p style={{ fontSize:'0.72rem', color:'var(--text-muted)', fontStyle:'italic' }}>
           Left & Right overlays share the same fade-in/out timing. Drag their tracks on the timeline.
         </p>
       </>}
@@ -499,7 +501,7 @@ function Inspector({ activeId, settings, setField }: {
           <SliderRow label="Y from bottom (%)" min={0} max={60} step={1}
             value={num('hero_overlay_right_y',16)} onChange={v=>setField('hero_overlay_right_y',v)} />
         </div>
-        <p style={{ fontSize:'0.72rem', color:'#9badb8', fontStyle:'italic' }}>
+        <p style={{ fontSize:'0.72rem', color:'var(--text-muted)', fontStyle:'italic' }}>
           Left & Right overlays share the same fade-in/out timing. Drag their tracks on the timeline.
         </p>
       </>}
@@ -512,7 +514,7 @@ function Inspector({ activeId, settings, setField }: {
           <SliderRow label="Scroll height (vh)" min={200} max={700} step={10}
             value={num('hero_scroll_height_vh',420)} onChange={v=>setField('hero_scroll_height_vh',v)} />
         </div>
-        <p style={{ fontSize:'0.72rem', color:'#9badb8' }}>
+        <p style={{ fontSize:'0.72rem', color:'var(--text-muted)' }}>
           Scroll height controls how long the hero section is — more vh = slower scroll through the animation.
         </p>
       </>}
@@ -558,10 +560,10 @@ function Inspector({ activeId, settings, setField }: {
           <ColourPick label="Accent" value={txt('hero_offer_accent')||'#2B9FD8'} onChange={v=>setField('hero_offer_accent',v)} />
           <ColourPick label="Text" value={txt('hero_offer_text_color')||'#1a1a2e'} onChange={v=>setField('hero_offer_text_color',v)} />
         </div>
-        <div style={{ background:'#f8fafc',borderRadius:8,padding:10 }}>
-          <p style={{ fontSize:'0.7rem',fontWeight:700,color:'#9badb8',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:8 }}>Card preview</p>
-          <div style={{ background:txt('hero_offer_bg')||'#fff',border:`1px solid ${txt('hero_offer_accent')||'#2B9FD8'}22`,borderRadius:10,padding:'12px 14px',boxShadow:'0 4px 16px rgba(0,0,0,0.08)',display:'inline-block',minWidth:140 }}>
-            <div style={{ background:txt('hero_offer_accent')||'#2B9FD8',color:'#fff',fontSize:'0.58rem',fontWeight:800,padding:'2px 7px',borderRadius:4,letterSpacing:'0.08em',textTransform:'uppercase',display:'inline-block',marginBottom:7 }}>
+        <div style={{ background:'var(--surface-2)',borderRadius:8,padding:10 }}>
+          <p style={{ fontSize:'0.7rem',fontWeight:700,color:'var(--text-muted)',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:8 }}>Card preview</p>
+          <div style={{ background:txt('hero_offer_bg')||'var(--surface)',border:`1px solid ${txt('hero_offer_accent')||'var(--primary)'}22`,borderRadius:10,padding:'12px 14px',boxShadow:'0 4px 16px rgba(0,0,0,0.08)',display:'inline-block',minWidth:140 }}>
+            <div style={{ background:txt('hero_offer_accent')||'var(--primary)',color:'var(--on-primary)',fontSize:'0.58rem',fontWeight:800,padding:'2px 7px',borderRadius:4,letterSpacing:'0.08em',textTransform:'uppercase',display:'inline-block',marginBottom:7 }}>
               {txt('hero_offer_tag')||'Featured Drop'}
             </div>
             <div style={{ fontSize:'0.82rem',fontWeight:700,color:txt('hero_offer_text_color')||'#1a1a2e',marginBottom:txt('hero_offer_price')?8:0 }}>
@@ -569,11 +571,11 @@ function Inspector({ activeId, settings, setField }: {
             </div>
             {txt('hero_offer_price') && (
               <div style={{ display:'flex',alignItems:'center',gap:6 }}>
-                <span style={{ fontSize:'0.88rem',fontWeight:800,color:txt('hero_offer_accent')||'#2B9FD8' }}>{txt('hero_offer_price')}</span>
+                <span style={{ fontSize:'0.88rem',fontWeight:800,color:txt('hero_offer_accent')||'var(--primary)' }}>{txt('hero_offer_price')}</span>
                 {txt('hero_offer_discount') && <span style={{ fontSize:'0.65rem',fontWeight:800,background:'#fff0f0',color:'#e53e3e',padding:'2px 5px',borderRadius:4 }}>{txt('hero_offer_discount')}</span>}
               </div>
             )}
-            <div style={{ marginTop:8,fontSize:'0.62rem',fontWeight:700,color:txt('hero_offer_accent')||'#2B9FD8' }}>Shop now →</div>
+            <div style={{ marginTop:8,fontSize:'0.62rem',fontWeight:700,color:txt('hero_offer_accent')||'var(--primary)' }}>Shop now →</div>
           </div>
         </div>
       </>}
@@ -595,11 +597,11 @@ function Inspector({ activeId, settings, setField }: {
           <ColourPick label="Background" value={txt('hero_skip_bg')||'#E9F5FB'} onChange={v=>setField('hero_skip_bg',v)} />
           <ColourPick label="Text & icon" value={txt('hero_skip_color')||'#2B9FD8'} onChange={v=>setField('hero_skip_color',v)} />
         </div>
-        <div style={{ background:'#f8fafc',borderRadius:8,padding:10 }}>
-          <p style={{ fontSize:'0.7rem',fontWeight:700,color:'#9badb8',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:8 }}>Button preview</p>
-          <div style={{ display:'inline-flex',alignItems:'center',gap:6,background:txt('hero_skip_bg')||'#E9F5FB',border:`1px solid ${txt('hero_skip_color')||'#2B9FD8'}44`,borderRadius:'var(--button-radius)',padding:'7px 14px' }}>
+        <div style={{ background:'var(--surface-2)',borderRadius:8,padding:10 }}>
+          <p style={{ fontSize:'0.7rem',fontWeight:700,color:'var(--text-muted)',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:8 }}>Button preview</p>
+          <div style={{ display:'inline-flex',alignItems:'center',gap:6,background:txt('hero_skip_bg')||'#E9F5FB',border:`1px solid ${txt('hero_skip_color')||'var(--primary)'}44`,borderRadius:'var(--button-radius)',padding:'7px 14px' }}>
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 3l4 3-4 3V3zM7 3h1.5v6H7V3z" fill={txt('hero_skip_color')||'#2B9FD8'}/></svg>
-            <span style={{ fontSize:num('hero_skip_size_px',12),fontWeight:700,color:txt('hero_skip_color')||'#2B9FD8',letterSpacing:'0.06em',textTransform:'uppercase' }}>
+            <span style={{ fontSize:num('hero_skip_size_px',12),fontWeight:700,color:txt('hero_skip_color')||'var(--primary)',letterSpacing:'0.06em',textTransform:'uppercase' }}>
               {txt('hero_skip_text')||'Skip Animation'}
             </span>
           </div>
@@ -608,7 +610,7 @@ function Inspector({ activeId, settings, setField }: {
 
       {/* SPINNING STAR */}
       {activeId==='star' && <>
-        <div style={{ background:'#fff7ed',border:'1px solid #fed7aa',borderRadius:8,padding:'8px 12px',fontSize:'0.74rem',color:'#9a3412',marginBottom:4 }}>
+        <div style={{ background:'var(--warning-bg)',border:'1px solid var(--border)',borderRadius:8,padding:'8px 12px',fontSize:'0.74rem',color:'var(--warning)',marginBottom:4 }}>
           ✨ A rotating 4-point sparkle that floats over the hero — fades out with the intro block.
         </div>
         <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:10 }}>
@@ -619,7 +621,7 @@ function Inspector({ activeId, settings, setField }: {
           <SliderRow label="Rotation speed (s/rev)" min={2} max={30} step={0.5} value={num('hero_star_speed',8)} onChange={v=>setField('hero_star_speed',v)} />
         </div>
         {/* Live star preview */}
-        <div style={{ background:'#fff7ed',borderRadius:8,padding:14,display:'flex',alignItems:'center',justifyContent:'center',gap:16 }}>
+        <div style={{ background:'var(--warning-bg)',borderRadius:8,padding:14,display:'flex',alignItems:'center',justifyContent:'center',gap:16 }}>
           <svg width={num('hero_star_size',48)} height={num('hero_star_size',48)}
             viewBox={`0 0 ${num('hero_star_size',48)} ${num('hero_star_size',48)}`}
             fill={txt('hero_star_color')||'#FF6B35'}
@@ -630,7 +632,7 @@ function Inspector({ activeId, settings, setField }: {
               return <polygon points={pts}/>;
             })()}
           </svg>
-          <div style={{ fontSize:'0.72rem',color:'#9a3412' }}>
+          <div style={{ fontSize:'0.72rem',color:'var(--warning)' }}>
             <div style={{ fontWeight:700 }}>{txt('hero_star_color')||'#FF6B35'}</div>
             <div>{num('hero_star_size',48)}px · {num('hero_star_speed',8)}s/rev</div>
           </div>
@@ -718,7 +720,7 @@ function AnimationTimeline({ settings, setField, activeId, setActiveId, playhead
         position:'absolute', left:`${pos*100}%`, top:'50%',
         transform:'translate(-50%,-50%)',
         width:14, height:14, borderRadius:'50%',
-        background:'#fff', border:`2.5px solid ${col}`,
+        background:'var(--surface)', border:`2.5px solid ${col}`,
         cursor:'ew-resize', zIndex:10,
         boxShadow:'0 1px 5px rgba(0,0,0,0.25)',
       }}>
@@ -746,7 +748,7 @@ function AnimationTimeline({ settings, setField, activeId, setActiveId, playhead
         {/* Label */}
         <div style={{ width:LABEL_W, flexShrink:0, display:'flex', alignItems:'center', gap:6,
           padding:'0 10px', fontSize:'0.72rem', fontWeight:700,
-          color:isActive?c:'#5a6a7a' }}>
+          color:isActive?'var(--text)':'var(--text-muted)' }}>
           <span style={{ fontSize:'0.9rem',lineHeight:1,flexShrink:0 }}>{el.emoji}</span>
           <span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{el.label}</span>
           <button
@@ -765,7 +767,7 @@ function AnimationTimeline({ settings, setField, activeId, setActiveId, playhead
           pointerEvents: visible?'auto':'none' }}
           onMouseDown={e=>{ if((e.target as HTMLElement).closest('[data-handle]')) return; startPH(e); }}>
           {/* Background reel */}
-          <div style={{ position:'absolute', inset:'8px 0', background:'#e2e8f0', borderRadius:3 }}/>
+          <div style={{ position:'absolute', inset:'8px 0', background:'var(--border)', borderRadius:3 }}/>
 
           {el.type==='intro' && <>
             <Bar l={0} r={is} col={c} />
@@ -778,7 +780,7 @@ function AnimationTimeline({ settings, setField, activeId, setActiveId, playhead
             <Bar l={0} r={0.02} col={c} />
             <Bar l={0} r={0.08} col={c} fade="out" />
             <div style={{ position:'absolute',left:'8%',top:'50%',transform:'translateY(-50%)',
-              fontSize:'0.58rem',color:'#9badb8',whiteSpace:'nowrap' }}>fixed at 8%</div>
+              fontSize:'0.58rem',color:'var(--text-muted)',whiteSpace:'nowrap' }}>fixed at 8%</div>
           </>}
 
           {el.type==='overlay' && <>
@@ -798,12 +800,12 @@ function AnimationTimeline({ settings, setField, activeId, setActiveId, playhead
   };
 
   return (
-    <div style={{ border:'1px solid #d0e6f5', borderRadius:14, background:'#fff', overflow:'hidden' }}>
+    <div style={{ border:'1px solid var(--border)', borderRadius:14, background:'var(--surface)', overflow:'hidden' }}>
 
       {/* ── Ruler + playhead drag zone ── */}
-      <div style={{ display:'flex', borderBottom:'1px solid #e2e8f0', background:'#f8fafc' }}>
+      <div style={{ display:'flex', borderBottom:'1px solid #e2e8f0', background:'var(--surface-2)' }}>
         <div style={{ width:LABEL_W, flexShrink:0, padding:'6px 10px',
-          fontSize:'0.65rem', fontWeight:800, color:'#9badb8', textTransform:'uppercase', letterSpacing:'0.5px',
+          fontSize:'0.65rem', fontWeight:800, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.5px',
           display:'flex', alignItems:'center' }}>
           Scroll %
         </div>
@@ -816,7 +818,7 @@ function AnimationTimeline({ settings, setField, activeId, setActiveId, playhead
               transform:'translateX(-50%)', pointerEvents:'none' }}>
               <div style={{ flex:1 }}/>
               <div style={{ width:1, height:7, background:'#c7d9eb' }}/>
-              <span style={{ fontSize:'0.58rem', color:'#9badb8', marginTop:2 }}>
+              <span style={{ fontSize:'0.58rem', color:'var(--text-muted)', marginTop:2 }}>
                 {Math.round(t*100)}%
               </span>
             </div>
@@ -859,8 +861,8 @@ function AnimationTimeline({ settings, setField, activeId, setActiveId, playhead
 
       {/* ── Bottom scrub bar ── */}
       <div style={{ borderTop:'1px solid #e2e8f0', padding:'8px 14px',
-        background:'#f8fafc', display:'flex', alignItems:'center', gap:12 }}>
-        <span style={{ fontSize:'0.68rem', fontWeight:800, color:'#9badb8', textTransform:'uppercase', letterSpacing:'0.5px', flexShrink:0 }}>
+        background:'var(--surface-2)', display:'flex', alignItems:'center', gap:12 }}>
+        <span style={{ fontSize:'0.68rem', fontWeight:800, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.5px', flexShrink:0 }}>
           Scrub:
         </span>
         <input type="range" min={0} max={100} step={1}
@@ -869,11 +871,11 @@ function AnimationTimeline({ settings, setField, activeId, setActiveId, playhead
           style={{ flex:1, accentColor:'#ef4444' }} />
         <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
           <div style={{ width:8, height:8, borderRadius:'50%', background:'#ef4444' }}/>
-          <span style={{ fontSize:'0.7rem', fontFamily:'monospace', color:'#ef4444', fontWeight:800 }}>
+          <span style={{ fontSize:'0.7rem', fontFamily:'monospace', color:'var(--danger)', fontWeight:800 }}>
             {Math.round(playhead*100)}%
           </span>
         </div>
-        <div style={{ fontSize:'0.65rem', color:'#9badb8', flexShrink:0 }}>
+        <div style={{ fontSize:'0.65rem', color:'var(--text-muted)', flexShrink:0 }}>
           ← drag handles on tracks to set timing
         </div>
       </div>
@@ -895,7 +897,7 @@ function HeroStudio({ settings, setField, onSave, status }: {
     <form onSubmit={onSave} style={{ display:'flex', flexDirection:'column', gap:20 }}>
       {/* ── Element chip strip ── */}
       <div>
-        <p style={{ fontSize:'0.72rem', color:'#9badb8', fontWeight:700, textTransform:'uppercase',
+        <p style={{ fontSize:'0.72rem', color:'var(--text-muted)', fontWeight:700, textTransform:'uppercase',
           letterSpacing:'0.5px', marginBottom:10 }}>
           Click an element to edit it · Toggle 👁 to show/hide
         </p>
@@ -908,16 +910,16 @@ function HeroStudio({ settings, setField, onSave, status }: {
                 style={{
                   display:'flex', alignItems:'center', gap:7,
                   padding:'7px 14px', borderRadius:999,
-                  border:`2px solid ${isActive?el.color:'#d0e6f5'}`,
-                  background:isActive?`${el.color}15`:'#fff',
-                  color:isActive?el.color:'#5a6a7a',
+                  border:`2px solid ${isActive?el.color:'var(--border)'}`,
+                  background:isActive?'var(--primary-light)':'var(--surface)',
+                  color:'var(--text)',
                   cursor:'pointer', fontWeight:700, fontSize:'0.78rem',
                   fontFamily:'inherit', transition:'all 0.15s',
-                  opacity:visible?1:0.5,
+                  opacity:1,
                 }}>
                 <span style={{ fontSize:'1rem', lineHeight:1 }}>{el.emoji}</span>
                 {el.label}
-                <span style={{ fontSize:'0.8rem', opacity:0.7 }}>{visible?'●':'○'}</span>
+                <span aria-hidden="true" style={{ fontSize:'0.8rem', opacity:1 }}>{visible?'●':'○'}</span>
               </button>
             );
           })}
@@ -929,10 +931,10 @@ function HeroStudio({ settings, setField, onSave, status }: {
         {/* Preview */}
         <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-            <span style={{ fontSize:'0.72rem', fontWeight:800, color:'#9badb8', textTransform:'uppercase', letterSpacing:'0.5px' }}>
+            <span style={{ fontSize:'0.72rem', fontWeight:800, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.5px' }}>
               Live Preview
             </span>
-            <span style={{ fontSize:'0.7rem', color:'#9badb8' }}>
+            <span style={{ fontSize:'0.7rem', color:'var(--text-muted)' }}>
               Drag the timeline scrub bar below to simulate scroll
             </span>
           </div>
@@ -940,8 +942,8 @@ function HeroStudio({ settings, setField, onSave, status }: {
         </div>
 
         {/* Inspector */}
-        <div style={{ border:'1px solid #d0e6f5', borderRadius:14, padding:18,
-          background:'#fff', maxHeight:480, overflowY:'auto' }}>
+        <div style={{ border:'1px solid var(--border)', borderRadius:14, padding:18,
+          background:'var(--surface)', maxHeight:480, overflowY:'auto' }}>
           <Inspector activeId={activeId} settings={settings} setField={setField} />
         </div>
       </div>
@@ -950,16 +952,16 @@ function HeroStudio({ settings, setField, onSave, status }: {
       <div>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
           <div>
-            <span style={{ fontSize:'0.78rem', fontWeight:800, color:'#1a1a2e' }}>Animation Timeline</span>
-            <span style={{ fontSize:'0.7rem', color:'#9badb8', marginLeft:10 }}>
+            <span style={{ fontSize:'0.78rem', fontWeight:800, color:'var(--text)' }}>Animation Timeline</span>
+            <span style={{ fontSize:'0.7rem', color:'var(--text-muted)', marginLeft:10 }}>
               Drag coloured handles to set when each element appears and disappears
             </span>
           </div>
           <div style={{ display:'flex', gap:10, alignItems:'center' }}>
             {/* Legend */}
-            <div style={{ display:'flex', gap:8, fontSize:'0.66rem', color:'#9badb8' }}>
+            <div style={{ display:'flex', gap:8, fontSize:'0.66rem', color:'var(--text-muted)' }}>
               <span>████ Visible</span>
-              <span style={{ opacity:0.5 }}>▓▓▓▓ Fading</span>
+              <span>▓▓▓▓ Fading</span>
             </div>
           </div>
         </div>
@@ -972,7 +974,7 @@ function HeroStudio({ settings, setField, onSave, status }: {
       {/* ── Save footer ── */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', gap:12,
         padding:'14px 0 0', borderTop:'1px solid #d0e6f5', flexWrap:'wrap' }}>
-        {status && <span style={{ fontSize:'0.82rem', color:'#10b981', fontWeight:600, flex:1 }}>✓ {status}</span>}
+        {status && <span style={{ fontSize:'0.82rem', color:'var(--success)', fontWeight:600, flex:1 }}>✓ {status}</span>}
         <button type="button"
           onClick={()=>{
             if (!window.confirm('Reset all Hero Studio settings to defaults? This cannot be undone.')) return;
@@ -993,16 +995,16 @@ function HeroStudio({ settings, setField, onSave, status }: {
             };
             Object.entries(defaults).forEach(([k,v])=>setField(k,v));
           }}
-          style={{ padding:'11px 20px', background:'#fff', border:'1.5px solid #d0e6f5',
-            borderRadius:10, color:'#5a6a7a', fontWeight:600, cursor:'pointer',
+          style={{ padding:'11px 20px', background:'var(--surface)', border:'1.5px solid var(--border)',
+            borderRadius:10, color:'var(--text-muted)', fontWeight:600, cursor:'pointer',
             fontFamily:'inherit', fontSize:'0.85rem', display:'flex', alignItems:'center', gap:6 }}
           onMouseEnter={e=>{e.currentTarget.style.borderColor='#fca5a5';e.currentTarget.style.color='#ef4444';}}
           onMouseLeave={e=>{e.currentTarget.style.borderColor='#d0e6f5';e.currentTarget.style.color='#5a6a7a';}}>
           ↺ Reset Defaults
         </button>
         <button type="submit"
-          style={{ padding:'11px 28px', background:'linear-gradient(135deg,#2B9FD8,#1a7ab0)',
-            color:'#fff', border:'none', borderRadius:10,
+          style={{ padding:'11px 28px', background:'var(--primary)',
+            color:'var(--on-primary)', border:'none', borderRadius:10,
             fontWeight:700, fontSize:'0.9rem', cursor:'pointer', fontFamily:'inherit' }}>
           Save Hero Studio
         </button>
@@ -1063,8 +1065,8 @@ function ThemeStudio({
                 value={theme.buttonStyle}
                 onChange={e => onChange('buttonStyle', e.target.value as ThemeSettings['buttonStyle'])}
                 style={{
-                  width:'100%', padding:'9px 10px', border:'1px solid #d0e6f5',
-                  borderRadius:8, background:'#f4f8fb', color:'#1a1a2e',
+                  width:'100%', padding:'9px 10px', border:'1px solid var(--border)',
+                  borderRadius:8, background:'var(--bg)', color:'var(--text)',
                   fontFamily:'inherit', fontWeight:700,
                 }}
               >
@@ -1078,8 +1080,8 @@ function ThemeStudio({
                 value={theme.themeMode}
                 onChange={e => onChange('themeMode', e.target.value as ThemeSettings['themeMode'])}
                 style={{
-                  width:'100%', padding:'9px 10px', border:'1px solid #d0e6f5',
-                  borderRadius:8, background:'#f4f8fb', color:'#1a1a2e',
+                  width:'100%', padding:'9px 10px', border:'1px solid var(--border)',
+                  borderRadius:8, background:'var(--bg)', color:'var(--text)',
                   fontFamily:'inherit', fontWeight:700,
                 }}
               >
@@ -1102,8 +1104,8 @@ function ThemeStudio({
               type="button"
               onClick={onReset}
               disabled={state === 'saving'}
-              style={{ padding:'11px 18px', background:'#fff', border:'1.5px solid #d0e6f5',
-                borderRadius:10, color:'#5a6a7a', fontWeight:700, cursor:state === 'saving' ? 'not-allowed' : 'pointer',
+              style={{ padding:'11px 18px', background:'var(--surface)', border:'1.5px solid var(--border)',
+                borderRadius:10, color:'var(--text-muted)', fontWeight:700, cursor:state === 'saving' ? 'not-allowed' : 'pointer',
                 fontFamily:'inherit', fontSize:'0.86rem' }}
             >
               Reset to Default Theme
@@ -1112,8 +1114,8 @@ function ThemeStudio({
               type="button"
               onClick={onSave}
               disabled={state === 'saving'}
-              style={{ padding:'11px 28px', background: state === 'saved' ? '#10b981' : 'linear-gradient(135deg,#2B9FD8,#1a7ab0)',
-                color:'#fff', border:'none', borderRadius:10, fontWeight:800,
+              style={{ padding:'11px 28px', background: 'var(--primary)',
+                color:'var(--on-primary)', border:'none', borderRadius:10, fontWeight:800,
                 fontSize:'0.9rem', cursor:state === 'saving' ? 'not-allowed' : 'pointer', fontFamily:'inherit' }}
             >
               {saveText}
@@ -1122,7 +1124,7 @@ function ThemeStudio({
         </div>
 
         <div style={{ position:'sticky', top:90 }}>
-          <p style={{ fontSize:'0.72rem', fontWeight:800, color:'#9badb8',
+          <p style={{ fontSize:'0.72rem', fontWeight:800, color:'var(--text-muted)',
             textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:10, textAlign:'center' }}>
             Live Theme Preview
           </p>
@@ -1158,7 +1160,7 @@ function ThemeStudio({
                     Storefront text, borders, cards, buttons, and muted labels use this palette.
                   </p>
                   <button type="button" style={{ width:'100%', marginTop:12, padding:'10px 12px',
-                    borderRadius:'var(--button-radius)', background:'var(--primary)', color:'#fff',
+                    borderRadius:'var(--button-radius)', background:'var(--primary)', color:'var(--on-primary)',
                     border:'none', fontWeight:800, fontFamily:'inherit' }}>
                     View Product
                   </button>
@@ -1170,7 +1172,7 @@ function ThemeStudio({
                   padding:'8px 10px', textAlign:'center', fontWeight:800, fontSize:'0.78rem' }}>
                   Hover
                 </span>
-                <span style={{ flex:1, background:'var(--accent)', color:'#fff',
+                <span style={{ flex:1, background:'var(--accent)', color:'var(--on-primary)',
                   borderRadius:'var(--button-radius)', padding:'8px 10px', textAlign:'center',
                   fontWeight:800, fontSize:'0.78rem' }}>
                   Accent
@@ -1186,7 +1188,7 @@ function ThemeStudio({
 
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<S>({});
-  const [offer, setOffer]       = useState<OfferState>({ active:false, text:'', bg_color:'#FF6B35', text_color:'#ffffff', show_logo:true });
+  const [offer, setOffer]       = useState<OfferState>({ active:false, text:'', bg_color:'#FF6B35', text_color:'var(--on-primary)', show_logo:true });
   const [status, setStatus]     = useState('');
   const [activeTab, setActiveTab] = useState<Tab>('hero');
   const [themeSaveState, setThemeSaveState] = useState<SaveState>('idle');
@@ -1211,7 +1213,7 @@ export default function AdminSettingsPage() {
     catch (error) { flash(error instanceof Error ? error.message : 'Save failed. Please try again.'); }
     finally { saveLock.current = false; setSaving(false); }
   };
-  const setField = useCallback((k:string, v:unknown) => setSettings(prev=>({...prev,[k]:v})), []);
+  const setField = useCallback((k:string, v:unknown) => setSettings(prev=>({...prev,[k]:typeof v==='function'?v(prev[k]):v})), []);
   const currentTheme = normalizeThemeSettings(settings.theme_settings, settings.primary_color);
   const setThemeField = useCallback(<K extends keyof ThemeSettings>(key: K, value: ThemeSettings[K]) => {
     setThemeSaveState('idle');
@@ -1284,6 +1286,13 @@ export default function AdminSettingsPage() {
     flash(res.success ? 'Hero Studio saved! ✓' : (res.error||'Save failed'));
   });
 
+  const saveExperience = safeSave(async()=>{
+    const payload={hero_type:(settings.hero_type||'particles') as 'particles'|'scroll'|'hidden',particle_hero:particleSettings(settings.particle_hero)};
+    const result=await saveAdminSettings(payload);
+    if(!result.success)throw new Error('Hero settings could not be saved.');
+    setSettings(setCachedSiteSettings(result.settings||{...settings,...payload}));flash('Hero experience saved.');
+  });
+
   const saveStore = safeSave(async () => {
     const payload: S = { show_new_arrivals:settings.show_new_arrivals!==false, show_categories:settings.show_categories!==false, show_brands_section:settings.show_brands_section!==false, hidden_brands:settings.hidden_brands||'' };
     CAT_SLUGS.forEach(slug => { payload[`cat_${slug}`] = settings[`cat_${slug}`]!==false; });
@@ -1314,8 +1323,8 @@ export default function AdminSettingsPage() {
   };
 
   const tabStyle = (t:Tab): React.CSSProperties => ({
-    padding:'8px 18px', borderRadius:20, border:`1.5px solid ${activeTab===t?'#2B9FD8':'#d0e6f5'}`,
-    background:activeTab===t?'#2B9FD8':'#fff', color:activeTab===t?'#fff':'#5a6a7a',
+    padding:'8px 18px', borderRadius:20, border:`1.5px solid ${activeTab===t?'var(--primary)':'var(--border)'}`,
+    background:activeTab===t?'var(--primary)':'var(--surface)', color:activeTab===t?'var(--on-primary)':'var(--text-muted)',
     cursor:'pointer', fontWeight:700, fontSize:'0.84rem', fontFamily:'inherit',
     transition:'all 0.15s',
   });
@@ -1344,7 +1353,7 @@ export default function AdminSettingsPage() {
 
       {/* Tab strip */}
       <div style={{ display:'flex', gap:8, marginBottom:24, flexWrap:'wrap' }}>
-        {(['hero','mobile','theme','store','announcement','policies'] as Tab[]).map(t=>(
+        {(['hero',...(settings.hero_type==='scroll'?['mobile']:[]),'theme','store','announcement','policies'] as Tab[]).map(t=>(
           <button key={t} type="button" style={tabStyle(t)} onClick={()=>setActiveTab(t)}>
             { t==='hero'?'🎬 Hero Studio' : t==='mobile'?'📱 Mobile Hero' : t==='theme'?'Theme' : t==='store'?'🏪 Store Info' : t==='announcement'?'📢 Announcement' : '📄 Policies' }
           </button>
@@ -1353,7 +1362,10 @@ export default function AdminSettingsPage() {
 
       {/* ── HERO STUDIO ── */}
       {activeTab==='hero' && (
-        <HeroStudio settings={settings} setField={setField} onSave={saveHero} status="" />
+        <>
+        <HeroSettings settings={settings} setField={setField} onSave={saveExperience}/>
+        {settings.hero_type==='scroll'&&<HeroStudio settings={settings} setField={setField} onSave={saveHero} status=""/>}
+        </>
       )}
 
       {activeTab==='theme' && (
@@ -1458,7 +1470,7 @@ export default function AdminSettingsPage() {
             <input className="full" placeholder="Ribbon text (repeating marquee)"
               value={offer.text}
               onChange={e=>setOffer(p=>({...p,text:e.target.value}))}
-              style={{ border:'1px solid #d0e6f5', borderRadius:8, padding:'9px 10px' }} />
+              style={{ border:'1px solid var(--border)', borderRadius:8, padding:'9px 10px' }} />
             <div>
               <ColourPick label="Background" value={offer.bg_color} onChange={v=>setOffer(p=>({...p,bg_color:v}))} />
             </div>
@@ -1476,7 +1488,7 @@ export default function AdminSettingsPage() {
                 style={{ marginTop:2 }} />
               <div>
                 <div style={{ fontWeight:600, fontSize:'0.88rem' }}>Show CALVAC logo in ribbon</div>
-                <div style={{ fontSize:'0.76rem', color:'#9badb8', marginTop:3, display:'flex', alignItems:'center', gap:6 }}>
+                <div style={{ fontSize:'0.76rem', color:'var(--text-muted)', marginTop:3, display:'flex', alignItems:'center', gap:6 }}>
                   Adds
                   <img src="https://ik.imagekit.io/yocxectr4/logos/logo.png?tr=w-28,h-28,f-webp"
                     alt="logo" style={{ height:15, width:'auto', objectFit:'contain', opacity:0.7 }} />
@@ -1500,8 +1512,8 @@ export default function AdminSettingsPage() {
       {/* ── POLICIES ── */}
       {activeTab==='policies' && (
         <div className="admin-form" style={{ borderTop:'none', marginTop:0, paddingTop:0 }}>
-          <p style={{ fontSize:'0.8rem', color:'#9badb8', marginBottom:16 }}>
-            Supports basic Markdown: <code style={{ background:'#eaf3fa', padding:'1px 5px', borderRadius:4 }}># Heading</code>, <code style={{ background:'#eaf3fa', padding:'1px 5px', borderRadius:4 }}>**bold**</code>, <code style={{ background:'#eaf3fa', padding:'1px 5px', borderRadius:4 }}>- list</code>
+          <p style={{ fontSize:'0.8rem', color:'var(--text-muted)', marginBottom:16 }}>
+            Supports basic Markdown: <code style={{ background:'var(--surface-2)', padding:'1px 5px', borderRadius:4 }}># Heading</code>, <code style={{ background:'var(--surface-2)', padding:'1px 5px', borderRadius:4 }}>**bold**</code>, <code style={{ background:'var(--surface-2)', padding:'1px 5px', borderRadius:4 }}>- list</code>
           </p>
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
             {POLICY_KEYS.map(item=>(
@@ -1510,8 +1522,8 @@ export default function AdminSettingsPage() {
                   value={(settings[item.key] as string)||''}
                   onChange={e=>setField(item.key,e.target.value)}
                   style={{ width:'100%', minHeight:120, padding:'10px 12px',
-                    border:'1px solid #d0e6f5', borderRadius:8, fontSize:'0.84rem',
-                    fontFamily:'inherit', outline:'none', background:'#f4f8fb',
+                    border:'1px solid var(--border)', borderRadius:8, fontSize:'0.84rem',
+                    fontFamily:'inherit', outline:'none', background:'var(--bg)',
                     resize:'vertical', lineHeight:1.7 }} />
               </Field>
             ))}
@@ -1541,9 +1553,9 @@ export default function AdminSettingsPage() {
             <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
 
               {/* Text & layout */}
-              <div style={{ background:'#fff', border:'1px solid #d0e6f5', borderRadius:12, padding:18 }}>
+              <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:18 }}>
                 <h4 style={{ fontFamily:'var(--font-display)', fontSize:'0.88rem', fontWeight:800,
-                  color:'#2B9FD8', marginBottom:16, textTransform:'uppercase', letterSpacing:'0.5px' }}>
+                  color:'var(--primary)', marginBottom:16, textTransform:'uppercase', letterSpacing:'0.5px' }}>
                   📝 Text &amp; Layout
                 </h4>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
@@ -1574,9 +1586,9 @@ export default function AdminSettingsPage() {
                         <button key={a} type="button"
                           onClick={()=>setField('hero_m_intro_align',a)}
                           style={{
-                            flex:1, padding:'6px', border:`1.5px solid ${(settings.hero_m_intro_align||'center')===a?'#2B9FD8':'#d0e6f5'}`,
-                            borderRadius:6, background:(settings.hero_m_intro_align||'center')===a?'#2B9FD8':'#f4f8fb',
-                            color:(settings.hero_m_intro_align||'center')===a?'#fff':'#5a6a7a',
+                            flex:1, padding:'6px', border:`1.5px solid ${(settings.hero_m_intro_align||'center')===a?'var(--primary)':'var(--border)'}`,
+                            borderRadius:6, background:(settings.hero_m_intro_align||'center')===a?'var(--primary)':'var(--bg)',
+                            color:(settings.hero_m_intro_align||'center')===a?'var(--on-primary)':'var(--text-muted)',
                             cursor:'pointer', fontWeight:700, fontSize:'0.72rem', fontFamily:'inherit',
                           }}>
                           {a[0].toUpperCase()+a.slice(1)}
@@ -1588,9 +1600,9 @@ export default function AdminSettingsPage() {
               </div>
 
               {/* Visibility toggles */}
-              <div style={{ background:'#fff', border:'1px solid #d0e6f5', borderRadius:12, padding:18 }}>
+              <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:18 }}>
                 <h4 style={{ fontFamily:'var(--font-display)', fontSize:'0.88rem', fontWeight:800,
-                  color:'#2B9FD8', marginBottom:14, textTransform:'uppercase', letterSpacing:'0.5px' }}>
+                  color:'var(--primary)', marginBottom:14, textTransform:'uppercase', letterSpacing:'0.5px' }}>
                   👁 Element Visibility (Mobile)
                 </h4>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
@@ -1611,13 +1623,13 @@ export default function AdminSettingsPage() {
                       <label key={row.key} style={{ display:'flex', alignItems:'center', gap:8,
                         cursor:'pointer', userSelect:'none', fontSize:'0.82rem',
                         padding:'6px 10px', borderRadius:8,
-                        background: val ? '#eaf3fa' : '#f9fafb',
-                        border:`1px solid ${val?'#2B9FD8':'#d0e6f5'}`,
-                        color: val ? '#1e40af' : '#5a6a7a',
+                        background: val ? 'var(--surface-2)' : '#f9fafb',
+                        border:`1px solid ${val?'var(--primary)':'var(--border)'}`,
+                        color: val ? '#1e40af' : 'var(--text-muted)',
                         transition:'all 0.15s' }}>
                         <input type="checkbox" checked={!!val}
                           onChange={e=>setField(row.key,e.target.checked)}
-                          style={{ accentColor:'#2B9FD8', width:14, height:14 }} />
+                          style={{ accentColor:'var(--primary)', width:14, height:14 }} />
                         {row.label}
                       </label>
                     );
@@ -1626,9 +1638,9 @@ export default function AdminSettingsPage() {
               </div>
 
               {/* Element positions on mobile */}
-              <div style={{ background:'#fff', border:'1px solid #d0e6f5', borderRadius:12, padding:18 }}>
+              <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:18 }}>
                 <h4 style={{ fontFamily:'var(--font-display)', fontSize:'0.88rem', fontWeight:800,
-                  color:'#2B9FD8', marginBottom:16, textTransform:'uppercase', letterSpacing:'0.5px' }}>
+                  color:'var(--primary)', marginBottom:16, textTransform:'uppercase', letterSpacing:'0.5px' }}>
                   📍 Element Positions (Mobile)
                 </h4>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
@@ -1666,7 +1678,7 @@ export default function AdminSettingsPage() {
                 const yKey      = `hero_m_${side}_y_pct`;
                 const isVisible = settings[visKey] === true;
                 return (
-                  <div key={side} style={{ background:'#fff', border:`1px solid ${col}44`, borderRadius:12,
+                  <div key={side} style={{ background:'var(--surface)', border:`1px solid ${col}44`, borderRadius:12,
                     padding:18, borderLeft:`4px solid ${col}` }}>
                     {/* Header row */}
                     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
@@ -1676,7 +1688,7 @@ export default function AdminSettingsPage() {
                       </h4>
                       {/* Toggle */}
                       <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', userSelect:'none' }}>
-                        <span style={{ fontSize:'0.72rem', fontWeight:700, color:'#9badb8' }}>
+                        <span style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--text-muted)' }}>
                           {isVisible ? 'Visible' : 'Hidden'}
                         </span>
                         <button
@@ -1684,12 +1696,12 @@ export default function AdminSettingsPage() {
                           onClick={()=>setField(visKey, !isVisible)}
                           style={{
                             width:44, height:24, borderRadius:12, position:'relative',
-                            background:isVisible ? col : '#d0e6f5',
+                            background:isVisible ? col : 'var(--border)',
                             border:'none', cursor:'pointer', transition:'background 0.2s',
                           }}>
                           <span style={{
                             position:'absolute', top:3, width:18, height:18, borderRadius:'50%',
-                            background:'#fff', transition:'left 0.2s',
+                            background:'var(--surface)', transition:'left 0.2s',
                             boxShadow:'0 1px 3px rgba(0,0,0,0.2)',
                             left: isVisible ? 23 : 3,
                           }}/>
@@ -1706,9 +1718,9 @@ export default function AdminSettingsPage() {
                               value={(settings[labelKey] as string)||''}
                               placeholder={isLeft ? 'Cushion' : 'Structure'}
                               onChange={v=>setField(labelKey,v)} style={{
-                                width:'100%', padding:'8px 10px', border:'1px solid #d0e6f5',
+                                width:'100%', padding:'8px 10px', border:'1px solid var(--border)',
                                 borderRadius:7, fontSize:'0.84rem', fontFamily:'inherit',
-                                outline:'none', background:'#f4f8fb', color:'#1a1a2e',
+                                outline:'none', background:'var(--bg)', color:'var(--text)',
                               }} />
                           </Field>
                           <Field label="Title text (large)">
@@ -1716,9 +1728,9 @@ export default function AdminSettingsPage() {
                               value={(settings[titleKey] as string)||''}
                               placeholder={isLeft ? 'Step Into' : 'Premium Comfort'}
                               onChange={v=>setField(titleKey,v)} style={{
-                                width:'100%', padding:'8px 10px', border:'1px solid #d0e6f5',
+                                width:'100%', padding:'8px 10px', border:'1px solid var(--border)',
                                 borderRadius:7, fontSize:'0.84rem', fontFamily:'inherit',
-                                outline:'none', background:'#f4f8fb', color:'#1a1a2e',
+                                outline:'none', background:'var(--bg)', color:'var(--text)',
                               }} />
                           </Field>
                         </div>
@@ -1756,17 +1768,17 @@ export default function AdminSettingsPage() {
                         {/* Live mini preview strip */}
                         <div style={{ background:`${col}0d`, border:`1px solid ${col}33`,
                           borderRadius:8, padding:'10px 12px' }}>
-                          <p style={{ fontSize:'0.7rem', fontWeight:700, color:'#9badb8',
+                          <p style={{ fontSize:'0.7rem', fontWeight:700, color:'var(--text-muted)',
                             textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:8 }}>Preview</p>
                           <div style={{ textAlign: isLeft ? 'left' : 'right' }}>
                             <p style={{ fontSize:n(settings[labelSzK],8),
                               textTransform:'uppercase', letterSpacing:'0.22em',
-                              color:(settings[labelColK] as string)||'#2B9FD8', marginBottom:3 }}>
+                              color:(settings[labelColK] as string)||'var(--primary)', marginBottom:3 }}>
                               {(settings[labelKey] as string)||( isLeft ? 'Cushion' : 'Structure')}
                             </p>
                             <p style={{ fontSize:`${n(settings[titleSzK],1.1)}rem`,
                               fontWeight:600, letterSpacing:'-0.03em',
-                              color:(settings[titleColK] as string)||'#2B9FD8', lineHeight:1.1 }}>
+                              color:(settings[titleColK] as string)||'var(--primary)', lineHeight:1.1 }}>
                               {(settings[titleKey] as string)||(isLeft ? 'Step Into' : 'Premium Comfort')}
                             </p>
                           </div>
@@ -1781,7 +1793,7 @@ export default function AdminSettingsPage() {
 
             {/* Right: phone-shaped preview */}
             <div style={{ position:'sticky', top:90 }}>
-              <p style={{ fontSize:'0.72rem', fontWeight:800, color:'#9badb8',
+              <p style={{ fontSize:'0.72rem', fontWeight:800, color:'var(--text-muted)',
                 textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:10, textAlign:'center' }}>
                 Live Mobile Preview
               </p>
@@ -1789,7 +1801,7 @@ export default function AdminSettingsPage() {
               <div style={{
                 margin:'0 auto',
                 width:220, height:440,
-                background:'#1a1a2e',
+                background:'var(--text)',
                 borderRadius:28,
                 padding:8,
                 boxShadow:'0 20px 60px rgba(0,0,0,0.25), inset 0 0 0 1px rgba(255,255,255,0.08)',
@@ -1802,7 +1814,7 @@ export default function AdminSettingsPage() {
                 <div style={{
                   width:'100%', height:'100%',
                   borderRadius:22,
-                  background: typeof settings.hero_gradient_visible!=='undefined'&&settings.hero_gradient_visible===false ? '#eaf3fa' : '#eaf3fa',
+                  background: typeof settings.hero_gradient_visible!=='undefined'&&settings.hero_gradient_visible===false ? 'var(--surface-2)' : 'var(--surface-2)',
                   overflow:'hidden', position:'relative',
                 }}>
                   {/* Gradient wash */}
@@ -1846,7 +1858,7 @@ export default function AdminSettingsPage() {
                       {(settings.hero_m_eyebrow_visible!==false) && (
                         <p style={{ fontSize:n(settings.hero_m_eyebrow_size_px,9)*0.55,
                           textTransform:'uppercase', letterSpacing:'0.22em',
-                          color:typeof settings.hero_overlay_color==='string'?settings.hero_overlay_color:'#2B9FD8',
+                          color:typeof settings.hero_overlay_color==='string'?settings.hero_overlay_color:'var(--primary)',
                           marginBottom:4 }}>
                           {typeof settings.hero_eyebrow==='string'?settings.hero_eyebrow:'Aether 01'}
                         </p>
@@ -1855,7 +1867,7 @@ export default function AdminSettingsPage() {
                         <h2 style={{
                           fontSize:`${n(settings.hero_m_intro_font_size_rem,1.35)*0.52}rem`,
                           fontWeight:600, letterSpacing:'-0.03em', lineHeight:1.15,
-                          color:typeof settings.hero_text_color==='string'?settings.hero_text_color:'#2B9FD8',
+                          color:typeof settings.hero_text_color==='string'?settings.hero_text_color:'var(--primary)',
                         }}>
                           {typeof settings.hero_headline==='string'?settings.hero_headline:'Step Into'}{' '}
                           {typeof settings.hero_highlight==='string'?settings.hero_highlight:'Premium'}{' '}
@@ -1875,20 +1887,20 @@ export default function AdminSettingsPage() {
                       zIndex:5,
                     }}>
                       <div style={{
-                        background:typeof settings.hero_offer_bg==='string'?settings.hero_offer_bg:'#fff',
+                        background:typeof settings.hero_offer_bg==='string'?settings.hero_offer_bg:'var(--surface)',
                         borderRadius:5, padding:'4px 6px',
                         boxShadow:'0 3px 10px rgba(0,0,0,0.10)',
                       }}>
                         <div style={{
-                          background:typeof settings.hero_offer_accent==='string'?settings.hero_offer_accent:'#2B9FD8',
-                          color:'#fff', fontSize:'0.32rem', fontWeight:800,
+                          background:typeof settings.hero_offer_accent==='string'?settings.hero_offer_accent:'var(--primary)',
+                          color:'var(--on-primary)', fontSize:'0.32rem', fontWeight:800,
                           padding:'1px 4px', borderRadius:2, display:'inline-block',
                           textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:2,
                         }}>
                           {typeof settings.hero_offer_tag==='string'?settings.hero_offer_tag:'Featured Drop'}
                         </div>
                         <div style={{ fontSize:'0.38rem', fontWeight:700,
-                          color:typeof settings.hero_offer_text_color==='string'?settings.hero_offer_text_color:'#1a1a2e' }}>
+                          color:typeof settings.hero_offer_text_color==='string'?settings.hero_offer_text_color:'var(--text)' }}>
                           {typeof settings.hero_offer_title==='string'?settings.hero_offer_title:'New Arrivals'}
                         </div>
                       </div>
@@ -1900,7 +1912,7 @@ export default function AdminSettingsPage() {
                     <div style={{ position:'absolute', bottom:12, left:'50%',
                       transform:'translateX(-50%)', textAlign:'center', zIndex:4 }}>
                       <p style={{ fontSize:'0.3rem', textTransform:'uppercase',
-                        letterSpacing:'0.2em', color:'#2B9FD8' }}>
+                        letterSpacing:'0.2em', color:'var(--primary)' }}>
                         {typeof settings.hero_prompt_text==='string'?settings.hero_prompt_text:'Scroll to Explore'}
                       </p>
                     </div>
@@ -1915,14 +1927,14 @@ export default function AdminSettingsPage() {
                       zIndex:5, maxWidth:'42%',
                     }}>
                       <p style={{ fontSize:'0.28rem', textTransform:'uppercase',
-                        letterSpacing:'0.18em', color:(settings.hero_m_left_label_color as string)||'#2B9FD8',
+                        letterSpacing:'0.18em', color:(settings.hero_m_left_label_color as string)||'var(--primary)',
                         marginBottom:2 }}>
                         {(settings.hero_m_left_label as string)||'Cushion'}
                       </p>
                       <p style={{
                         fontSize:`${n(settings.hero_m_left_title_size,1.1)*0.32}rem`,
                         fontWeight:600, letterSpacing:'-0.02em', lineHeight:1.1,
-                        color:(settings.hero_m_left_title_color as string)||'#2B9FD8',
+                        color:(settings.hero_m_left_title_color as string)||'var(--primary)',
                       }}>
                         {(settings.hero_m_left_title as string)||'Step Into'}
                       </p>
@@ -1938,14 +1950,14 @@ export default function AdminSettingsPage() {
                       zIndex:5, maxWidth:'42%', textAlign:'right',
                     }}>
                       <p style={{ fontSize:'0.28rem', textTransform:'uppercase',
-                        letterSpacing:'0.18em', color:(settings.hero_m_right_label_color as string)||'#2B9FD8',
+                        letterSpacing:'0.18em', color:(settings.hero_m_right_label_color as string)||'var(--primary)',
                         marginBottom:2 }}>
                         {(settings.hero_m_right_label as string)||'Structure'}
                       </p>
                       <p style={{
                         fontSize:`${n(settings.hero_m_right_title_size,1.1)*0.32}rem`,
                         fontWeight:600, letterSpacing:'-0.02em', lineHeight:1.1,
-                        color:(settings.hero_m_right_title_color as string)||'#2B9FD8',
+                        color:(settings.hero_m_right_title_color as string)||'var(--primary)',
                       }}>
                         {(settings.hero_m_right_title as string)||'Premium Comfort'}
                       </p>
@@ -1965,7 +1977,7 @@ export default function AdminSettingsPage() {
                         <svg width="4" height="4" viewBox="0 0 12 12" fill="none">
                           <path d="M2 3l4 3-4 3V3zM7 3h1.5v6H7V3z" fill="#2B9FD8"/>
                         </svg>
-                        <span style={{ fontSize:'0.28rem', fontWeight:700, color:'#2B9FD8',
+                        <span style={{ fontSize:'0.28rem', fontWeight:700, color:'var(--primary)',
                           letterSpacing:'0.05em', textTransform:'uppercase' }}>
                           {typeof settings.hero_skip_text==='string'?settings.hero_skip_text:'Skip'}
                         </span>
@@ -1975,7 +1987,7 @@ export default function AdminSettingsPage() {
 
                   {/* Screen percentage badge */}
                   <div style={{ position:'absolute', top:8, right:8,
-                    background:'rgba(239,68,68,0.85)', color:'#fff',
+                    background:'rgba(239,68,68,0.85)', color:'var(--on-primary)',
                     fontSize:'0.3rem', fontWeight:800, padding:'2px 5px', borderRadius:8 }}>
                     Mobile
                   </div>
@@ -2007,18 +2019,18 @@ export default function AdminSettingsPage() {
                       hero_m_skip_y_px:16, hero_m_skip_size_px:10,
                       hero_m_left_visible:false, hero_m_left_label:'', hero_m_left_title:'Step Into',
                       hero_m_left_label_size:8, hero_m_left_title_size:1.1,
-                      hero_m_left_label_color:'#2B9FD8', hero_m_left_title_color:'#2B9FD8',
+                      hero_m_left_label_color:'var(--primary)', hero_m_left_title_color:'var(--primary)',
                       hero_m_left_x_pct:4, hero_m_left_y_pct:18,
                       hero_m_right_visible:false, hero_m_right_label:'', hero_m_right_title:'Premium Comfort',
                       hero_m_right_label_size:8, hero_m_right_title_size:1.1,
-                      hero_m_right_label_color:'#2B9FD8', hero_m_right_title_color:'#2B9FD8',
+                      hero_m_right_label_color:'var(--primary)', hero_m_right_title_color:'var(--primary)',
                       hero_m_right_x_pct:4, hero_m_right_y_pct:18,
                       hero_m_prompt_x_pct:50, hero_m_prompt_y_px:20,
                     };
                     Object.entries(mobileDefaults).forEach(([k,v])=>setField(k,v));
                   }}
                   style={{ padding:'8px 18px', border:'1.5px solid #fca5a5', borderRadius:8,
-                    background:'#fff', color:'#ef4444', cursor:'pointer', fontSize:'0.8rem',
+                    background:'var(--surface)', color:'var(--danger)', cursor:'pointer', fontSize:'0.8rem',
                     fontWeight:600, fontFamily:'inherit' }}>
                   ↺ Reset Mobile Defaults
                 </button>
@@ -2056,7 +2068,7 @@ export default function AdminSettingsPage() {
                 flash(res.success?'Mobile hero saved!':(res.error||'Save failed'));
               })}
               style={{ padding:'11px 28px', background:'linear-gradient(135deg,#6366f1,#4f46e5)',
-                color:'#fff', border:'none', borderRadius:10, fontWeight:700,
+                color:'var(--on-primary)', border:'none', borderRadius:10, fontWeight:700,
                 fontSize:'0.9rem', cursor:'pointer', fontFamily:'inherit' }}>
               💾 Save Mobile Hero
             </button>

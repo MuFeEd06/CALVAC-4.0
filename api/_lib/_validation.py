@@ -14,15 +14,15 @@ SIZE_UNITS = {"UK", "EU"}
 MAX_PRODUCT_SIZES = 40
 
 DEFAULT_THEME_SETTINGS = {
-    "primaryColor": "#2B9FD8",
-    "secondaryColor": "#1A7AB0",
-    "accentColor": "#FF6B35",
-    "backgroundColor": "#F4F8FB",
-    "surfaceColor": "#FFFFFF",
-    "textColor": "#1A1A2E",
-    "mutedTextColor": "#5A6A7A",
-    "borderColor": "#D0E6F5",
-    "buttonStyle": "rounded",
+    "primaryColor": "#151514",
+    "secondaryColor": "#62615E",
+    "accentColor": "#151514",
+    "backgroundColor": "#EBE9E5",
+    "surfaceColor": "#F8F7F4",
+    "textColor": "#151514",
+    "mutedTextColor": "#62615E",
+    "borderColor": "#CCCAC4",
+    "buttonStyle": "pill",
     "themeMode": "light",
 }
 THEME_FIELDS = set(DEFAULT_THEME_SETTINGS.keys())
@@ -164,6 +164,7 @@ NUMERIC_FIELDS = {
 }
 
 ENUM_FIELDS = {
+    "hero_type": {"particles", "scroll", "hidden"},
     "hero_intro_align": {"left", "center", "right"},
     "hero_m_intro_align": {"left", "center", "right"},
 }
@@ -203,7 +204,7 @@ ALLOWED_SITE_SETTING_KEYS = (
     | NUMERIC_FIELDS
     | set(ENUM_FIELDS.keys())
     | TEXT_FIELDS
-    | {"theme_settings", "primary_color", "payment_methods"}
+    | {"theme_settings", "primary_color", "payment_methods", "particle_hero"}
 )
 
 
@@ -388,6 +389,9 @@ def _sanitize_number(key, value):
 
 
 def _sanitize_setting_value(key, value):
+    if key == 'particle_hero':
+        from api._lib._hero import sanitize_particle_settings
+        return sanitize_particle_settings(value)
     if key == 'payment_methods':
         defaults = {'whatsapp': True, 'cod': True, 'razorpay': False}
         if not isinstance(value, dict) or set(value) - set(defaults) or any(not isinstance(v, bool) for v in value.values()):

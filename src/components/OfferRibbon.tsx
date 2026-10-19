@@ -1,10 +1,17 @@
 import { motion } from 'framer-motion';
 import type { Offer } from '@/types';
+import { useColorMode } from '@/theme';
+import { normalizeHexColor,readable,rgb } from '@/themeCore';
 
 const LOGO_URL = 'https://ik.imagekit.io/yocxectr4/logos/logo.png?tr=w-28,h-28,f-webp';
 
 export default function OfferRibbon({ offer }: { offer: Offer }) {
+  const mode=useColorMode();
   if (!offer.active || !offer.text) return null;
+  const background=normalizeHexColor(offer.bg_color,'#EBE9E5'),channels=rgb(background);
+  const neutral=Math.max(...channels)-Math.min(...channels)<20;
+  const ribbonBackground=neutral?'var(--surface-2)':background;
+  const foreground=neutral?'var(--text)':readable(normalizeHexColor(offer.text_color,'#151514'),[background]);
 
   const showLogo = offer.show_logo !== false; // default ON
 
@@ -26,7 +33,8 @@ export default function OfferRibbon({ offer }: { offer: Offer }) {
             objectFit: 'contain',
             // Blend with any bg — multiply keeps dark logos visible on light bg,
             // and looks clean on dark backgrounds too
-            mixBlendMode: 'multiply',
+            mixBlendMode: 'normal',
+            filter:neutral&&mode==='dark'?'invert(1) grayscale(1)':'none',
             opacity: 0.85,
             flexShrink: 0,
           }}
@@ -34,11 +42,11 @@ export default function OfferRibbon({ offer }: { offer: Offer }) {
       )}
       <span style={{
         fontSize: '0.86rem', fontWeight: 700,
-        letterSpacing: '0.3px', color: offer.text_color,
+        letterSpacing: '0.3px', color: foreground,
       }}>
         {offer.text}
       </span>
-      <span style={{ opacity: 0.3, fontSize: '0.7rem', color: offer.text_color }}>✦</span>
+      <span aria-hidden="true" style={{ opacity: 0.3, fontSize: '0.7rem', color: foreground }}>✦</span>
     </span>
   );
 
@@ -47,7 +55,7 @@ export default function OfferRibbon({ offer }: { offer: Offer }) {
 
   return (
     <div style={{
-      background: offer.bg_color,
+      background: ribbonBackground,
       padding: '7px 0',
       overflow: 'hidden',
       position: 'relative',

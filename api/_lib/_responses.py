@@ -51,6 +51,9 @@ def send_json(handler, status, body, cors=None, extra_headers=None):
 
 def send_error(handler, error, cors=None):
     if isinstance(error, ApiError):
-        return send_json(handler, error.status, {"error": error.message}, cors, error.headers)
+        body = {"error": error.message}
+        if str(error.headers.get('Retry-After', '')).isdigit():
+            body['retryAfter'] = int(error.headers['Retry-After'])
+        return send_json(handler, error.status, body, cors, error.headers)
     print(f"Unhandled API error: {type(error).__name__}")
     return send_json(handler, 500, {"error": "Internal server error"}, cors)

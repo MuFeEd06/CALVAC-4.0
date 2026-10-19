@@ -63,6 +63,8 @@ export interface ThemeSettings {
 }
 
 export interface SiteSettings {
+  hero_type?: 'scroll' | 'particles' | 'hidden';
+  particle_hero?: import('../hero').ParticleSettings;
   theme_settings: ThemeSettings;
   primary_color: string;
   hero_font: string;

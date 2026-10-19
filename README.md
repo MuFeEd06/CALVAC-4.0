@@ -2,6 +2,8 @@
 
 React storefront and admin interface with Python serverless APIs, Supabase and ImageKit.
 
+The latest homepage adds the supplied particle-shoe design, a shared light/dark theme and device-specific hero controls. See `HERO_RELEASE.md` for admin instructions, the five-minute WhatsApp duplicate-order cooldown and rollout details.
+
 ## Local development
 
 Use Node.js 22.12+ (tested with 24.19) and Python 3.12–3.14.
@@ -24,7 +26,7 @@ Both reviewed migrations were applied to `jjyysdxkoarjlxwttiak` on 19 October 20
 3. Apply the migration in the preview database. Verify duplicate-key retries, rollback, variant pricing, shared inventory, cancellation, inactive-product visibility, and anonymous denial of order access/RPC execution.
 4. Apply the compatible migration to the target database, then deploy the API and frontend together.
 
-Checkout uses service-only `create_order_with_stock_v3`, passing the server-verified customer ID and payment method into the v2 inventory/idempotency transaction. It validates variants and prices, locks products in a stable order, and commits inventory, order creation and idempotent confirmation together. API routes authorize admin and customer operations before calling privileged functions.
+Checkout uses service-only `create_order_with_stock_v4`, checking the WhatsApp cooldown before passing the server-verified customer ID and payment method into the v3/v2 payment and inventory/idempotency transaction. It validates variants and prices, locks products in a stable order, and commits inventory, order creation and idempotent confirmation together. API routes authorize admin and customer operations before calling privileged functions.
 
 `set_order_status_v3` permits Pending → Confirmed/Cancelled, Confirmed → Shipped/Cancelled, and Shipped → Delivered. Unpaid online orders cannot advance. Cancellation restores tracked inventory exactly once. Legacy orders without v2 inventory metadata need a manual inventory review before cancellation; the migration does not guess whether the old checkout deducted their inventory.
 

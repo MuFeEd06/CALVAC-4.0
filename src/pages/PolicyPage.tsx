@@ -61,7 +61,7 @@ export default function PolicyPage() {
               padding: '7px 18px', borderRadius: 'var(--button-radius)', fontSize: '0.85rem', fontWeight: 600,
               textDecoration: 'none', border: '1.5px solid var(--border)',
               background: policyType === t ? 'var(--primary)' : 'transparent',
-              color: policyType === t ? '#fff' : 'var(--text-muted)',
+              color: policyType === t ? 'var(--on-primary)' : 'var(--text-muted)',
               borderColor: policyType === t ? 'var(--primary)' : 'var(--border)',
               transition: 'all 0.2s',
             }}>

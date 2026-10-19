@@ -30,7 +30,7 @@ function ProductStateMessage({
         <button
           type="button"
           onClick={onAction}
-          style={{ padding: '11px 28px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 'var(--button-radius)', fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)' }}
+          style={{ padding: '11px 28px', background: 'var(--primary)', color: 'var(--on-primary)', border: 'none', borderRadius: 'var(--button-radius)', fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)' }}
         >
           {action}
         </button>
@@ -246,8 +246,8 @@ export default function ProductPage() {
               {deal && (
                 <>
                   <span style={{ fontSize: '1rem', color: 'var(--text-light)', textDecoration: 'line-through' }}>{formatPrice(deal.origPrice)}</span>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 800, padding: '3px 10px', borderRadius: 'var(--button-radius)', background: '#fff0f0', color: '#e53e3e' }}>{deal.pct}% OFF</span>
-                  <span style={{ fontSize: '0.68rem', fontWeight: 800, padding: '3px 8px', borderRadius: 'var(--button-radius)', background: '#f0fff4', color: '#276749' }}>Special Price</span>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 800, padding: '3px 10px', borderRadius: 'var(--button-radius)', background: 'var(--danger-bg)', color: 'var(--danger)' }}>{deal.pct}% OFF</span>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 800, padding: '3px 8px', borderRadius: 'var(--button-radius)', background: 'var(--success-bg)', color: 'var(--success)' }}>Special Price</span>
                 </>
               )}
             </div>
@@ -301,7 +301,7 @@ export default function ProductPage() {
                           minWidth: 58, padding: '9px 11px', borderRadius: 'var(--button-radius)', position: 'relative',
                           border: `1.5px solid ${selectedSize === size ? 'var(--primary)' : 'var(--border)'}`,
                           background: selectedSize === size ? 'var(--primary)' : 'var(--surface-2)',
-                          color: selectedSize === size ? '#fff' : oos ? 'var(--text-light)' : 'var(--text)',
+                          color: selectedSize === size ? 'var(--on-primary)' : oos ? 'var(--text-light)' : 'var(--text)',
                           fontWeight: 700, fontSize: '0.85rem', cursor: oos ? 'not-allowed' : 'pointer',
                           opacity: oos ? 0.35 : 1, fontFamily: 'var(--font-body)',
                           transform: selectedSize === size ? 'scale(1.06)' : 'scale(1)',
@@ -321,19 +321,19 @@ export default function ProductPage() {
             </div>
 
             {product.out_of_stock ? (
-              <div style={{ background: '#fff5f5', border: '1.5px solid #fed7d7', borderRadius: 10, padding: 16, textAlign: 'center', color: '#e53e3e', fontWeight: 700 }}>
+              <div style={{ background: 'var(--danger-bg)', border: '1.5px solid #fed7d7', borderRadius: 10, padding: 16, textAlign: 'center', color: 'var(--danger)', fontWeight: 700 }}>
                 Currently out of stock
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
                 <motion.button onClick={() => addToCart(false)} whileHover={canAdd ? { y: -2 } : {}} whileTap={canAdd ? { scale: 0.98 } : {}}
                   disabled={!canAdd}
-                  style={{ padding: 15, background: canAdd ? 'var(--primary)' : '#9badb8', color: '#fff', border: 'none', fontWeight: 700, fontSize: '1.05rem', cursor: canAdd ? 'pointer' : 'not-allowed', borderRadius: 'var(--button-radius)', fontFamily: 'var(--font-display)', letterSpacing: '0.3px' }}>
+                  style={{ padding: 15, background: canAdd ? 'var(--primary)' : 'var(--text-muted)', color: 'var(--on-primary)', border: 'none', fontWeight: 700, fontSize: '1.05rem', cursor: canAdd ? 'pointer' : 'not-allowed', borderRadius: 'var(--button-radius)', fontFamily: 'var(--font-display)', letterSpacing: '0.3px' }}>
                   Add to Cart
                 </motion.button>
                 <motion.button onClick={() => addToCart(true)} whileHover={canAdd ? { y: -2 } : {}} whileTap={canAdd ? { scale: 0.98 } : {}}
                   disabled={!canAdd}
-                  style={{ padding: 15, background: canAdd ? 'linear-gradient(135deg, var(--primary), var(--primary-dark))' : '#9badb8', color: '#fff', border: 'none', fontWeight: 700, fontSize: '1.05rem', cursor: canAdd ? 'pointer' : 'not-allowed', borderRadius: 'var(--button-radius)', fontFamily: 'var(--font-display)', letterSpacing: '0.3px' }}>
+                  style={{ padding: 15, background: canAdd ? 'var(--primary)' : 'var(--text-muted)', color: 'var(--on-primary)', border: 'none', fontWeight: 700, fontSize: '1.05rem', cursor: canAdd ? 'pointer' : 'not-allowed', borderRadius: 'var(--button-radius)', fontFamily: 'var(--font-display)', letterSpacing: '0.3px' }}>
                   Buy Now
                 </motion.button>
               </div>

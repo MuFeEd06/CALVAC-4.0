@@ -77,3 +77,9 @@ The original public-schema metadata and checkout definition were saved without c
 - After moving `calvac.in`, live HTTPS/mobile checks passed for home, shop, cart, login, registration and account/admin redirects, with no horizontal overflow or JavaScript errors. The live homepage loaded no admin/Supabase chunks. WhatsApp/COD are enabled; Razorpay remains disabled until credentials, webhook and test-mode verification are configured.
 
 Browser results/screenshots are in `test-results/`. CI uses synthetic public Supabase settings for the admin browser scenario; a release build must use the real public project configuration.
+
+## Particle hero and theme release
+
+See `HERO_RELEASE.md` for the new reference-based particle hero, retained scroll mode, independent device shoes/uploads/positioning, shared monochrome light/dark styling and five-minute WhatsApp duplicate guard. The release adds service-only checkout v4 and an indexed lookup that recognizes recent orders from the preceding deployment, while preserving all existing orders.
+
+The particle hero module is approximately 42 KB uncompressed (15 KB gzip); its default desktop/mobile images are 121,260 / 133,526 bytes, and only the selected device/mode image is requested. The retained scroll module is loaded separately. Local validation includes 28 frontend/SQL/theme tests and 22 Python API tests; browser verification covers actual particles, device selection, saved theme preferences, uploads, cooldown feedback and rendered text contrast.

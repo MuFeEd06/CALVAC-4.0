@@ -1,3 +1,4 @@
+import ThemeSwitch from './ThemeSwitch';
 import { FALLBACK_IMAGE, imageFallback } from '@/utils/images';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
@@ -90,7 +91,7 @@ export default function Header() {
         boxShadow: '0 2px 16px var(--primary-light)',
         height: 'var(--header-h)',
         display: 'flex', alignItems: 'center',
-        padding: '0 5%', gap: 12,
+        padding: '0 5%', gap: 8,
       }}>
         {/* ── Hamburger — always visible ── */}
         <button
@@ -124,13 +125,9 @@ export default function Header() {
             fontSize: 'clamp(1rem, 2.5vw, 1.5rem)',
             color: 'var(--primary)', letterSpacing: '-0.5px', whiteSpace: 'nowrap',
           }}>CALVAC</span>
-          <img
-            src="https://ik.imagekit.io/yocxectr4/logos/logo.png?tr=w-50,h-50,f-webp"
-            alt="" loading="lazy"
-            style={{ height: 'clamp(28px,4vw,44px)', width: 'auto', flexShrink: 0 }}
-          />
         </Link>
 
+        <span className={searchOpen?"header-theme searching":"header-theme"}><ThemeSwitch /></span>
         {/* ── Search ── */}
         <div ref={searchRef} style={{ position: 'relative', flexShrink: 0 }}>
           <motion.div
@@ -236,7 +233,7 @@ export default function Header() {
           {totalItems > 0 && (
             <span style={{
               position:'absolute', top:-6, right:-8,
-              background:'var(--primary)', color:'#fff',
+              background:'var(--primary)', color:'var(--on-primary)',
               borderRadius:'50%', width:18, height:18,
               fontSize:'0.65rem', fontWeight:800,
               display:'flex', alignItems:'center', justifyContent:'center',

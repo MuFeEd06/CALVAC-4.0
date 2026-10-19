@@ -5,7 +5,7 @@ import { normalizeSizeList, normalizeSizeUnit } from '@/utils/sizeUnits';
 import { TimedCache } from './cache';
 
 const cache = new TimedCache();
-const SETTINGS_KEY = 'calvac_settings_v7';
+const SETTINGS_KEY = 'calvac_settings_v8';
 const TTL = 30_000;
 
 export function ikResize(url: string, width: number, quality: number): string {
@@ -40,7 +40,7 @@ export function normalizeProduct(p: Product): Product {
 }
 
 export class ApiError extends Error {
-  constructor(message: string, public status: number) { super(message); }
+  constructor(message: string, public status: number, public retryAfter?: number) { super(message); }
 }
 export async function requestJson<T>(url: string, options: RequestInit = {}, timeoutMs = 12_000): Promise<T> {
   const controller = new AbortController();
@@ -51,7 +51,8 @@ export async function requestJson<T>(url: string, options: RequestInit = {}, tim
   try {
     const response = await fetch(url, { ...options, signal: controller.signal });
     const body = await response.json().catch(() => null);
-    if (!response.ok) throw new ApiError(body?.error || `Request failed (${response.status})`, response.status);
+    if (!response.ok) throw new ApiError(body?.error || `Request failed (${response.status})`, response.status,
+      Math.max(0,Math.min(300,Number(body?.retryAfter||response.headers.get('Retry-After'))||0)));
     if (body === null) throw new Error('The server returned an invalid response.');
     return body as T;
   } catch (error) {
@@ -112,7 +113,7 @@ export function setCachedSiteSettings(settings: Partial<SiteSettings> & Record<s
   if (invalidate) cache.invalidate('/api/site-settings');
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ts: Date.now(), data: normalized }));
-    localStorage.removeItem('calvac_settings_v4'); localStorage.removeItem('calvac_settings_v5'); localStorage.removeItem('calvac_settings_v6');
+    localStorage.removeItem('calvac_settings_v4'); localStorage.removeItem('calvac_settings_v5'); localStorage.removeItem('calvac_settings_v6'); localStorage.removeItem('calvac_settings_v7');
   } catch { /* Keep the in-memory theme usable when storage is unavailable. */ }
   return normalized;
 }

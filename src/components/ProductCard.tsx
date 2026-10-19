@@ -43,12 +43,12 @@ export default function ProductCard({ product }: { product: Product }) {
           style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 12, transition: 'transform 0.4s' }}
         />
         {oos && (
-          <div style={{ position: 'absolute', top: 8, left: 8, background: '#e53e3e', color: '#fff', fontSize: '0.62rem', fontWeight: 800, padding: '3px 8px', borderRadius: 'var(--button-radius)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+          <div style={{ position: 'absolute', top: 8, left: 8, background: 'var(--danger-bg)', color: 'var(--danger)', fontSize: '0.62rem', fontWeight: 800, padding: '3px 8px', borderRadius: 'var(--button-radius)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
             Out of Stock
           </div>
         )}
         {product.tag && !oos && (
-          <div style={{ position: 'absolute', top: 8, left: 8, background: 'var(--primary)', color: '#fff', fontSize: '0.62rem', fontWeight: 800, padding: '3px 8px', borderRadius: 'var(--button-radius)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+          <div style={{ position: 'absolute', top: 8, left: 8, background: 'var(--primary)', color: 'var(--on-primary)', fontSize: '0.62rem', fontWeight: 800, padding: '3px 8px', borderRadius: 'var(--button-radius)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
             {product.tag}
           </div>
         )}
@@ -63,7 +63,7 @@ export default function ProductCard({ product }: { product: Product }) {
           {deal && (
             <>
               <span style={{ fontSize: '0.78rem', color: 'var(--text-light)', textDecoration: 'line-through' }}>{formatPrice(deal.origPrice)}</span>
-              <span style={{ fontSize: '0.65rem', fontWeight: 800, padding: '2px 6px', borderRadius: 'var(--button-radius)', background: '#fff0f0', color: '#e53e3e' }}>{deal.pct}% OFF</span>
+              <span style={{ fontSize: '0.65rem', fontWeight: 800, padding: '2px 6px', borderRadius: 'var(--button-radius)', background: 'var(--danger-bg)', color: 'var(--danger)' }}>{deal.pct}% OFF</span>
             </>
           )}
         </div>
@@ -71,7 +71,7 @@ export default function ProductCard({ product }: { product: Product }) {
           style={{
             marginTop: 8, padding: '10px', width: '100%',
             background: oos ? '#aaa' : 'var(--primary)',
-            color: '#fff', border: 'none', borderRadius: 'var(--button-radius)',
+            color: 'var(--on-primary)', border: 'none', borderRadius: 'var(--button-radius)',
             fontWeight: 700, fontSize: '0.88rem',
             cursor: oos ? 'not-allowed' : 'pointer',
             fontFamily: 'var(--font-body)',

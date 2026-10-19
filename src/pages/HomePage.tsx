@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { fetchProducts, fetchSiteSettings, fetchOffer } from '@/api';
 import type { Product, SiteSettings, Offer } from '@/types';
-import ScrollyShoeExperience from '@/components/ScrollyShoeExperience';
+const ScrollyShoeExperience = lazy(()=>import('@/components/ScrollyShoeExperience'));
+const ParticleHero = lazy(()=>import('@/components/ParticleHero'));
 import OfferRibbon from '@/components/OfferRibbon';
 import { NewArrivals, BrandTiles, CategoryScroll } from '@/components/HomeSections';
 import ProductCard from '@/components/ProductCard';
@@ -22,8 +23,9 @@ const DEFAULT_SETTINGS: SiteSettings = {
 export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
-  const [offer, setOffer] = useState<Offer>({ active: false, text: '', bg_color: '#FF6B35', text_color: '#fff' });
+  const [offer, setOffer] = useState<Offer>({ active: false, text: '', bg_color: '#FF6B35', text_color: 'var(--on-primary)' });
   const [loading, setLoading] = useState(true);
+  const [heroReady,setHeroReady]=useState(false);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
 
@@ -35,13 +37,13 @@ export default function HomePage() {
         const items = [...new Map([...fresh, ...trending].map(p => [p.id, p])).values()];
         return items.length ? items : fetchProducts({ limit: 12 });
       });
-    Promise.allSettled([catalog, fetchSiteSettings(), fetchOffer()]).then(([products, settings, offer]) => {
+    Promise.allSettled([catalog, fetchSiteSettings().then(value=>{if(active){setSettings(value);setHeroReady(true);}return value;}).catch(error=>{if(active)setHeroReady(true);throw error;}), fetchOffer()]).then(([products, settings, offer]) => {
       if (!active) return;
       if (products.status === 'fulfilled') setProducts(products.value);
       else setError('Could not load the catalog. Please try again.');
       if (settings.status === 'fulfilled') setSettings(settings.value);
       if (offer.status === 'fulfilled') setOffer(offer.value);
-      setLoading(false);
+      setLoading(false);setHeroReady(true);
     });
     return () => { active = false; };
   }, [retry]);
@@ -51,7 +53,9 @@ export default function HomePage() {
   return (
     <main>
       <OfferRibbon offer={offer} />
-      <ScrollyShoeExperience settings={settings as SiteSettings & Record<string, unknown>} />
+      <Suspense fallback={<div className="hero-loading" aria-label="Loading hero"/>}>
+      {!heroReady?<div className="hero-loading"/>:settings.hero_type!=='hidden' && (settings.hero_type==='scroll'?<ScrollyShoeExperience settings={settings as SiteSettings & Record<string, unknown>}/>:<ParticleHero settings={settings as unknown as Record<string,unknown>}/>)}
+      </Suspense>
 
       {error && <div role="alert" className="load-error"><p>{error}</p><button onClick={() => setRetry(n => n + 1)}>Try again</button></div>}
       {settings.show_new_arrivals && <NewArrivals products={products} />}

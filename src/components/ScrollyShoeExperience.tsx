@@ -100,7 +100,7 @@ export default function ScrollyShoeExperience({ settings }: Props) {
   const offerWidth    = mNum('hero_offer_width_px','hero_m_offer_width_px',160,128);
   const skipVisible   = mBool('hero_skip_visible','hero_m_skip_visible',true,true);
   const skipText      = txt(settings?.hero_skip_text,'Skip Animation');
-  const skipBg        = txt(settings?.hero_skip_bg,'#E9F5FB');
+  const skipBg        = txt(settings?.hero_skip_bg,'var(--surface)');
   const skipColor     = txt(settings?.hero_skip_color,'var(--primary)');
   const skipX         = mNum('hero_skip_x_pct','hero_m_skip_x_pct',3,50);
   const skipY         = mNum('hero_skip_y_px','hero_m_skip_y_px',32,16);
@@ -373,7 +373,7 @@ export default function ScrollyShoeExperience({ settings }: Props) {
                   onMouseEnter={e=>(e.currentTarget.style.transform='translateY(-3px)')}
                   onMouseLeave={e=>(e.currentTarget.style.transform='translateY(0)')}>
                   <div style={{display:'inline-flex',alignItems:'center',gap:4,background:offerAccent,
-                    color:'#fff',fontSize:isMobile?'0.5rem':'0.58rem',fontWeight:800,
+                    color:'var(--on-primary)',fontSize:isMobile?'0.5rem':'0.58rem',fontWeight:800,
                     padding:'2px 6px',borderRadius:4,letterSpacing:'0.08em',
                     textTransform:'uppercase',marginBottom:isMobile?4:7}}>
                     {offerTag}

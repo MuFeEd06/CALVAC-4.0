@@ -30,10 +30,14 @@ class handler(BaseHTTPRequestHandler):
             require_method(method)
             # Commit expired reservation cleanup separately from the new stock locks.
             rest_request('POST', 'rpc/expire_unpaid_orders', {}, timeout=10)
-            created = rest_request('POST', 'rpc/create_order_with_stock_v3',
+            created = rest_request('POST', 'rpc/create_order_with_stock_v4',
                 {'p_items': items, 'p_customer': customer, 'p_idempotency_key': key,
                  'p_payment_method': method, 'p_user_id': user['id'] if user else None}, timeout=20)
             order = created[0] if isinstance(created, list) and created else created
+            if isinstance(order, dict) and order.get('duplicate') is True:
+                retry_after = min(300, max(1, int(order.get('retry_after') or 300)))
+                raise ApiError(409, 'A matching WhatsApp order was placed recently. Please wait before placing it again.',
+                               {'Retry-After': str(retry_after)})
             if not isinstance(order, dict) or not order.get('id') or not isinstance(order.get('items'), list):
                 raise ApiError(502, 'Order confirmation unavailable. Retry the same order.')
             safe = public_order(order)

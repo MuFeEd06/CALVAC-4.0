@@ -19,8 +19,9 @@
   --radius:        14px;
   --button-radius: 10px;
   --header-h:      70px;
-  --font-display:  'Syne', system-ui, sans-serif;
-  --font-body:     'DM Sans', system-ui, sans-serif;
+  --font-display:  'Geist', system-ui, sans-serif;
+  --font-accent: 'Instrument Serif', Georgia, serif;
+  --font-body:     'Geist', system-ui, sans-serif;
   --transition:    0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -86,7 +87,7 @@ button { font-family: inherit; cursor: pointer; border: none; }
 
 .toast-item {
   background: var(--text);
-  color: #fff;
+  color: var(--on-primary);
   padding: 11px 22px;
   border-radius: 30px;
   font-size: 0.88rem;
@@ -155,9 +156,58 @@ button { font-family: inherit; cursor: pointer; border: none; }
 .page-loading, .load-error { padding: 48px 5%; text-align: center; }
 .page-content { animation: page-fade-in .18s ease; }
 @keyframes page-fade-in { from { opacity: 0; } to { opacity: 1; } }
-.primary-link { display: inline-block; margin: 16px 0; padding: 12px 20px; background: var(--primary); color: #fff; border-radius: var(--button-radius); font-weight: 700; }
+.primary-link { display: inline-block; margin: 16px 0; padding: 12px 20px; background: var(--primary); color: var(--on-primary); border-radius: var(--button-radius); font-weight: 700; }
 button:disabled { opacity: .55; cursor: not-allowed; }
 :focus-visible { outline: 3px solid var(--primary); outline-offset: 4px; }
+
+/* Shared editorial palette: themeCore supplies readable pairs in both modes. */
+body { font-family: var(--font-body); letter-spacing: -.015em; }
+h1,h2,h3 { font-family: var(--font-display); }
+input,textarea,select { font:inherit; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:8px; }
+input::placeholder,textarea::placeholder { color:var(--text-muted); opacity:1; }
+input[type=checkbox],input[type=radio],input[type=range] { accent-color:var(--primary); }
+button { color:inherit; }
+.theme-switch { display:inline-grid;place-items:center;width:36px;height:36px;flex-shrink:0;border:1px solid var(--border);border-radius:50%;background:transparent;color:var(--text); }
+.theme-switch:hover { background:var(--text);color:var(--bg); }
+.header-theme { display:flex;flex-shrink:0; }
+.header-brand span { font-weight:600!important;letter-spacing:-.06em!important; }
+.primary-link,.admin-primary-btn { color:var(--on-primary); }
+.toast-item { background:var(--inverse);color:var(--on-inverse);white-space:normal;max-width:min(90vw,520px); }
+.secondary-button { border:1px solid var(--border);padding:10px 16px;background:var(--surface);border-radius:var(--button-radius); }
+.particle-hero { position:relative;background:var(--bg); }
+.particle-hero .sh-root { background:var(--bg)!important;color:var(--text)!important; }
+.particle-hero .sh-content { gap:clamp(24px,4vw,72px); }
+.particle-hero .sh-btn { background:var(--primary);color:var(--on-primary); }
+.particle-attribution { position:absolute;bottom:8px;left:5%;font-size:10px;color:var(--text-muted);z-index:3; }
+.hero-loading { min-height:calc(100svh - var(--header-h));background:var(--bg); }
+.hero-settings { margin-bottom:24px; }
+.hero-settings h2 { font-size:1.7rem;font-weight:500;letter-spacing:-.04em; }
+.hero-settings>p { margin:12px 0 20px;color:var(--text-muted);line-height:1.6; }
+.hero-copy-fields,.hero-device-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px; }
+.hero-device-card { border:1px solid var(--border);padding:20px;border-radius:12px;min-width:0; }
+.hero-device-card legend { padding:0 8px;font-weight:600; }
+.hero-shoe-preview { width:100%;height:190px;overflow:hidden;margin-bottom:20px;background:var(--bg);border:1px solid var(--border);border-radius:8px; }
+.hero-settings textarea { resize:vertical;width:100%;padding:12px; }
+.cooldown-backdrop { position:fixed;inset:0;z-index:3000;display:grid;place-items:center;padding:24px;background:rgba(0,0,0,.5);backdrop-filter:blur(6px); }
+.cooldown-dialog { margin:auto;width:min(calc(100% - 32px),460px);padding:32px;border:1px solid var(--border);border-radius:20px;background:var(--surface);box-shadow:var(--shadow-hover);color:var(--text); }
+.cooldown-dialog h2 { font-size:1.8rem;font-weight:500;letter-spacing:-.04em; }
+.cooldown-dialog::backdrop { background:rgba(0,0,0,.5);backdrop-filter:blur(6px); }
+.cooldown-dialog p { line-height:1.7;color:var(--text-muted);margin:16px 0; }
+#root main:not(.admin-page-wrap) h1,#root main:not(.admin-page-wrap) h2{font-weight:500!important;letter-spacing:-.045em!important;text-transform:none!important;}
+@media(max-width:700px){
+  .hero-copy-fields,.hero-device-grid{grid-template-columns:1fr;}
+  .header-theme.searching{display:none;}
+  .particle-hero .sh-root{height:max(780px,calc(100svh - var(--header-h)))!important;}
+  .particle-hero .sh-content{gap:20px;padding-bottom:36px;}
+  .particle-hero .sh-h1{font-size:clamp(42px,12vw,65px);}
+  .particle-hero .sh-body{font-size:14px;line-height:1.6;}
+  .particle-hero .sh-ctas{gap:16px;}
+  .particle-hero .sh-btn,.particle-hero .sh-txt{font-size:13px;}
+  .admin-header{height:auto!important;min-height:74px;flex-wrap:wrap;padding:12px 4%!important;gap:10px;}
+  .admin-nav{order:4;width:100%;justify-content:center;flex-wrap:wrap;}
+  .admin-panel{padding:16px!important;}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto;}*{scroll-behavior:auto!important;}}
 #cursor-dot, #cursor-ring { left: 0; top: 0; opacity: 0; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -169,7 +219,7 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .account-shell h1,.account-shell h2{margin:16px 0;color:var(--primary);font-family:var(--font-display)}
 .account-shell p{margin:12px 0;line-height:1.6}
 .account-shell a{color:var(--primary)}
-.account-shell .primary-link{color:#fff;display:inline-block;text-decoration:none}
+.account-shell .primary-link{color:var(--on-primary);display:inline-block;text-decoration:none}
 .account-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;margin:24px 0;box-shadow:var(--shadow)}
 .auth-shell{max-width:500px}
 .account-field{display:flex;flex-direction:column;gap:5px;margin:12px 0;font-size:.85rem}

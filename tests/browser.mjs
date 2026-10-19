@@ -45,7 +45,7 @@ const server = createServer(async (request, response) => {
       }
       if (url.pathname === '/api/offer' || url.pathname === '/api/x9k2/offer') result = { active: false, text: '', bg_color: '#FF6B35', text_color: '#FFFFFF', show_logo: true };
       if (url.pathname.includes('site-settings')) {
-        result = { hero_m_scroll_height_vh: 280, policy_privacy: '# Privacy\n\nParagraph\n\n- Item one\n- Item two' };
+        result = { hero_type:'scroll', hero_m_scroll_height_vh: 280, policy_privacy: '# Privacy\n\nParagraph\n\n- Item one\n- Item two' };
         if (request.method === 'POST') { response.statusCode = 503; result = { error: 'Fixture save failed. Please try again.' }; }
       }
       if (url.pathname === '/api/admin-session') result = { admin: true, id: 'test-user' };
@@ -73,7 +73,7 @@ const server = createServer(async (request, response) => {
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const origin = `http://127.0.0.1:${server.address().port}`;
-const browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : {}) });
+const browser = await chromium.launch({ headless: true, args:['--enable-unsafe-swiftshader'], ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : {}) });
 const errors = [];
 const results = {};
 async function context(options = {}) {
@@ -85,6 +85,26 @@ async function context(options = {}) {
   });
   context.on('page', page => page.on('pageerror', error => errors.push(error.message)));
   return context;
+}
+async function readability(page){
+  await page.waitForTimeout(1600);
+  return page.evaluate(()=>{
+    const canvas=document.createElement('canvas');canvas.width=canvas.height=1;const ctx=canvas.getContext('2d',{willReadFrequently:true}),cache=new Map();
+    const parse=value=>{if(cache.has(value))return [...cache.get(value)];ctx.clearRect(0,0,1,1);ctx.fillStyle=value;ctx.fillRect(0,0,1,1);const data=ctx.getImageData(0,0,1,1).data;const color=[data[0],data[1],data[2],data[3]/255];cache.set(value,color);return [...color];};
+    const blend=(top,bottom)=>top.slice(0,3).map((v,i)=>v*top[3]+bottom[i]*(1-top[3]));
+    const lum=rgb=>rgb.map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);
+    const issues=[];
+    for(const el of document.querySelectorAll('body *')){
+      if(el.closest('[aria-hidden="true"],[data-hero-preview],svg,script,style,option,select')||!el.getClientRects().length||!Array.from(el.childNodes).some(node=>node.nodeType===3&&node.textContent.trim()))continue;
+      const style=getComputedStyle(el);if(style.visibility!=='visible'||parseFloat(style.opacity)<.01||el.closest(':disabled'))continue;
+      let bg=[255,255,255],opacity=1;const chain=[];for(let parent=el;parent;parent=parent.parentElement)chain.unshift(parent);
+      for(const parent of chain){const current=getComputedStyle(parent);bg=blend(parse(current.backgroundColor),bg);opacity*=parseFloat(current.opacity);}
+      if(opacity<.01)continue;const color=parse(style.color);color[3]*=opacity;const foreground=blend(color,bg),a=lum(foreground),b=lum(bg),ratio=(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+      const required=parseFloat(style.fontSize)>=24||(parseFloat(style.fontSize)>=18.66&&parseInt(style.fontWeight)>=700)?3:4.5;
+      if(ratio<required-.03)issues.push({text:el.textContent.trim().slice(0,65),tag:el.tagName,ratio:+ratio.toFixed(2),color:style.color,background:bg,opacity});
+    }
+    return issues.slice(0,35);
+  });
 }
 try {
   const store = await context({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
@@ -109,6 +129,10 @@ try {
   const publicCalls = calls.slice(firstCalls);
   assert.equal(publicCalls.some(url => /\/assets\/(?:Admin|admin-|supabase-)/i.test(url)), false);
   assert.equal(publicCalls.some(url => url.includes('/theme-css')), false);
+  await page.getByRole('button',{name:'Switch to dark theme',exact:true}).click();
+  assert.deepEqual(await readability(page),[],'Dark cart contrast');
+  await page.getByRole('button',{name:'Switch to light theme',exact:true}).click();
+  assert.deepEqual(await readability(page),[],'Light cart contrast');
   await page.evaluate(() => {
     const button = [...document.querySelectorAll('button')].find(button => button.textContent.includes('Order via WhatsApp'));
     button.click(); button.click();
@@ -175,6 +199,70 @@ try {
   results.reducedMotionPosterOnly = true;
   await reduced.close();
 
+  // The new hero selects only the active device's image and shares the site theme.
+  const particleConfig={hero_type:'particles',particle_hero:{desktop:{shoe:'retro-court-hi'},mobile:{shoe:'cloud-knit'}}};
+  const particles=await context({viewport:{width:390,height:844},isMobile:true,hasTouch:true,reducedMotion:'reduce'});
+  await particles.route('**/api/site-settings',route=>route.fulfill({contentType:'application/json',body:JSON.stringify(particleConfig)}));
+  const particlePage=await particles.newPage(),particleCalls=calls.length;
+  await particlePage.goto(origin+'/');
+  await particlePage.locator('.particle-hero[data-shoe="cloud-knit"] .sh-fallback').waitFor();
+  assert.match(await particlePage.locator('.sh-fallback').getAttribute('src'),/cloud-knit-mobile/);
+  assert.equal(calls.slice(particleCalls).some(path=>path.includes('/frames/')),false);
+  await particlePage.getByRole('button',{name:'Switch to dark theme',exact:true}).click();
+  assert.equal(await particlePage.locator('html').getAttribute('data-theme-mode'),'dark');
+  await particlePage.screenshot({path:resolve(artifact,'particles-mobile-dark.png'),fullPage:false});
+  await particlePage.goto(origin+'/shop');
+  await particlePage.getByRole('heading',{name:'All Shoes',exact:true}).waitFor();
+  assert.equal(await particlePage.locator('html').getAttribute('data-theme-mode'),'dark');
+  assert.deepEqual(await readability(particlePage),[],'Dark catalog contrast');
+  await particlePage.screenshot({path:resolve(artifact,'shop-mobile-dark.png'),fullPage:true});
+  await particlePage.reload();
+  assert.equal(await particlePage.locator('html').getAttribute('data-theme-mode'),'dark');
+  for(const path of ['/product/1','/login','/signup','/forgot-password','/contact','/policy/privacy']){
+    await particlePage.goto(origin+path);
+    if(path==='/product/1')await particlePage.getByRole('button',{name:'8',exact:true}).click();
+    assert.deepEqual(await readability(particlePage),[],`Dark ${path} contrast`);
+    assert.equal(await particlePage.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  }
+  await particlePage.getByRole('button',{name:'Switch to light theme',exact:true}).click();
+  for(const path of ['/product/1','/login','/contact','/policy/privacy']){
+    await particlePage.goto(origin+path);assert.deepEqual(await readability(particlePage),[],`Light ${path} contrast`);
+  }
+  await particlePage.goto(origin+'/');
+  await particlePage.locator('.sh-fallback').waitFor();
+  await particlePage.screenshot({path:resolve(artifact,'particles-mobile-light.png'),fullPage:false});
+  assert.equal(await particlePage.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  await particles.close();
+  const desktopParticles=await context({viewport:{width:1440,height:1000}});
+  await desktopParticles.route('**/api/site-settings',route=>route.fulfill({contentType:'application/json',body:JSON.stringify(particleConfig)}));
+  const desktopHero=await desktopParticles.newPage();await desktopHero.goto(origin+'/');
+  await desktopHero.locator('.particle-hero[data-shoe="retro-court-hi"] .sh-fallback').waitFor();
+  await desktopHero.waitForFunction(()=>document.querySelector('.sh-root')?.getAttribute('data-gl')==='on');
+  await desktopHero.mouse.move(700,330);await desktopHero.mouse.move(900,400,{steps:20});
+  await desktopHero.screenshot({path:resolve(artifact,'particles-desktop-light.png'),fullPage:false});
+  await desktopHero.getByRole('button',{name:'Switch to dark theme',exact:true}).click();
+  await desktopHero.waitForFunction(()=>document.querySelector('.sh-fallback')?.getAttribute('src')?.includes('desktop-dark'));
+  await desktopHero.screenshot({path:resolve(artifact,'particles-desktop-dark.png'),fullPage:false});
+  await desktopParticles.close();
+  results.particleHero={separateDeviceShoes:true,webglParticles:true,themeAcrossNavigationAndReload:true,noScrollFrameDownloads:true};
+
+  const duplicate=await context({viewport:{width:390,height:844}});let duplicateRequests=0;
+  await duplicate.addInitScript(({product})=>{
+    if(location.protocol!=='http:')return;
+    localStorage.setItem('calvac_cart',JSON.stringify([{...product,size:'8',size_unit:'UK',color:'Red',qty:1}]));
+    sessionStorage.setItem('calvac_address',JSON.stringify({ts:Date.now(),data:{name:'Customer Fixture',phone:'9876543210',line1:'Fixture Street',city:'City',state:'State',pin:'123456'}}));
+  },{product});
+  await duplicate.route('**/api/orders',route=>{duplicateRequests++;return route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({error:'A matching WhatsApp order was placed recently.',retryAfter:120})});});
+  const duplicatePage=await duplicate.newPage();await duplicatePage.goto(origin+'/cart');
+  await duplicatePage.getByRole('button',{name:'Order via WhatsApp',exact:true}).click();
+  await duplicatePage.getByRole('dialog').waitFor();
+  await duplicatePage.getByText(/^You can place the same order again in \d+:\d{2}\.$/).waitFor();
+  await duplicatePage.screenshot({path:resolve(artifact,'whatsapp-cooldown-mobile.png'),fullPage:false});
+  await duplicatePage.getByRole('button',{name:'Got it',exact:true}).click();
+  await duplicatePage.getByRole('button',{name:/Order cooldown/}).click();
+  await duplicatePage.getByRole('dialog').waitFor();assert.equal(duplicateRequests,1);
+  await duplicate.close();results.whatsappCooldown={popup:true,noSecondRequestDuringCooldown:true};
+
   if(process.env.BROWSER_TEST_ADMIN==='1'){
     const customer=await context({viewport:{width:390,height:844}});
     await customer.route('https://test-fixture.supabase.co/auth/v1/**',async route=>{
@@ -234,11 +322,50 @@ try {
     await settings.getByText('Fixture save failed. Please try again.', { exact: true }).waitFor();
     await settings.screenshot({ path: resolve(artifact, 'admin-save-error.png'), fullPage: true });
     results.adminSaveErrorsVisible = true;
+    let savedHero={};
+    await admin.route('**/api/x9k2/site-settings',async route=>{
+      if(route.request().method()==='POST'){savedHero={...savedHero,...route.request().postDataJSON()};return route.fulfill({contentType:'application/json',body:JSON.stringify({success:true,settings:savedHero})});}
+      return route.fulfill({contentType:'application/json',body:JSON.stringify(savedHero)});
+    });
+    await settings.goto(origin+'/manage-store-x9k2/settings');
+    await settings.getByLabel('Hero experience',{exact:true}).selectOption('particles');
+    await settings.getByLabel('Desktop shoe',{exact:true}).selectOption('heritage-derby');
+    await settings.getByLabel('Mobile shoe',{exact:true}).selectOption('cloud-knit');
+    let heroUploads=0;
+    await admin.route('**/api/x9k2/upload',route=>{
+      assert.ok(route.request().headers().authorization?.startsWith('Bearer '));
+      assert.ok(route.request().postDataBuffer().includes(Buffer.from('name="image"')));
+      heroUploads++;return route.fulfill({contentType:'application/json',body:JSON.stringify({url:'https://ik.imagekit.io/hero-fixture.webp'})});
+    });
+    await settings.getByRole('group',{name:'Laptop / desktop',exact:true}).getByLabel('Upload custom shoe',{exact:true}).setInputFiles(resolve('public/hero/shoes/retro-court-hi-desktop.webp'));
+    await settings.waitForFunction(()=>document.querySelector('input[type="url"]')?.value==='https://ik.imagekit.io/hero-fixture.webp');
+    assert.equal(heroUploads,1);
+    await settings.getByRole('button',{name:'Save hero experience',exact:true}).click();
+    await settings.getByText('Hero experience saved.',{exact:true}).waitFor();
+    assert.equal(savedHero.particle_hero.desktop.shoe,'heritage-derby');
+    await settings.reload();await settings.waitForFunction(()=>document.querySelector('.admin-panel > fieldset')?.disabled===false);
+    assert.equal(await settings.getByLabel('Desktop shoe',{exact:true}).inputValue(),'heritage-derby');
+    assert.equal(await settings.getByLabel('Mobile shoe',{exact:true}).inputValue(),'cloud-knit');
+    await settings.getByRole('button',{name:'Switch to dark theme',exact:true}).click();
+    assert.deepEqual(await readability(settings),[],'Dark hero admin contrast');
+    await settings.screenshot({path:resolve(artifact,'hero-admin-dark.png'),fullPage:true});
+    await settings.getByLabel('Hero experience',{exact:true}).selectOption('scroll');
+    await settings.getByRole('button',{name:'Save hero experience',exact:true}).click();
+    await settings.getByText('Hero experience saved.',{exact:true}).waitFor();await settings.reload();
+    await settings.waitForFunction(()=>document.querySelector('.admin-panel > fieldset')?.disabled===false);
+    assert.equal(await settings.getByLabel('Hero experience',{exact:true}).inputValue(),'scroll');
+    assert.deepEqual(await readability(settings),[],'Dark scroll editor contrast');
+    results.adminHeroSelectionPersists=true;
     await settings.goto(origin + '/manage-store-x9k2/dashboard');
     await settings.getByRole('heading',{name:'Payment fixture',exact:true}).waitFor();
+    assert.deepEqual(await readability(settings),[],'Dark admin orders contrast');
     await settings.locator('.admin-order-controls select').selectOption('Cancelled');
     await settings.getByText('Refund review required. Process and verify the refund in Razorpay before closing this case.',{exact:true}).waitFor();
     results.adminCancellationShowsRefundReview = true;
+    await settings.goto(origin+'/manage-store-x9k2/products');
+    await settings.getByRole('button',{name:'✏️ Edit',exact:true}).click();
+    await settings.getByRole('heading',{name:'Edit Product #1',exact:true}).waitFor();
+    assert.deepEqual(await readability(settings),[],'Dark product editor contrast');
     await admin.close();
   }
 

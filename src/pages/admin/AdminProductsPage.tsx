@@ -42,16 +42,16 @@ function normalizeStockKeys(stock: Record<string, number>, sizes: string[]): Rec
 /* ─── shared input style ─── */
 const inp = (focus=false): React.CSSProperties => ({
   width:'100%', padding:'9px 12px',
-  border:`1px solid ${focus?'#2B9FD8':'#d0e6f5'}`, borderRadius:8,
+  border:`1px solid ${focus?'var(--primary)':'var(--border)'}`, borderRadius:8,
   fontSize:'0.86rem', fontFamily:'inherit', outline:'none',
-  background:'#f4f8fb', color:'#1a1a2e',
+  background:'var(--bg)', color:'var(--text)',
 });
 const fieldLabel: React.CSSProperties = {
   display:'flex', flexDirection:'column', gap:5,
-  fontSize:'0.78rem', fontWeight:700, color:'#5a6a7a', textTransform:'uppercase', letterSpacing:'0.5px',
+  fontSize:'0.78rem', fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.5px',
 };
 const sectionHead: React.CSSProperties = {
-  fontSize:'0.72rem', fontWeight:800, color:'#9badb8',
+  fontSize:'0.72rem', fontWeight:800, color:'var(--text-muted)',
   textTransform:'uppercase', letterSpacing:'1px',
   margin:'20px 0 10px', display:'flex', alignItems:'center', gap:8,
 };
@@ -157,9 +157,9 @@ function ImageUploader({ value, onChange }: { value:string; onChange:(url:string
         onDrop={onDrop}
         onClick={() => inputRef.current?.click()}
         style={{
-          border:`2px dashed ${dragging?'#2B9FD8':'#d0e6f5'}`,
+          border:`2px dashed ${dragging?'var(--primary)':'var(--border)'}`,
           borderRadius:12, padding:'20px 16px',
-          background:dragging?'#eaf3fa':'#f4f8fb',
+          background:dragging?'var(--surface-2)':'var(--bg)',
           cursor:'pointer', textAlign:'center',
           transition:'all 0.2s', position:'relative',
         }}
@@ -175,18 +175,18 @@ function ImageUploader({ value, onChange }: { value:string; onChange:(url:string
               style={{
                 position:'absolute',top:-8,right:-8,
                 width:22,height:22,borderRadius:'50%',
-                background:'#ef4444',color:'#fff',border:'none',
+                background:'var(--danger)',color:'var(--on-primary)',border:'none',
                 cursor:'pointer',fontSize:'0.7rem',fontWeight:800,lineHeight:1,
               }}>✕</button>
           </div>
         ) : uploading ? (
               progress ||
-          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:8, color:'#5a6a7a' }}>
-            <div style={{ width:28,height:28,border:'3px solid #d0e6f5',borderTopColor:'#2B9FD8',borderRadius:'50%',animation:'spin 0.8s linear infinite' }}/>
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:8, color:'var(--text-muted)' }}>
+            <div style={{ width:28,height:28,border:'3px solid var(--border)',borderTopColor:'var(--primary)',borderRadius:'50%',animation:'spin 0.8s linear infinite' }}/>
             <span style={{ fontSize:'0.82rem' }}>Uploading…</span>
           </div>
         ) : (
-          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:6, color:'#9badb8' }}>
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:6, color:'var(--text-muted)' }}>
             <span style={{ fontSize:'2rem' }}>🖼️</span>
             <span style={{ fontSize:'0.82rem', fontWeight:600 }}>Click or drag to upload image</span>
             <span style={{ fontSize:'0.72rem' }}>JPG, PNG, WEBP · max 5MB</span>
@@ -197,9 +197,9 @@ function ImageUploader({ value, onChange }: { value:string; onChange:(url:string
 
       {/* URL paste fallback */}
       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-        <div style={{ flex:1, height:1, background:'#d0e6f5' }}/>
-        <span style={{ fontSize:'0.7rem', color:'#9badb8', fontWeight:600 }}>OR PASTE URL</span>
-        <div style={{ flex:1, height:1, background:'#d0e6f5' }}/>
+        <div style={{ flex:1, height:1, background:'var(--border)' }}/>
+        <span style={{ fontSize:'0.7rem', color:'var(--text-muted)', fontWeight:600 }}>OR PASTE URL</span>
+        <div style={{ flex:1, height:1, background:'var(--border)' }}/>
       </div>
       <FocusInput
         placeholder="https://ik.imagekit.io/…"
@@ -207,7 +207,7 @@ function ImageUploader({ value, onChange }: { value:string; onChange:(url:string
         onChange={e => onChange(e.target.value)}
         style={inp()}
       />
-      {progress && <p style={{ fontSize:'0.74rem', color:'#2B9FD8', margin:0 }}>{progress}</p>}
+      {progress && <p style={{ fontSize:'0.74rem', color:'var(--primary)', margin:0 }}>{progress}</p>}
       {err && <p style={{ fontSize:'0.74rem', color:'#f59e0b', margin:0 }}>{err}</p>}
     </div>
   );
@@ -246,16 +246,16 @@ function ColorVariantEditor({ colors, onChange }: {
     <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
       {drafts.map((c,i) => (
         <div key={i} style={{
-          border:'1px solid #d0e6f5', borderRadius:10, padding:'12px 14px',
-          background:'#f4f8fb', display:'flex', flexDirection:'column', gap:8,
-          borderLeft:`4px solid ${c.hex||'#d0e6f5'}`,
+          border:'1px solid var(--border)', borderRadius:10, padding:'12px 14px',
+          background:'var(--bg)', display:'flex', flexDirection:'column', gap:8,
+          borderLeft:`4px solid ${c.hex||'var(--border)'}`,
         }}>
           <div style={{ display:'grid', gridTemplateColumns:'auto 1fr 1fr', gap:8, alignItems:'end' }}>
             {/* Hex picker */}
             <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
               <span style={{ ...fieldLabel, fontSize:'0.7rem' }}>Colour</span>
               <label style={{
-                width:38, height:38, borderRadius:8, border:'1px solid #d0e6f5',
+                width:38, height:38, borderRadius:8, border:'1px solid var(--border)',
                 overflow:'hidden', cursor:'pointer', display:'block',
               }}>
                 <input type="color" value={c.hex||'#000000'}
@@ -281,12 +281,12 @@ function ColorVariantEditor({ colors, onChange }: {
                 value={c.image} onChange={e=>update(i,'image',e.target.value)} style={inp()} />
             </label>
             {c.image && c.image.startsWith('http') && (
-              <img src={c.image} alt="" style={{ width:40,height:40,borderRadius:6,objectFit:'contain',background:'#fff',border:'1px solid #d0e6f5',flexShrink:0 }}
+              <img src={c.image} alt="" style={{ width:40,height:40,borderRadius:6,objectFit:'contain',background:'var(--surface)',border:'1px solid var(--border)',flexShrink:0 }}
                 onError={e=>{(e.target as HTMLImageElement).style.display='none';}} />
             )}
             <button type="button" onClick={()=>remove(i)}
-              style={{ marginTop:20,padding:'6px 10px',background:'#fee2e2',border:'1px solid #fca5a5',
-                borderRadius:7,color:'#ef4444',cursor:'pointer',fontSize:'0.78rem',fontWeight:700,flexShrink:0 }}>
+              style={{ marginTop:20,padding:'6px 10px',background:'var(--danger-bg)',border:'1px solid #fca5a5',
+                borderRadius:7,color:'var(--danger)',cursor:'pointer',fontSize:'0.78rem',fontWeight:700,flexShrink:0 }}>
               ✕ Remove
             </button>
           </div>
@@ -294,12 +294,12 @@ function ColorVariantEditor({ colors, onChange }: {
       ))}
       <button type="button" onClick={add}
         style={{
-          padding:'10px', border:'1.5px dashed #2B9FD8', borderRadius:10,
-          background:'transparent', color:'#2B9FD8', cursor:'pointer',
+          padding:'10px', border:'1.5px dashed var(--primary)', borderRadius:10,
+          background:'transparent', color:'var(--primary)', cursor:'pointer',
           fontWeight:700, fontSize:'0.85rem', fontFamily:'inherit',
           transition:'background 0.15s',
         }}
-        onMouseEnter={e=>e.currentTarget.style.background='#eaf3fa'}
+        onMouseEnter={e=>e.currentTarget.style.background='var(--surface-2)'}
         onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
         + Add Colour Variant
       </button>
@@ -320,7 +320,7 @@ function InventoryGrid({ sizes, colors, stock, onChange }: {
   const rows = colors.length > 0 ? colors.map(c=>c.name) : ['default'];
 
   if (sizes.length === 0) {
-    return <p style={{ fontSize:'0.8rem', color:'#9badb8', fontStyle:'italic' }}>Select sizes above to manage inventory.</p>;
+    return <p style={{ fontSize:'0.8rem', color:'var(--text-muted)', fontStyle:'italic' }}>Select sizes above to manage inventory.</p>;
   }
 
   const get = (row:string, size:string) => {
@@ -347,17 +347,17 @@ function InventoryGrid({ sizes, colors, stock, onChange }: {
     <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
       {/* Bulk setter */}
       <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-        <span style={{ fontSize:'0.8rem', color:'#5a6a7a', fontWeight:600 }}>Set all to same qty:</span>
+        <span style={{ fontSize:'0.8rem', color:'var(--text-muted)', fontWeight:600 }}>Set all to same qty:</span>
         <FocusInput type="number" min="0" placeholder="e.g. 10"
           value={bulkVal} onChange={e=>setBulkVal(e.target.value)}
           style={{ ...inp(), width:90 }} />
         <button type="button" onClick={setAll}
-          style={{ padding:'7px 14px',background:'#eaf3fa',border:'1px solid #2B9FD8',
-            borderRadius:8,color:'#2B9FD8',cursor:'pointer',fontWeight:700,fontSize:'0.8rem',
+          style={{ padding:'7px 14px',background:'var(--surface-2)',border:'1px solid var(--primary)',
+            borderRadius:8,color:'var(--primary)',cursor:'pointer',fontWeight:700,fontSize:'0.8rem',
             fontFamily:'inherit',whiteSpace:'nowrap' }}>
           Apply
         </button>
-        <span style={{ fontSize:'0.72rem', color:'#9badb8' }}>· blank = unlimited</span>
+        <span style={{ fontSize:'0.72rem', color:'var(--text-muted)' }}>· blank = unlimited</span>
       </div>
 
       {/* Grid */}
@@ -365,15 +365,15 @@ function InventoryGrid({ sizes, colors, stock, onChange }: {
         <table style={{ borderCollapse:'collapse', width:'100%', fontSize:'0.78rem' }}>
           <thead>
             <tr>
-              <th style={{ padding:'6px 10px', background:'#eaf3fa', textAlign:'left',
-                borderBottom:'1px solid #d0e6f5', borderRadius:'8px 0 0 0',
-                color:'#5a6a7a', fontWeight:700, minWidth:90 }}>
+              <th style={{ padding:'6px 10px', background:'var(--surface-2)', textAlign:'left',
+                borderBottom:'1px solid var(--border)', borderRadius:'8px 0 0 0',
+                color:'var(--text-muted)', fontWeight:700, minWidth:90 }}>
                 {colors.length > 0 ? 'Colour' : '—'}
               </th>
               {sizes.map(s => (
-                <th key={s} style={{ padding:'6px 10px', background:'#eaf3fa',
-                  borderBottom:'1px solid #d0e6f5', borderLeft:'1px solid #d0e6f5',
-                  color:'#5a6a7a', fontWeight:700, minWidth:58, textAlign:'center' }}>
+                <th key={s} style={{ padding:'6px 10px', background:'var(--surface-2)',
+                  borderBottom:'1px solid var(--border)', borderLeft:'1px solid var(--border)',
+                  color:'var(--text-muted)', fontWeight:700, minWidth:58, textAlign:'center' }}>
                   {s.replace('UK ','')}
                 </th>
               ))}
@@ -382,8 +382,8 @@ function InventoryGrid({ sizes, colors, stock, onChange }: {
           <tbody>
             {rows.map((row,ri) => (
               <tr key={row}>
-                <td style={{ padding:'5px 10px', borderBottom:'1px solid #d0e6f5',
-                  fontWeight:600, color:'#1a1a2e', background:ri%2===0?'#fff':'#f9fbfd' }}>
+                <td style={{ padding:'5px 10px', borderBottom:'1px solid var(--border)',
+                  fontWeight:600, color:'var(--text)', background:ri%2===0?'var(--surface)':'var(--surface-2)' }}>
                   {colors.length > 0 ? (
                     <span style={{ display:'flex', alignItems:'center', gap:6 }}>
                       <span style={{ width:12,height:12,borderRadius:'50%',
@@ -396,18 +396,18 @@ function InventoryGrid({ sizes, colors, stock, onChange }: {
                   const v = get(row, size);
                   const oos = v !== '' && Number(v) === 0;
                   return (
-                    <td key={size} style={{ padding:'4px 6px', borderBottom:'1px solid #d0e6f5',
-                      borderLeft:'1px solid #d0e6f5', textAlign:'center',
-                      background:ri%2===0?'#fff':'#f9fbfd' }}>
+                    <td key={size} style={{ padding:'4px 6px', borderBottom:'1px solid var(--border)',
+                      borderLeft:'1px solid var(--border)', textAlign:'center',
+                      background:ri%2===0?'var(--surface)':'var(--surface-2)' }}>
                       <input type="number" min="0"
                         value={v} onChange={e=>set(row,size,e.target.value)}
                         placeholder="∞"
                         style={{
                           width:50, padding:'4px 6px', textAlign:'center',
-                          border:`1px solid ${oos?'#fca5a5':v?'#86efac':'#d0e6f5'}`,
+                          border:`1px solid ${oos?'#fca5a5':v?'#86efac':'var(--border)'}`,
                           borderRadius:6, fontSize:'0.78rem', outline:'none',
-                          background:oos?'#fff1f2':v?'#f0fdf4':'#fff',
-                          color:oos?'#ef4444':'#1a1a2e', fontFamily:'inherit',
+                          background:oos?'var(--danger-bg)':v?'var(--success-bg)':'var(--surface)',
+                          color:oos?'var(--danger)':'var(--text)', fontFamily:'inherit',
                         }} />
                     </td>
                   );
@@ -416,7 +416,7 @@ function InventoryGrid({ sizes, colors, stock, onChange }: {
             ))}
           </tbody>
         </table>
-        <p style={{ fontSize:'0.7rem', color:'#9badb8', marginTop:6 }}>
+        <p style={{ fontSize:'0.7rem', color:'var(--text-muted)', marginTop:6 }}>
           🔴 Red = out of stock (shows "Out of Stock" badge on product page) · Green = in stock · Blank = unlimited
         </p>
       </div>
@@ -432,7 +432,7 @@ const FocusInput = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<
     const [focused, setFocused] = useState(false);
     return (
       <input ref={ref} type={type} {...props}
-        style={{ ...style, borderColor: focused?'#2B9FD8':'#d0e6f5' }}
+        style={{ ...style, borderColor: focused?'var(--primary)':'var(--border)' }}
         onFocus={e=>{setFocused(true);props.onFocus?.(e);}}
         onBlur={e=>{setFocused(false);props.onBlur?.(e);}} />
     );
@@ -480,10 +480,10 @@ function ProductModal({ open, onClose, editing, draft, setDraft, onSubmit, savin
 
   const S: Record<string,React.CSSProperties> = {
     backdrop: { position:'fixed',inset:0,background:'rgba(26,26,46,0.6)',backdropFilter:'blur(4px)',zIndex:1000,animation:'fadeIn 0.2s ease' },
-    panel: { position:'fixed',top:0,right:0,bottom:0,width:'min(620px,100vw)',background:'#fff',zIndex:1001,display:'flex',flexDirection:'column',boxShadow:'-10px 0 50px rgba(43,159,216,0.15)',animation:'slideIn 0.28s cubic-bezier(0.4,0,0.2,1)' },
-    header: { padding:'18px 24px',borderBottom:'1px solid #d0e6f5',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0 },
+    panel: { position:'fixed',top:0,right:0,bottom:0,width:'min(620px,100vw)',background:'var(--surface)',zIndex:1001,display:'flex',flexDirection:'column',boxShadow:'-10px 0 50px rgba(43,159,216,0.15)',animation:'slideIn 0.28s cubic-bezier(0.4,0,0.2,1)' },
+    header: { padding:'18px 24px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0 },
     body: { flex:1,overflowY:'auto',padding:'20px 24px',display:'flex',flexDirection:'column',gap:16 },
-    footer: { padding:'14px 24px',borderTop:'1px solid #d0e6f5',display:'flex',gap:10,flexShrink:0,background:'#fff' },
+    footer: { padding:'14px 24px',borderTop:'1px solid var(--border)',display:'flex',gap:10,flexShrink:0,background:'var(--surface)' },
     grid2: { display:'grid',gridTemplateColumns:'1fr 1fr',gap:14 },
   };
 
@@ -498,12 +498,12 @@ function ProductModal({ open, onClose, editing, draft, setDraft, onSubmit, savin
             <h2 style={{ fontFamily:'var(--font-display)',fontSize:'1.1rem',fontWeight:800,margin:0 }}>
               {editing ? `Edit Product #${editing.id}` : 'Add New Product'}
             </h2>
-            {editing && <p style={{ fontSize:'0.74rem',color:'#9badb8',margin:'2px 0 0' }}>{editing.name}</p>}
+            {editing && <p style={{ fontSize:'0.74rem',color:'var(--text-muted)',margin:'2px 0 0' }}>{editing.name}</p>}
           </div>
           <button type="button" onClick={onClose}
-            style={{ width:34,height:34,borderRadius:'50%',border:'1.5px solid #d0e6f5',background:'#f4f8fb',cursor:'pointer',fontSize:'1rem',display:'flex',alignItems:'center',justifyContent:'center',color:'#5a6a7a',transition:'all 0.15s' }}
-            onMouseEnter={e=>{e.currentTarget.style.background='#fee2e2';e.currentTarget.style.color='#ef4444';}}
-            onMouseLeave={e=>{e.currentTarget.style.background='#f4f8fb';e.currentTarget.style.color='#5a6a7a';}}>
+            style={{ width:34,height:34,borderRadius:'50%',border:'1.5px solid var(--border)',background:'var(--bg)',cursor:'pointer',fontSize:'1rem',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--text-muted)',transition:'all 0.15s' }}
+            onMouseEnter={e=>{e.currentTarget.style.background='var(--danger-bg)';e.currentTarget.style.color='var(--danger)';}}
+            onMouseLeave={e=>{e.currentTarget.style.background='var(--bg)';e.currentTarget.style.color='var(--text-muted)';}}>
             ✕
           </button>
         </div>
@@ -532,16 +532,16 @@ function ProductModal({ open, onClose, editing, draft, setDraft, onSubmit, savin
               </select>
             </label>
             <label style={fieldLabel}>
-              Sale Price (₹) * <span style={{ color:'#9badb8',fontWeight:400,fontSize:'0.7rem'}}>— ACTUAL SELLING PRICE</span>
+              Sale Price (₹) * <span style={{ color:'var(--text-muted)',fontWeight:400,fontSize:'0.7rem'}}>— ACTUAL SELLING PRICE</span>
               <FocusInput type="number" placeholder="2799" value={draft.price||''}
                 onChange={e=>setDraft(d=>({...d,price:Number(e.target.value)}))} style={inp()} />
             </label>
             <label style={fieldLabel}>
-              Original MRP (₹) <span style={{ color:'#9badb8',fontWeight:400,fontSize:'0.7rem'}}>— CROSSED-OUT PRICE</span>
+              Original MRP (₹) <span style={{ color:'var(--text-muted)',fontWeight:400,fontSize:'0.7rem'}}>— CROSSED-OUT PRICE</span>
               <FocusInput type="number" placeholder="Leave blank for no offer" value={draft.original_price||''}
                 onChange={e=>setDraft(d=>({...d,original_price:Number(e.target.value)}))} style={inp()} />
               {draft.original_price && Number(draft.original_price)>0 && Number(draft.original_price)<draft.price && (
-                <span style={{ fontSize:'0.7rem',color:'#ef4444' }}>⚠ Must be higher than sale price</span>
+                <span style={{ fontSize:'0.7rem',color:'var(--danger)' }}>⚠ Must be higher than sale price</span>
               )}
             </label>
             <label style={{ ...fieldLabel, gridColumn:'1/-1' }}>
@@ -564,7 +564,7 @@ function ProductModal({ open, onClose, editing, draft, setDraft, onSubmit, savin
           <div>
             <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10 }}>
               <p style={{ ...sectionHead, margin:0 }}>📐 Sizes Available</p>
-              <label style={{ display:'flex',alignItems:'center',gap:6,fontSize:'0.72rem',color:'#9badb8',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.5px' }}>
+              <label style={{ display:'flex',alignItems:'center',gap:6,fontSize:'0.72rem',color:'var(--text-muted)',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.5px' }}>
                 Size Unit *
                 <select
                   value={selectedSizeUnit}
@@ -582,9 +582,9 @@ function ProductModal({ open, onClose, editing, draft, setDraft, onSubmit, savin
                   <button key={s} type="button" onClick={()=>toggleSize(s)}
                     style={{
                       padding:'6px 12px',borderRadius:8,fontSize:'0.8rem',fontWeight:600,
-                      border:`1.5px solid ${active?'#2B9FD8':'#d0e6f5'}`,
-                      background:active?'#2B9FD8':'#f4f8fb',
-                      color:active?'#fff':'#5a6a7a',cursor:'pointer',transition:'all 0.15s',
+                      border:`1.5px solid ${active?'var(--primary)':'var(--border)'}`,
+                      background:active?'var(--primary)':'var(--bg)',
+                      color:active?'var(--on-primary)':'var(--text-muted)',cursor:'pointer',transition:'all 0.15s',
                     }}>
                     {s}
                   </button>
@@ -592,7 +592,7 @@ function ProductModal({ open, onClose, editing, draft, setDraft, onSubmit, savin
               })}
             </div>
             {draft.sizes.length > 0 && (
-              <p style={{ fontSize:'0.72rem',color:'#9badb8',marginTop:8 }}>
+              <p style={{ fontSize:'0.72rem',color:'var(--text-muted)',marginTop:8 }}>
                 Selected {selectedSizeUnit}: {draft.sizes.join(' | ')}
               </p>
             )}
@@ -602,7 +602,7 @@ function ProductModal({ open, onClose, editing, draft, setDraft, onSubmit, savin
           <div>
             <p style={sectionHead}>
               🎨 Color Variants
-              <span style={{ fontWeight:400,textTransform:'none',letterSpacing:0,fontSize:'0.7rem',color:'#9badb8' }}>
+              <span style={{ fontWeight:400,textTransform:'none',letterSpacing:0,fontSize:'0.7rem',color:'var(--text-muted)' }}>
                 (optional — each can have its own price + image)
               </span>
             </p>
@@ -613,7 +613,7 @@ function ProductModal({ open, onClose, editing, draft, setDraft, onSubmit, savin
           <div>
             <div style={{ display:'flex',alignItems:'baseline',justifyContent:'space-between' }}>
               <p style={{ ...sectionHead, margin:'0 0 8px' }}>📋 Product Specifications</p>
-              <span style={{ fontSize:'0.68rem',color:'#9badb8' }}>One "Key: Value" per line · e.g. "Material: Leather"</span>
+              <span style={{ fontSize:'0.68rem',color:'var(--text-muted)' }}>One "Key: Value" per line · e.g. "Material: Leather"</span>
             </div>
             <textarea
               placeholder={'Material: Full-grain leather\nSole: Rubber\nClosure: Lace-up\nWeight: 320g'}
@@ -627,7 +627,7 @@ function ProductModal({ open, onClose, editing, draft, setDraft, onSubmit, savin
           <div>
             <p style={sectionHead}>
               📦 Inventory
-              <span style={{ fontWeight:400,textTransform:'none',letterSpacing:0,fontSize:'0.7rem',color:'#9badb8' }}>
+              <span style={{ fontWeight:400,textTransform:'none',letterSpacing:0,fontSize:'0.7rem',color:'var(--text-muted)' }}>
                 (stock per colour × size — leave blank = unlimited)
               </span>
             </p>
@@ -647,16 +647,16 @@ function ProductModal({ open, onClose, editing, draft, setDraft, onSubmit, savin
         {/* Footer */}
         <div style={S.footer}>
           <button type="button" onClick={onClose}
-            style={{ flex:1,padding:'11px',border:'1.5px solid #d0e6f5',borderRadius:10,background:'#fff',color:'#5a6a7a',fontWeight:600,cursor:'pointer',fontFamily:'inherit',fontSize:'0.9rem',transition:'background 0.15s' }}
-            onMouseEnter={e=>e.currentTarget.style.background='#f4f8fb'}
-            onMouseLeave={e=>e.currentTarget.style.background='#fff'}>
+            style={{ flex:1,padding:'11px',border:'1.5px solid var(--border)',borderRadius:10,background:'var(--surface)',color:'var(--text-muted)',fontWeight:600,cursor:'pointer',fontFamily:'inherit',fontSize:'0.9rem',transition:'background 0.15s' }}
+            onMouseEnter={e=>e.currentTarget.style.background='var(--bg)'}
+            onMouseLeave={e=>e.currentTarget.style.background='var(--surface)'}>
             Cancel
           </button>
           <button type="button" disabled={saving} onClick={onSubmit}
             style={{
               flex:2,padding:'11px',border:'none',borderRadius:10,
-              background:saving?'#9badb8':'linear-gradient(135deg,#2B9FD8,#1a7ab0)',
-              color:'#fff',fontWeight:700,cursor:saving?'not-allowed':'pointer',
+              background:saving?'var(--text-muted)':'var(--primary)',
+              color:'var(--on-primary)',fontWeight:700,cursor:saving?'not-allowed':'pointer',
               fontFamily:'inherit',fontSize:'0.9rem',
               display:'flex',alignItems:'center',justifyContent:'center',gap:8,
             }}>
@@ -678,7 +678,7 @@ function ProductModal({ open, onClose, editing, draft, setDraft, onSubmit, savin
 }
 
 function SpinIcon() {
-  return <div style={{ width:15,height:15,border:'2px solid rgba(255,255,255,0.4)',borderTopColor:'#fff',borderRadius:'50%',animation:'spin 0.8s linear infinite' }}/>;
+  return <div style={{ width:15,height:15,border:'2px solid rgba(255,255,255,0.4)',borderTopColor:'var(--on-primary)',borderRadius:'50%',animation:'spin 0.8s linear infinite' }}/>;
 }
 
 /* ══════════════════════════════════════════
@@ -783,7 +783,7 @@ export default function AdminProductsPage() {
         <div className="admin-section-head">
           <h2>
             Products{' '}
-            <span style={{ fontSize:'0.8rem',color:'#9badb8',fontWeight:400 }}>
+            <span style={{ fontSize:'0.8rem',color:'var(--text-muted)',fontWeight:400 }}>
               ({visible.length}{query||brandFilter?` of ${products.length}`:''})</span>
           </h2>
           <button type="button" className="admin-primary-btn" onClick={openCreate}
@@ -798,7 +798,7 @@ export default function AdminProductsPage() {
             placeholder="🔍  Search by name or brand…"
             value={query} onChange={e=>setQuery(e.target.value)} />
           <select value={brandFilter} onChange={e=>setBrandFilter(e.target.value)}
-            style={{ padding:'9px 12px',border:'1px solid #d0e6f5',borderRadius:8,fontSize:'0.86rem',background:'#f4f8fb',color:'#1a1a2e',cursor:'pointer',minWidth:130 }}>
+            style={{ padding:'9px 12px',border:'1px solid var(--border)',borderRadius:8,fontSize:'0.86rem',background:'var(--bg)',color:'var(--text)',cursor:'pointer',minWidth:130 }}>
             <option value="">All Brands</option>
             {brands.map(b=><option key={b} value={b}>{b}</option>)}
           </select>
@@ -808,17 +808,17 @@ export default function AdminProductsPage() {
         {loading ? (
           <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:12 }}>
             {Array(8).fill(0).map((_,i)=>(
-              <div key={i} style={{ background:'#eaf3fa',borderRadius:12,height:260,animation:'pulse 1.5s ease-in-out infinite' }}/>
+              <div key={i} style={{ background:'var(--surface-2)',borderRadius:12,height:260,animation:'pulse 1.5s ease-in-out infinite' }}/>
             ))}
           </div>
         ) : visible.length === 0 ? (
-          <div style={{ textAlign:'center',padding:'48px 20px',color:'#9badb8' }}>
+          <div style={{ textAlign:'center',padding:'48px 20px',color:'var(--text-muted)' }}>
             <div style={{ fontSize:'2.5rem',marginBottom:10 }}>👟</div>
             {products.length===0
               ? <><p style={{ fontWeight:600,marginBottom:12 }}>No products yet</p>
                   <button className="admin-primary-btn" onClick={openCreate}>+ Add your first product</button></>
               : <><p>No products match your filter</p>
-                  <button onClick={()=>{setQuery('');setBrandFilter('');}} style={{ marginTop:8,background:'none',border:'1px solid #d0e6f5',borderRadius:6,padding:'5px 14px',color:'#2B9FD8',cursor:'pointer',fontSize:'0.82rem' }}>
+                  <button onClick={()=>{setQuery('');setBrandFilter('');}} style={{ marginTop:8,background:'none',border:'1px solid var(--border)',borderRadius:6,padding:'5px 14px',color:'var(--primary)',cursor:'pointer',fontSize:'0.82rem' }}>
                     Clear filters</button></>}
           </div>
         ) : (
@@ -826,12 +826,12 @@ export default function AdminProductsPage() {
             {visible.map(p=>(
               <article key={p.id} className="admin-product-card" style={{ position:'relative' }}>
                 {p.tag && (
-                  <div style={{ position:'absolute',top:8,left:8,zIndex:2,background:'#2B9FD8',color:'#fff',fontSize:'0.58rem',fontWeight:800,padding:'2px 7px',borderRadius:20,letterSpacing:'0.5px',textTransform:'uppercase' }}>
+                  <div style={{ position:'absolute',top:8,left:8,zIndex:2,background:'var(--primary)',color:'var(--on-primary)',fontSize:'0.58rem',fontWeight:800,padding:'2px 7px',borderRadius:20,letterSpacing:'0.5px',textTransform:'uppercase' }}>
                     {p.tag}
                   </div>
                 )}
                 {p.out_of_stock && (
-                  <div style={{ position:'absolute',top:8,right:8,zIndex:2,background:'#ef4444',color:'#fff',fontSize:'0.58rem',fontWeight:800,padding:'2px 7px',borderRadius:20,letterSpacing:'0.5px',textTransform:'uppercase' }}>
+                  <div style={{ position:'absolute',top:8,right:8,zIndex:2,background:'var(--danger)',color:'var(--on-primary)',fontSize:'0.58rem',fontWeight:800,padding:'2px 7px',borderRadius:20,letterSpacing:'0.5px',textTransform:'uppercase' }}>
                     OOS
                   </div>
                 )}
@@ -841,15 +841,15 @@ export default function AdminProductsPage() {
                 <h3 title={p.name}>{p.name}</h3>
                 <p>{p.brand}</p>
                 <div style={{ display:'flex',alignItems:'center',gap:6,marginBottom:2 }}>
-                  <strong style={{ color:'#2B9FD8' }}>₹{p.price.toLocaleString('en-IN')}</strong>
+                  <strong style={{ color:'var(--primary)' }}>₹{p.price.toLocaleString('en-IN')}</strong>
                   {p.original_price&&p.original_price>p.price&&(
-                    <><span style={{ fontSize:'0.72rem',color:'#9badb8',textDecoration:'line-through' }}>₹{p.original_price.toLocaleString('en-IN')}</span>
-                    <span style={{ fontSize:'0.62rem',fontWeight:800,background:'#fff0f0',color:'#e53e3e',padding:'1px 5px',borderRadius:10 }}>
+                    <><span style={{ fontSize:'0.72rem',color:'var(--text-muted)',textDecoration:'line-through' }}>₹{p.original_price.toLocaleString('en-IN')}</span>
+                    <span style={{ fontSize:'0.62rem',fontWeight:800,background:'#fff0f0',color:'var(--danger)',padding:'1px 5px',borderRadius:10 }}>
                       {Math.round((p.original_price-p.price)/p.original_price*100)}% OFF
                     </span></>
                   )}
                 </div>
-                {Array.isArray(p.sizes)&&p.sizes.length>0&&<p style={{ fontSize:'0.68rem',color:'#9badb8',marginBottom:4 }}>{normalizeSizeUnit(p.size_unit)} {normalizeSizeList(p.sizes).slice(0,4).join(' | ')}{p.sizes.length>4?'...':''}</p>}
+                {Array.isArray(p.sizes)&&p.sizes.length>0&&<p style={{ fontSize:'0.68rem',color:'var(--text-muted)',marginBottom:4 }}>{normalizeSizeUnit(p.size_unit)} {normalizeSizeList(p.sizes).slice(0,4).join(' | ')}{p.sizes.length>4?'...':''}</p>}
                 <div className="admin-card-actions">
                   <button type="button" onClick={()=>openEdit(p)}>✏️ Edit</button>
                   <button type="button" className="danger" onClick={()=>remove(p)}>Delete</button>
@@ -867,7 +867,7 @@ export default function AdminProductsPage() {
         onSubmit={submit} saving={saving} />
 
       {toast && (
-        <div style={{ position:'fixed',bottom:28,left:'50%',transform:'translateX(-50%)',background:'#1a1a2e',color:'#fff',padding:'11px 22px',borderRadius:30,fontSize:'0.88rem',fontWeight:600,boxShadow:'0 8px 24px rgba(0,0,0,0.2)',zIndex:9999,borderLeft:'3px solid #2B9FD8',whiteSpace:'nowrap',animation:'fadeIn 0.2s ease' }}>
+        <div style={{ position:'fixed',bottom:28,left:'50%',transform:'translateX(-50%)',background:'var(--text)',color:'var(--on-primary)',padding:'11px 22px',borderRadius:30,fontSize:'0.88rem',fontWeight:600,boxShadow:'0 8px 24px rgba(0,0,0,0.2)',zIndex:9999,borderLeft:'3px solid var(--primary)',whiteSpace:'nowrap',animation:'fadeIn 0.2s ease' }}>
           {toast}
         </div>
       )}

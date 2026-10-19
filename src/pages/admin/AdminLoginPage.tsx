@@ -1,4 +1,5 @@
 import { FormEvent, useState, useRef, useCallback, useEffect } from 'react';
+import ThemeSwitch from '@/components/ThemeSwitch';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { adminLogin } from '@/api/admin';
 import { useAdminAuth } from '@/context/AdminAuthContext';
@@ -121,6 +122,7 @@ export default function AdminLoginPage() {
 
   return (
     <main className="admin-login-page">
+      <div style={{position:'fixed',top:20,right:20}}><ThemeSwitch/></div>
       <form className="admin-login-card" onSubmit={submit} autoComplete="on">
         <div className="admin-lock">🔐</div>
         <h1>CALVAC Admin</h1>
