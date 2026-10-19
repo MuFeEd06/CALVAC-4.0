@@ -12,6 +12,7 @@ ROUTE_LIMITS = {
     'admin-read': (120, 60), 'admin-write': (30, 60),
     'order-create': (8, 600), 'upload': (20, 3600), 'search': (30, 60),
     'account-read': (120, 60), 'account-write': (20, 60), 'payment': (20, 60),
+    'assistant-chat': (20, 60), 'assistant-day': (200, 86400), 'assistant-generate': (300, 86400),
 }
 RATE_SCRIPT = """
 local count = redis.call('INCR', KEYS[1])

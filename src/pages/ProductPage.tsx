@@ -1,5 +1,5 @@
 import { imageFallback, FALLBACK_IMAGE } from '@/utils/images';
-import { useEffect, useMemo, useState } from 'react';
+import { lazy,Suspense,useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fetchProduct, fetchProducts, ikResize } from '@/api';
@@ -11,6 +11,7 @@ import { useToast } from '@/context/ToastContext';
 import ProductCard from '@/components/ProductCard';
 import ProductSpecifications from '@/components/ProductSpecifications';
 import { relatedProducts } from '@/utils/productDetails';
+const ProductAssistant=lazy(()=>import('@/components/ProductAssistant'));
 
 function ProductStateMessage({
   title,
@@ -228,6 +229,7 @@ export default function ProductPage() {
           </motion.div>
 
           <div style={{ minWidth: 0 }}>
+            <div className="product-summary-top"><div>
             <button type="button" onClick={() => navigate(-1)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', background: 'none', border: 'none', fontSize: '0.85rem', cursor: 'pointer', marginBottom: 20, padding: 0 }}>
               Back
             </button>
@@ -248,6 +250,8 @@ export default function ProductPage() {
                 </>
               )}
             </div>
+
+            </div><Suspense fallback={<div className="guide-placeholder"/>}><ProductAssistant key={product.id} product={product} selectedSize={selectedSize} selectedColor={selectedColor?.name||''}/></Suspense></div>
 
             <p style={{ color: 'var(--text-muted)', lineHeight: 1.8, margin: '16px 0', fontSize: '0.95rem', borderLeft: '2px solid var(--primary)', paddingLeft: 14 }}>
               {product.specs?.trim() ? 'See the product details below for specifications.' : 'Contact us for details about this product.'}

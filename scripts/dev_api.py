@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from urllib.parse import urlparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from api import admin, auth, health, orders, store, theme_css, upload, account, payments, checkout_config
+from api import admin, auth, health, orders, store, theme_css, upload, account, payments, checkout_config, assistant
 from api._lib._responses import ApiError, send_error
 
 
@@ -30,6 +30,7 @@ class handler(BaseHTTPRequestHandler):
         elif path == '/api/account': endpoint = account.handler
         elif path.startswith('/api/razorpay/'): endpoint = payments.handler
         elif path == '/api/checkout-config': endpoint = checkout_config.handler
+        elif path == '/api/assistant': endpoint = assistant.handler
         elif path in ('/api/theme-css', '/api/theme_css'): endpoint = theme_css.handler
         elif path in ('/api/ping', '/api/health'): endpoint = health.handler
         elif path.split('/')[2:3] and path.split('/')[2] in ('products', 'search', 'site-settings', 'offer'): endpoint = store.handler

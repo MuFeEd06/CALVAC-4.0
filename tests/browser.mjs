@@ -8,7 +8,8 @@ const root = resolve('dist');
 const artifact = resolve('test-results');
 await mkdir(artifact, { recursive: true });
 const product = { id: 1, name: 'Audit Sneaker', brand: 'Audit', price: 100, image: '/product-placeholder.svg', size_unit: 'UK', sizes: ['8'], colors: [{ name: 'Red', hex: '#FF0000', price: 150 }, { name: 'Blue', hex: '#0000FF', price: 120 }], stock: { 'Red|8': 5, 'Blue|8': 0 }, tag: 'new' };
-const calls = [], orderKeys = [];
+const calls = [], orderKeys = [], assistantQuestions=[];
+let assistantFailures=0;
 let orderAttempts = 0;
 let paymentPaid=false,paymentVerifications=0,adminCancelled=false;
 const customerFixture={id:'11111111-1111-4111-8111-111111111111',aud:'authenticated',role:'authenticated',email:'customer@example.invalid',app_metadata:{provider:'email'},user_metadata:{full_name:'Customer Fixture'},created_at:new Date().toISOString()};
@@ -24,6 +25,16 @@ const server = createServer(async (request, response) => {
     if (url.pathname.startsWith('/api/')) {
       response.setHeader('Content-Type', 'application/json');
       let result = {};
+      if(url.pathname==='/api/assistant'){
+        let raw='';for await(const chunk of request)raw+=chunk;
+        const body=JSON.parse(raw);assistantQuestions.push(body);
+        assert.equal(typeof body.question,'string');assert.equal(body.productId,1);
+        assert.ok(body.previousQuestions.length<=3);assert.ok(!('messages' in body));
+        await new Promise(resolve=>setTimeout(resolve,150));
+        if(body.question==='Show failure shoes'&&assistantFailures++===0){response.statusCode=503;result={error:'Fixture assistant unavailable'};}
+        else if(body.question.includes('weather'))result={reply:'I can help with CALVAC footwear and sizing. What shoes are you looking for?',products:[]};
+        else result={reply:'UK 8 is listed for this model. Fit varies by brand and model; I cannot assume a conversion without a size chart.',products:[{id:2,name:'Catalog match sneaker',brand:'Audit',price:150,image:'/product-placeholder.svg',sizeUnit:'UK',sizes:['8'],unavailable:false}],mode:'catalog'};
+      }
       if(url.pathname==='/api/checkout-config')result={methods:{whatsapp:true,cod:true,razorpay:false}};
       if(url.pathname==='/api/account'){
         assert.ok(request.headers.authorization?.startsWith('Bearer '),'account requests must include the signed-in session');
@@ -79,7 +90,7 @@ const results = {};
 async function context(options = {}) {
   const context = await browser.newContext(options);
   await context.route('**/*', async route => {
-    if (route.request().url().startsWith(origin)) return route.continue();
+    if (route.request().url().startsWith(origin)||route.request().url().startsWith('blob:'+origin)) return route.continue();
     if (route.request().resourceType() === 'image') return route.fulfill({ contentType: 'image/svg+xml', body: await readFile(resolve(root, 'product-placeholder.svg')) });
     return route.abort();
   });
@@ -213,7 +224,56 @@ try {
     await specs.screenshot({path:resolve(artifact,`specifications-mobile-${mode}.png`)});
   }
   results.collectionAndDetails={explicitAndLegacyCategories:true,similarFallback:true,rectangularReadableSpecifications:true,vectorIcons:true};
+  const beforeGuide=calls.length;
+  const guideLauncher=fixedPage.getByRole('button',{name:'Open CALVAC product guide',exact:true});
+  await guideLauncher.scrollIntoViewIfNeeded();
+  assert.equal(await fixedPage.locator('.companion-character canvas').count(),0);
+  assert.equal(await fixedPage.locator('.companion-character img').evaluate(img=>img.complete&&img.naturalWidth>0),true);
+  await guideLauncher.click();
+  const chat=fixedPage.getByRole('dialog',{name:'CALVAC Guide',exact:true});
+  const question=chat.getByLabel('Ask about products or shoe sizes',{exact:true});
+  await question.focus();assert.equal(await question.evaluate(el=>el===document.activeElement),true);
+  await question.fill('Which sizes are available?');
+  await question.press('Enter');await question.press('Enter');
+  await chat.getByRole('link',{name:/Catalog match sneaker/}).waitFor();
+  assert.equal(assistantQuestions.length,1,'Duplicate sends must be blocked');
+  assert.equal(assistantQuestions[0].productId,1);
+  assert.equal(assistantQuestions[0].selectedColor,'Red');
+  assert.equal(await fixedPage.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  assert.deepEqual(await readability(fixedPage),[],'Dark assistant contrast');
+  await chat.screenshot({path:resolve(artifact,'product-guide-mobile-dark.png')});
+  await question.fill('What is the weather?');await question.press('Enter');
+  await chat.getByText('I can help with CALVAC footwear and sizing. What shoes are you looking for?',{exact:true}).waitFor();
+  assert.deepEqual(assistantQuestions[1].previousQuestions,['Which sizes are available?']);
+  await question.fill('Show failure shoes');await question.press('Enter');
+  await chat.getByRole('alert').waitFor();
+  await chat.getByRole('button',{name:'Try again',exact:true}).click();
+  await fixedPage.waitForFunction(()=>document.querySelectorAll('.guide-message-assistant').length===4);
+  assert.equal(await chat.locator('.guide-message-user').filter({hasText:'Show failure shoes'}).count(),1,'Retry must not repeat the user message');
+  assert.equal(assistantQuestions[3].previousQuestions.includes('Show failure shoes'),false);
+  await question.press('Escape');await chat.waitFor({state:'hidden'});
+  assert.equal(await guideLauncher.evaluate(el=>el===document.activeElement),true);
+  await fixedPage.getByRole('button',{name:'Switch to light theme',exact:true}).click();
+  await guideLauncher.click();assert.deepEqual(await readability(fixedPage),[],'Light assistant contrast');
+  await chat.screenshot({path:resolve(artifact,'product-guide-mobile-light.png')});
+  await chat.getByRole('link',{name:/Catalog match sneaker/}).first().click();
+  assert.equal(new URL(fixedPage.url()).pathname,'/product/2');
+  assert.equal(calls.slice(beforeGuide).some(path=>path.includes('companionScene')||path.endsWith('.glb')),false,'Reduced-motion guide must stay on its poster');
+  results.productAssistant={productContext:true,keyboard:true,doubleSendGuard:true,errorRetry:true,historyBounded:true,productLinks:true,lightDarkContrast:true,reducedMotionPoster:true};
   await fixes.close();
+
+  const character=await context({viewport:{width:1366,height:900}});
+  const characterPage=await character.newPage();
+  await characterPage.goto(origin+'/product/1');
+  await characterPage.waitForFunction(()=>document.querySelector('.companion-character')?.dataset.ready==='true',null,{timeout:30000});
+  await characterPage.waitForTimeout(500);
+  assert.equal(await characterPage.locator('.companion-character canvas').evaluate(canvas=>canvas.width>0&&canvas.height>0),true);
+  await characterPage.screenshot({path:resolve(artifact,'product-guide-desktop.png'),fullPage:false});
+  await characterPage.evaluate(()=>document.querySelector('.companion-character canvas').getContext('webgl2').getExtension('WEBGL_lose_context').loseContext());
+  await characterPage.waitForFunction(()=>!document.querySelector('.companion-character canvas'));
+  assert.equal(await characterPage.locator('.companion-character img').evaluate(img=>getComputedStyle(img).opacity),'1');
+  results.productAssistant.webglCharacter=true;results.productAssistant.contextLossFallback=true;
+  await character.close();
 
   const motion = await context({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const animation = await motion.newPage();
@@ -222,6 +282,7 @@ try {
   await animation.waitForFunction(() => document.querySelector('canvas')?.width > 300);
   await animation.waitForTimeout(400);
   const initialFrames = calls.slice(beforeFrames).filter(url => url.endsWith('.webp') && url.includes('/frames/'));
+  assert.equal(calls.slice(beforeFrames).some(path=>path.includes('companionScene')||path.includes('ProductAssistant')||path.includes('/companion/')),false,'Homepage must not download the product assistant');
   assert.ok(initialFrames.length >= 1 && initialFrames.length <= 5);
   assert.ok(initialFrames.every(url => url.includes('/mobile/')));
   await animation.screenshot({ path: resolve(artifact, 'home-mobile.png'), fullPage: false });
