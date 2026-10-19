@@ -24,7 +24,9 @@ The renderer is a separate dynamic chunk, loaded only when a product companion i
 
 ## Resend setup
 
-Domain sending records are present in Vercel DNS for `calvac.in` (`resend._domainkey`, `send`, `rsend`). DNS records alone do not enable Supabase SMTP. Confirm the domain says **Verified** in Resend, then save the following in [Supabase SMTP settings](https://supabase.com/dashboard/project/jjyysdxkoarjlxwttiak/auth/smtp):
+On 20 October 2026, the store owner confirmed that custom SMTP was saved in Supabase and `calvac.in` shows **Verified** in Resend. Public DNS lookup also confirmed the `resend._domainkey` TXT and the `send` / `rsend` CNAME records. Inbox delivery has not yet been tested with a real email.
+
+Configuration reference for [Supabase SMTP settings](https://supabase.com/dashboard/project/jjyysdxkoarjlxwttiak/auth/smtp):
 
 | Setting | Value |
 | --- | --- |
@@ -36,11 +38,13 @@ Domain sending records are present in Vercel DNS for `calvac.in` (`resend._domai
 | Username | resend |
 | Password | A Resend sending API key, entered directly in Supabase |
 
-Do not use the Gemini key as the SMTP password. Never commit the Resend key or put it in a `VITE_` variable. This sender configuration does not create an inbox for replies; receiving mail needs a mailbox/forwarder. Existing verification-resend and password-reset flows will use this SMTP provider after it is saved. No real email is sent by the automated fixture tests.
+Do not use the Gemini key as the SMTP password. Never commit the Resend key or put it in a `VITE_` variable. This sender configuration does not create an inbox for replies; receiving mail needs a mailbox/forwarder. Existing verification-resend and password-reset flows use the configured SMTP provider. No real email is sent by the automated fixture tests.
 
 References: [Resend’s Supabase SMTP instructions](https://resend.com/docs/send-with-supabase-smtp), [Gemini model documentation](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite).
 
 ## Release checks
+
+Application release `e7120a8` was deployed to `calvac.in` on 20 October 2026. All 31 Node tests, 38 Python tests, and browser regressions passed. Live checks confirmed real Gemini sizing replies, source product references, desktop 3D rendering, one active character renderer, mobile layout, both themes, and no browser or content-policy errors.
 
 - Python tests cover budget/category/model retrieval, fresh active listings, selected-colour prices/stock, unknown sizes, scope guards, request validation, model output validation, quota/provider fallback, and fail-closed rate limiting.
 - Browser fixtures cover keyboard/focus, double-send prevention, recoverable errors/retry, source links, both themes, mobile layout, reduced motion, actual WebGL rendering/context loss, and no companion downloads on the homepage.
