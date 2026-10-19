@@ -1,6 +1,8 @@
 # CALVAC upgrade: accounts, payments and deployment
 
-Status: **live at https://calvac.in**, served by **calvac-4-0**. Source is published to `MuFeEd06/CALVAC-4.0` on `main` and `codex/calvac-upgrade`. Both production database migrations were approved and applied. The previous **claxxic-india** project and its deployment remain available for rollback. Vercel MCP and the normal Vercel CLI are signed in to the intended account.
+Status: **live at https://calvac.in**, served by **calvac-4-0**. The latest hero/theme/WhatsApp release is published to `MuFeEd06/CALVAC-4.0` on `main` and `codex/hero-particles-theme`, release commit `70d7565`. Production deployment `dpl_DDJob3CkJHs2WJMG12VdZFUtVgij` is ready. See [HERO_RELEASE.md](HERO_RELEASE.md) for the new admin controls, validation and rollback instructions. The previous **claxxic-india** project and its deployment remain available for rollback. Vercel MCP and the normal Vercel CLI are signed in to the intended account.
+
+The new default is the supplied particle hero and warm monochrome palette. Admins can choose particles, the retained scroll animation or a hidden hero, and set different desktop/mobile shoes and positions. Light/dark preference persists throughout the store and admin. Matching WhatsApp carts from the same phone have an atomic five-minute cooldown with a customer popup. The third migration was applied before this release and retained all 979 current orders and 332 products. Local checks and live read-only verification passed; GitHub Actions was still queued waiting for hosted runners and is not claimed as passed.
 
 ## Customer and admin flows
 
@@ -22,6 +24,7 @@ Applied in order to `jjyysdxkoarjlxwttiak` on 19 October 2026:
 
 1. `supabase/migrations/20261019111147_checkout_hardening.sql`: add missing product/order fields, backfill snapshots from existing relational order items, widen address/image fields, add indexes, restrict public permissions/RLS, and add idempotent stock/order transactions.
 2. `supabase/migrations/20261019111159_customer_payments.sql`: add private customer profiles, verified-account order ownership, payment metadata/leases/events and rate-limit records; add service-only checkout, payment-event, expiry, cancellation and limiter RPCs. Profile RLS permits customers to access only their own profile; customer order access goes through the verified API and exposes no internal notes/stock metadata.
+3. `supabase/migrations/20261019161008_hero_theme_whatsapp_cooldown.sql`: add the private WhatsApp fingerprint/index, service-only atomic checkout v4 cooldown, and new particle/monochrome defaults. Post-apply verification confirmed browser roles cannot execute v4, the index exists and all current products/orders were preserved.
 
 The original 330 products, 976 orders and 1,153 relational items remain. Original totals, customer details, statuses, stock quantities and passwords were not rewritten. 974 snapshots were backfilled; two historical orders have no item records and keep empty snapshots. Legacy order cancellation still requires manual stock review. The user explicitly approved both production migrations, resolving the earlier automatic approval rejection.
 
@@ -31,7 +34,7 @@ Each migration has bounded lock/statement timeouts and a transaction. Migration 
 
 Local migration filenames match the versions recorded by Supabase; the approved SQL content is unchanged. This avoids applying the same migrations again during a later CLI deployment.
 
-GitHub Checks passed for release commit `30c1350` on both branches, including frontend/browser tests and Python 3.12/3.14. Production deployment `dpl_8ZPgVDUh8r5p4TuJd2FWJMJhKztq` was ready before moving the domain. The move retained domain verification and required no DNS replacement.
+For the preceding account/payment release, GitHub Checks passed for commit `30c1350` on both branches, including frontend/browser tests and Python 3.12/3.14. Production deployment `dpl_8ZPgVDUh8r5p4TuJd2FWJMJhKztq` was ready before moving the domain. The move retained domain verification and required no DNS replacement.
 
 Live HTTPS checks passed for the homepage, catalog, cart, customer sign-in/sign-up and account/admin redirects. Mobile pages had no horizontal overflow or page JavaScript errors. The homepage downloaded no admin or Supabase chunks. Public catalog/configuration returned successfully; unsigned customer/admin APIs returned 401. Runtime logs showed no errors during these checks. Verification sent no real orders, account updates, emails or payments. Payment-provider tests used fixtures; real payment delivery remains disabled pending gateway setup.
 
