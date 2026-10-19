@@ -113,7 +113,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' https://checkout.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://ik.imagekit.io https://placehold.co https://*.razorpay.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://upload.imagekit.io https://ik.imagekit.io https://api.razorpay.com https://checkout.razorpay.com; font-src 'self' https://fonts.gstatic.com; frame-src https://api.razorpay.com https://*.razorpay.com; object-src 'none'; base-uri 'self'; form-action 'self' https://api.razorpay.com; frame-ancestors 'none';"
+          "value": "default-src 'self'; script-src 'self' https://checkout.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://ik.imagekit.io https://placehold.co https://*.razorpay.com; connect-src 'self' blob: https://*.supabase.co wss://*.supabase.co https://upload.imagekit.io https://ik.imagekit.io https://api.razorpay.com https://checkout.razorpay.com; font-src 'self' https://fonts.gstatic.com; frame-src https://api.razorpay.com https://*.razorpay.com; object-src 'none'; base-uri 'self'; form-action 'self' https://api.razorpay.com; frame-ancestors 'none';"
         }
       ]
     }

@@ -264,10 +264,13 @@ try {
 
   const character=await context({viewport:{width:1366,height:900}});
   const characterPage=await character.newPage();
+  const characterSecurityErrors=[];
+  characterPage.on('console',message=>{if(/Content Security Policy|Couldn.t load texture/.test(message.text()))characterSecurityErrors.push(message.text());});
   await characterPage.goto(origin+'/product/1');
   await characterPage.waitForFunction(()=>document.querySelector('.companion-character')?.dataset.ready==='true',null,{timeout:30000});
   await characterPage.waitForTimeout(500);
   assert.equal(await characterPage.locator('.companion-character canvas').evaluate(canvas=>canvas.width>0&&canvas.height>0),true);
+  assert.deepEqual(characterSecurityErrors,[],'Character textures must load under the production CSP');
   await characterPage.screenshot({path:resolve(artifact,'product-guide-desktop.png'),fullPage:false});
   await characterPage.evaluate(()=>document.querySelector('.companion-character canvas').getContext('webgl2').getExtension('WEBGL_lose_context').loseContext());
   await characterPage.waitForFunction(()=>!document.querySelector('.companion-character canvas'));

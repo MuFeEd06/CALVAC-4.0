@@ -34,6 +34,8 @@ export async function mountCharacter(host:HTMLElement,signal:AbortSignal,capture
     const response=await fetch('/companion/character-v1.glb',{signal});if(!response.ok)throw new Error('Character unavailable');
     const gltf=await new GLTFLoader().parseAsync(await response.arrayBuffer(),'/companion/');
     if(signal.aborted||disposed){releaseObject(gltf.scene);throw new DOMException('Aborted','AbortError');}
+    let textured=false;gltf.scene.traverse(node=>{if(node instanceof Mesh){const materials=Array.isArray(node.material)?node.material:[node.material];if(materials.some(material=>material.map))textured=true;}});
+    if(!textured){releaseObject(gltf.scene);throw new Error('Character texture unavailable');}
     const bounds=new Box3().setFromObject(gltf.scene),center=bounds.getCenter(new Vector3()),size=bounds.getSize(new Vector3());
     gltf.scene.position.sub(center);const scale=.2/Math.max(size.y,.01);group.add(gltf.scene);group.scale.setScalar(scale);
     host.appendChild(renderer.domElement);resize.observe(host);observer.observe(host);document.addEventListener('visibilitychange',visibility);host.dataset.ready='true';wake();
