@@ -337,6 +337,7 @@ try {
     await authPage.goto(origin+'/account');await authPage.getByRole('button',{name:'Sign out',exact:true}).click();
     await authPage.goto(origin+'/login?redirect=/cart');await authPage.getByLabel('Email',{exact:true}).fill(customerFixture.email);
     await authPage.getByRole('link',{name:'Resend verification email',exact:true}).click();
+    await authPage.getByRole('heading',{name:'Verify your email',exact:true}).waitFor();
     assert.equal(await authPage.getByLabel('Email',{exact:true}).inputValue(),customerFixture.email);
     assert.equal(await authPage.getByLabel('Password',{exact:true}).count(),0);
     await authPage.getByRole('button',{name:'Resend verification email',exact:true}).click();
