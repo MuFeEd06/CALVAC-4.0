@@ -28,13 +28,16 @@ class handler(BaseHTTPRequestHandler):
                 return send_json(self,200,{'reply':DECLINE,'products':[],'mode':'catalog'},cors)
             context=retrieve(question,previous,product_id,selected_color)
             reply,ids=fallback_reply(context);mode='catalog'
-            if os.environ.get('GEMINI_API_KEY') and context['kind'] in ('search','size','detail'):
+            if os.environ.get('GEMINI_API_KEY') and context['products'] and context['kind'] in ('search','size','detail'):
                 try:
                     require_rate_limit(self,'assistant-generate',subject='store')
                     reply,ids=generate_reply(question,previous,context);mode='gemini'
                 except Exception as error:
                     # Do not log questions, provider bodies, authorization headers or keys.
-                    print('Assistant generation fallback: '+(f'HTTP {error.code}' if isinstance(error,HTTPError) else type(error).__name__))
+                    reason=f'HTTP {error.code}' if isinstance(error,HTTPError) else type(error).__name__
+                    safe_reasons={'Invalid assistant model','Oversized assistant response','Incomplete assistant response','Invalid assistant answer','Ungrounded product reference','Ungrounded price'}
+                    if isinstance(error,ValueError) and str(error) in safe_reasons:reason+=': '+str(error)
+                    print('Assistant generation fallback: '+reason)
             by_id={p['id']:p for p in context['products']}
             send_json(self,200,{'reply':reply,'products':[product_card(by_id[pid]) for pid in ids if pid in by_id],'mode':mode},cors)
         except Exception as error:send_error(self,error,cors)

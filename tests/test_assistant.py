@@ -45,9 +45,11 @@ class AssistantTests(unittest.TestCase):
     def test_model_numbers_and_brand_queries_find_the_requested_product(self):
         self.assertEqual([p['id'] for p in context('New Balance 9060')['products']],[3])
         self.assertEqual([p['id'] for p in context('Nike Air Force')['products']],[2])
+        self.assertEqual([p['id'] for p in context('Suggest Nike shoes')['products']],[2])
         self.assertEqual([p['id'] for p in context('Air Force')['products']],[2])
         self.assertEqual([p['id'] for p in context('9060')['products']],[3])
         self.assertEqual([p['id'] for p in context('Show Superstar')['products']],[1])
+        self.assertEqual([p['id'] for p in context('Show Nike shoes under INR 2500. Use the current catalog only.')['products']],[2])
         self.assertNotIn(1,[p['id'] for p in context('Similar shoes under 2500')['products']])
 
     def test_no_unsupported_colour_or_unavailable_variant_is_recommended(self):
@@ -83,6 +85,8 @@ class AssistantTests(unittest.TestCase):
         self.assertEqual(guide.stock_for({'stock':{},'total_stock':float('inf')},'default','8'),None)
         self.assertIn('cannot safely assume',guide.fallback_reply(context('Is EU 40 available?'))[0])
         self.assertEqual(context('what about 7?',['Which sizes are available?'])['filters']['size'],'7')
+        self.assertEqual(context('Recommend a size for me')['kind'],'size')
+        self.assertEqual(context('Are these shoes leather?')['kind'],'detail')
 
     def test_sold_out_and_newly_inactive_products_are_not_returned(self):
         self.assertNotIn(7,[p['id'] for p in context('Show Nike')['products']])
@@ -140,6 +144,13 @@ class AssistantTests(unittest.TestCase):
                 result=json.loads(handler.wfile.getvalue())
                 self.assertEqual(result['mode'],'catalog');self.assertEqual(result['products'][0]['id'],2)
                 self.assertNotIn('fixture-secret',str(result))
+
+    def test_empty_catalog_matches_do_not_spend_a_model_request(self):
+        handler=Handler({'question':'Show Nike under 500','productId':1})
+        with patch.dict(os.environ,{'GEMINI_API_KEY':'fixture-secret'}),patch.object(assistant,'require_cors'),patch.object(assistant,'require_rate_limit'),patch.object(assistant,'retrieve',return_value=context('Show Nike under 500')),patch.object(assistant,'generate_reply') as model:
+            assistant.handler.do_POST(handler)
+            self.assertEqual(handler.status,200);model.assert_not_called()
+            self.assertIn('couldn’t verify',json.loads(handler.wfile.getvalue())['reply'])
 
     def test_rate_limit_failure_stops_before_catalog_and_model(self):
         handler=Handler({'question':'Show shoes'})

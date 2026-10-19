@@ -18,6 +18,7 @@ TOPIC = re.compile(r'\b(shoe[s]?|sneaker[s]?|boot[s]?|crocs?|clogs?|footwear|san
 UNRELATED = re.compile(r'ignore.{0,30}(instruction|rule)|system\s*prompt|api[ _-]*key|secret|password|service.?role|\b(sql|python|javascript|politics|president|weather|bitcoin|diagnos\w*|medical|hack\w*)\b|write.{0,15}(code|script)|\b(delete|dump).{0,20}(database|table)|\b(order|payment|refund).{0,12}(status|number|id)|track.{0,10}order', re.I)
 STOP = set('a an the i me my you your please can could would do does is are am be have has any show find looking for want need like recommend best match matches similar alternative alternatives other these this that those it its of in on with and or to from about more less instead some style styles help choose tell under below above over between than rs inr rupees at most least size sizes uk eu euro shoes shoe sneakers sneaker footwear available stock budget price options'.split())
 STOP.update('only pair pairs ones everyday casual comfortable comfort good something another up upto within maximum minimum max min boots boot crocs croc clogs clog girls girl women womens ladies'.split())
+STOP.update('use current catalog store listing listings listed suggest suggestions give get see check buy purchase list provide'.split())
 AMOUNT = r'(?:₹|rs\.?|inr)?\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(k)?'
 MAXIMUM = r'\b(?:under|below|less than|up to|upto|within|at most|max(?:imum)?(?: budget)?)\s*'
 MINIMUM = r'\b(?:above|over|more than|at least|min(?:imum)?)\s*'
@@ -189,9 +190,14 @@ def retrieve(question, previous, product_id, selected_color=''):
             if filters[key] in ('',None) and not (key=='brand' and filters['category']):filters[key]=old[key]
     bare_size=re.fullmatch(r'(?:what about\s+)?(\d{1,2}(?:\.5)?)[?!. ]*',question,re.I) if previous else None
     if bare_size:filters['size']=bare_size[1];filters['unit']=filters['unit'] or (current or {}).get('size_unit','UK')
-    search_words=r'\b(find|show|search|looking|recommend|similar|alternative|other|cheaper|under|below|above|over|between|within)\b'
+    search_words=r'\b(find|show|search|looking|recommend|suggest|list|give|want|need|buy|purchase|options|similar|alternative|other|cheaper|under|below|above|over|between|within)\b'
     new_model=mentions_product(question,rows) and current and not mentions_product(question,[current])
     is_search=bool(re.search(search_words,question,re.I) or re.search(MAXIMUM+AMOUNT,question,re.I) or re.search(MINIMUM+AMOUNT,question,re.I) or filters['category'] or new_model or (brand and current and brand!=normalize(current['brand'])) or (followup and not bare_size and previous and re.search(search_words,previous[-1],re.I)))
+    if re.search(r'\b(what|which|any)\b.{0,40}\b(shoes|sneakers|pairs|options)\b',question,re.I):is_search=True
+    size_guidance=re.search(r'\b(help|recommend|suggest|choose|choosing|which|what)\b.{0,40}\b(sizes?|sizing|fit)\b',question,re.I)
+    current_reference=re.search(r'\b(this|these|its|it|their)\b',question,re.I)
+    if current and (size_guidance or current_reference) and not (new_model or brand and brand!=normalize(current['brand']) or filters['category'] and filters['category']!=normalize(current.get('category','')) or re.search(r'\b(find|show|search|looking|similar|alternatives?|other|cheaper|list)\b',question,re.I)):
+        is_search=False
     kind='search'
     if current and not is_search and (bare_size or re.search(r'\b(size|sizes|sizing|fit|feet|foot|uk|eu|cm)\b',question,re.I)):kind='size'
     elif current and not is_search:kind='detail'
@@ -266,7 +272,7 @@ def generate_reply(question, previous, context):
         facts[-1].update({'price':p.get('_matched_price',p['price']),'matched_colour':p.get('_matched_color'),'listed_sizes':p['sizes'],'available_sizes':available_sizes(p,p.get('_matched_color')),'colours':[c.get('name') for c in p.get('colors',[]) if isinstance(c,dict)],'specs':p.get('specs','')[:1600]})
     schema={'type':'object','properties':{'scope':{'type':'string','enum':['products','off_topic']},'reply':{'type':'string'},'product_ids':{'type':'array','items':{'type':'integer'},'maxItems':4}},'required':['scope','reply','product_ids'],'additionalProperties':False}
     body={'systemInstruction':{'parts':[{'text':SYSTEM}]},'contents':[{'role':'user','parts':[{'text':json.dumps({'question':question,'previousQuestions':previous,'kind':context['kind'],'filters':context['filters'],'products':facts},ensure_ascii=False)}]}],
-          'generationConfig':{'temperature':.2,'maxOutputTokens':800,'responseMimeType':'application/json','responseJsonSchema':schema}}
+          'generationConfig':{'temperature':.2,'maxOutputTokens':2048,'responseMimeType':'application/json','responseJsonSchema':schema}}
     request=Request(f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',data=json.dumps(body).encode(),headers={'Content-Type':'application/json','x-goog-api-key':os.environ['GEMINI_API_KEY']},method='POST')
     with urlopen(request,timeout=12) as response:
         raw=response.read(64001)
