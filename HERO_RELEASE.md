@@ -23,6 +23,8 @@ Retries using the original idempotency key still replay their confirmation. A bl
 
 The migration adds a private fingerprint column, a partial recent-order index and service-only `create_order_with_stock_v4`. It also selects the particle hero and monochrome default palette while preserving other store settings and scroll controls. Apply it before publishing the matching checkout API.
 
+Applied to production as `20261019161008_hero_theme_whatsapp_cooldown.sql`. Verification retained all 979 current orders and 332 products, confirmed the requested defaults, and confirmed that browser roles cannot execute checkout v4. The local filename matches Supabase's recorded migration version. The previous public settings were saved in the ignored release verification artifacts.
+
 ## Validation and rollout
 
 Local checks cover input validation, separate device settings, safe upload preparation, first-paint theme consistency, contrast with bright primary colors, payment/stock transactions, distinct-key duplicate prevention, prior-deployment compatibility, cooldown expiry and cancellation. Browser checks cover actual WebGL particle rendering, mobile fallback, navigation/reload themes, rendered contrast, admin settings persistence, upload request compatibility, and the cooldown popup. Fixtures send no real orders, payments, emails or ImageKit uploads.
