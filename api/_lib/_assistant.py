@@ -23,6 +23,7 @@ AMOUNT = r'(?:₹|rs\.?|inr)?\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(k)?'
 MAXIMUM = r'\b(?:under|below|less than|up to|upto|within|at most|max(?:imum)?(?: budget)?)\s*'
 MINIMUM = r'\b(?:above|over|more than|at least|min(?:imum)?)\s*'
 COLORS = ('black','white','red','blue','green','grey','gray','brown','pink','beige','cream','yellow','orange','purple','navy','silver','gold')
+MEASUREMENT = re.compile(r'\b(?:UK|EU|EURO)\s*\d{1,2}(?:\.5)?\b|\b\d{1,2}(?:\.\d+)?\s*(?:cm|centimetres?)\b',re.I)
 _catalog = []
 _catalog_until = 0.0
 _catalog_lock = threading.Lock()
@@ -176,7 +177,7 @@ def retrieve(question, previous, product_id, selected_color=''):
     rows=catalog_index()
     brand=find_brand(question,rows)
     followup=bool(previous and (any(re.search(r'\b'+color+r'\b',question,re.I) for color in COLORS) or re.fullmatch(r'(?:what about\s+)?\d{1,2}(?:\.5)?[?!. ]*',question,re.I)))
-    if UNRELATED.search(question) or not (TOPIC.search(question) or brand or mentions_product(question,rows) or followup or re.search(MAXIMUM+AMOUNT,question,re.I) or re.search(MINIMUM+AMOUNT,question,re.I)):
+    if UNRELATED.search(question) or not (TOPIC.search(question) or MEASUREMENT.search(question) or brand or mentions_product(question,rows) or followup or re.search(MAXIMUM+AMOUNT,question,re.I) or re.search(MINIMUM+AMOUNT,question,re.I)):
         if question.lower().strip('! .') in {'hi','hello','hey','thanks','thank you'}:return {'kind':'greeting','current':current,'products':[],'filters':{}}
         return {'kind':'off_topic','current':None,'products':[],'filters':{}}
     filters=constraints(question,rows,current)
@@ -199,7 +200,7 @@ def retrieve(question, previous, product_id, selected_color=''):
     if current and (size_guidance or current_reference) and not (new_model or brand and brand!=normalize(current['brand']) or filters['category'] and filters['category']!=normalize(current.get('category','')) or re.search(r'\b(find|show|search|looking|similar|alternatives?|other|cheaper|list)\b',question,re.I)):
         is_search=False
     kind='search'
-    if current and not is_search and (bare_size or re.search(r'\b(size|sizes|sizing|fit|feet|foot|uk|eu|cm)\b',question,re.I)):kind='size'
+    if current and not is_search and (bare_size or MEASUREMENT.search(question) or re.search(r'\b(size|sizes|sizing|fit|feet|foot|uk|eu|cm)\b',question,re.I)):kind='size'
     elif current and not is_search:kind='detail'
     if kind!='search':return {'kind':kind,'current':current,'products':[current],'filters':filters}
     # Remove whole filter expressions so "₹2,000", "2k" and UK sizes do not

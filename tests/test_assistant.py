@@ -87,6 +87,8 @@ class AssistantTests(unittest.TestCase):
         self.assertEqual(context('what about 7?',['Which sizes are available?'])['filters']['size'],'7')
         self.assertEqual(context('Recommend a size for me')['kind'],'size')
         self.assertEqual(context('Are these shoes leather?')['kind'],'detail')
+        for measurement in ['UK8','EU40','26.5cm']:
+            self.assertEqual(context(measurement)['kind'],'size')
 
     def test_sold_out_and_newly_inactive_products_are_not_returned(self):
         self.assertNotIn(7,[p['id'] for p in context('Show Nike')['products']])
