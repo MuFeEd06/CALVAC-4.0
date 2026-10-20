@@ -1,7 +1,7 @@
 import ThemeSwitch from './ThemeSwitch';
 import { UserRound } from 'lucide-react';
 import { FALLBACK_IMAGE, imageFallback, ikResize } from '@/utils/images';
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { lazy, Suspense, useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '@/context/CartContext';
@@ -9,13 +9,7 @@ import { searchProducts } from '@/api';
 import { formatPrice } from '@/utils';
 import type { Product } from '@/types';
 
-const navLinks = [
-  { to: '/shop',              label: 'All Shoes' },
-  { to: '/shop?tag=new',      label: 'New Arrivals' },
-  { to: '/shop?tag=trending', label: 'Trending' },
-  { to: '/shop?sale=1',       label: 'Sale' },
-  { to: '/contact',           label: 'Contact' },
-];
+const Sidebar5 = lazy(() => import('./ui/sidebar-5'));
 
 export default function Header() {
   const { totalItems } = useCart();
@@ -25,6 +19,7 @@ export default function Header() {
   const [searchQ,    setSearchQ]    = useState('');
   const [results,    setResults]    = useState<Product[]>([]);
   const [menuOpen,   setMenuOpen]   = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
   const timerRef  = useRef<ReturnType<typeof setTimeout>>();
@@ -96,10 +91,16 @@ export default function Header() {
       }}>
         {/* ── Hamburger — always visible ── */}
         <button
+          ref={menuButtonRef}
           type="button"
-          onClick={() => setMenuOpen(v => !v)}
+          onClick={() => {
+            clearTimeout(timerRef.current); searchAbort.current?.abort(); searchVersion.current++;
+            setSearchOpen(false); setResults([]); setSearchError(''); setMenuOpen(true);
+          }}
           aria-label="Open menu"
           aria-expanded={menuOpen}
+          aria-haspopup="dialog"
+          aria-controls={menuOpen ? 'store-navigation' : undefined}
           style={{
             display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5,
             background: 'none', border: 'none', cursor: 'pointer',
@@ -243,40 +244,7 @@ export default function Header() {
         </Link>
       </header>
 
-      {/* ── Slide-down menu ── */}
-      <AnimatePresence>
-        {menuOpen && (
-          <>
-            <motion.div
-              initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
-              onClick={() => setMenuOpen(false)}
-              style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.18)',
-                zIndex:998, top:'var(--header-h)' }}
-            />
-            <motion.nav
-              initial={{opacity:0, y:-12}} animate={{opacity:1, y:0}} exit={{opacity:0, y:-12}}
-              transition={{ duration:0.22 }}
-              style={{
-                position:'fixed', top:'var(--header-h)', left:0, right:0,
-                background:'var(--surface)', borderBottom:'1px solid var(--border)',
-                padding:'8px 0 16px', zIndex:999,
-                boxShadow:'0 8px 24px var(--primary-light)',
-              }}
-            >
-              {navLinks.map(({ to, label }) => (
-                <Link key={to} to={to} onClick={() => setMenuOpen(false)}
-                  style={{ display:'block', padding:'14px 5%', fontSize:'1.05rem',
-                    fontWeight:600, color:'var(--text)', textDecoration:'none',
-                    fontFamily:'var(--font-display)', transition:'color 0.15s',
-                    borderBottom:'1px solid var(--border)' }}
-                  onMouseEnter={e=>(e.currentTarget.style.color='var(--primary)')}
-                  onMouseLeave={e=>(e.currentTarget.style.color='var(--text)')}
-                >{label}</Link>
-              ))}
-            </motion.nav>
-          </>
-        )}
-      </AnimatePresence>
+      {menuOpen && <Suspense fallback={null}><Sidebar5 onClose={() => setMenuOpen(false)} triggerRef={menuButtonRef} totalItems={totalItems}/></Suspense>}
     </>
   );
 }

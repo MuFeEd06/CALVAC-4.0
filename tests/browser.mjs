@@ -97,15 +97,15 @@ async function context(options = {}) {
   context.on('page', page => page.on('pageerror', error => errors.push(error.message)));
   return context;
 }
-async function readability(page){
+async function readability(page,selector='body'){
   await page.waitForTimeout(1600);
-  return page.evaluate(()=>{
+  return page.evaluate(selector=>{
     const canvas=document.createElement('canvas');canvas.width=canvas.height=1;const ctx=canvas.getContext('2d',{willReadFrequently:true}),cache=new Map();
     const parse=value=>{if(cache.has(value))return [...cache.get(value)];ctx.clearRect(0,0,1,1);ctx.fillStyle=value;ctx.fillRect(0,0,1,1);const data=ctx.getImageData(0,0,1,1).data;const color=[data[0],data[1],data[2],data[3]/255];cache.set(value,color);return [...color];};
     const blend=(top,bottom)=>top.slice(0,3).map((v,i)=>v*top[3]+bottom[i]*(1-top[3]));
     const lum=rgb=>rgb.map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);
     const issues=[];
-    for(const el of document.querySelectorAll('body *')){
+    for(const el of document.querySelectorAll(`${selector} *`)){
       if(el.closest('[aria-hidden="true"],[data-hero-preview],svg,script,style,option,select')||!el.getClientRects().length||!Array.from(el.childNodes).some(node=>node.nodeType===3&&node.textContent.trim()))continue;
       const style=getComputedStyle(el);if(style.visibility!=='visible'||parseFloat(style.opacity)<.01||el.closest(':disabled'))continue;
       let bg=[255,255,255],opacity=1;const chain=[];for(let parent=el;parent;parent=parent.parentElement)chain.unshift(parent);
@@ -115,9 +115,10 @@ async function readability(page){
       if(ratio<required-.03)issues.push({text:el.textContent.trim().slice(0,65),tag:el.tagName,ratio:+ratio.toFixed(2),color:style.color,background:bg,opacity});
     }
     return issues.slice(0,35);
-  });
+  },selector);
 }
 try {
+  if(process.env.BROWSER_TEST_DRAWER_ONLY!=='1'){
   const store = await context({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await store.addInitScript(({ product }) => {
     if (location.protocol !== 'http:') return;
@@ -551,6 +552,59 @@ try {
     assert.deepEqual(await readability(settings),[],'Dark product editor contrast');
     await admin.close();
   }
+
+  }
+  const navigation=await context({viewport:{width:390,height:844},reducedMotion:'reduce'});
+  const navPage=await navigation.newPage(),navigationRequests=[];
+  navPage.on('request',request=>navigationRequests.push(request.url()));
+  await navPage.goto(origin+'/shop?tag=new');
+  await navPage.getByRole('heading',{name:'New Arrivals',exact:true}).waitFor();
+  assert.equal(navigationRequests.some(url=>/\/assets\/sidebar-5-/.test(url)),false,'Drawer must load only when opened');
+  for(const width of [320,390,1366]){
+    await navPage.setViewportSize({width,height:width===320?568:900});
+    for(const mode of ['light','dark']){
+      const theme=await navPage.evaluate(()=>document.documentElement.dataset.themeMode);
+      if(theme!==mode)await navPage.getByRole('button',{name:`Switch to ${mode} theme`,exact:true}).click();
+      const overflow=await navPage.evaluate(()=>[document.body.style.overflow,document.documentElement.style.overflow]);
+      await navPage.getByRole('button',{name:'Open menu',exact:true}).click();
+      const drawer=navPage.getByRole('dialog',{name:'CALVAC menu',exact:true});
+      await drawer.waitFor();
+      const bounds=await drawer.boundingBox();
+      assert.equal(Math.round(bounds.x),0);assert.equal(Math.round(bounds.y),0);assert.ok(bounds.width<width);
+      assert.equal(Math.round(bounds.height),width===320?568:900);
+      assert.equal(await drawer.getByRole('link',{name:'New Arrivals',exact:true}).getAttribute('aria-current'),'page');
+      assert.equal(await drawer.getByRole('link',{name:'All Shoes',exact:true}).getAttribute('aria-current'),null);
+      assert.equal(await drawer.getByRole('link',{name:'Profile',exact:true}).getAttribute('href'),'/account');
+      assert.deepEqual(await navPage.evaluate(()=>[document.body.style.overflow,document.documentElement.style.overflow]),['hidden','hidden']);
+      assert.deepEqual(await readability(navPage,'.store-drawer'),[],`${width}px ${mode} drawer contrast`);
+      assert.equal(await navPage.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+      await navPage.screenshot({path:resolve(artifact,`navigation-drawer-${width}-${mode}.png`)});
+      await drawer.locator('a').last().focus();await navPage.keyboard.press('Tab');
+      assert.equal(await drawer.evaluate(element=>element.contains(document.activeElement)),true,'Modal retains keyboard focus');
+      await drawer.locator('a').first().focus();await navPage.keyboard.press('Shift+Tab');
+      assert.equal(await drawer.locator('a').last().evaluate(element=>element===document.activeElement),true,'Reverse Tab wraps inside the drawer');
+      await navPage.keyboard.press('Escape');await drawer.waitFor({state:'detached'});
+      assert.equal(await navPage.getByRole('button',{name:'Open menu',exact:true}).evaluate(element=>element===document.activeElement),true);
+      assert.deepEqual(await navPage.evaluate(()=>[document.body.style.overflow,document.documentElement.style.overflow]),overflow);
+    }
+  }
+  await navPage.setViewportSize({width:390,height:844});
+  await navPage.getByRole('button',{name:'Open menu',exact:true}).click();
+  await navPage.getByRole('dialog',{name:'CALVAC menu',exact:true}).waitFor();
+  await navPage.mouse.click(382,200);
+  await navPage.getByRole('dialog').waitFor({state:'detached'});
+  await navPage.getByRole('button',{name:'Open menu',exact:true}).click();
+  await navPage.getByRole('searchbox',{name:'Search shoes',exact:true}).fill('Nike air');
+  await navPage.getByRole('button',{name:'Search collection',exact:true}).click();
+  await navPage.waitForURL(url=>url.pathname==='/shop'&&url.searchParams.get('q')==='Nike air');
+  assert.equal(await navPage.getByRole('dialog').count(),0);
+  await navPage.getByRole('button',{name:'Open menu',exact:true}).click();
+  await navPage.getByRole('link',{name:'Profile',exact:true}).click();
+  await navPage.waitForURL(url=>url.pathname==='/login');
+  assert.equal(await navPage.getByRole('dialog').count(),0);
+  assert.equal(new URL(navPage.url()).searchParams.get('redirect'),'/account');
+  results.leftDrawer={responsive:true,lightDarkContrast:true,lazyLoaded:true,activeFilters:true,profileRoute:true,search:true,escapeAndBackdropClose:true,focusTrappedAndRestored:true,backgroundScrollLocked:true};
+  await navigation.close();
 
   assert.deepEqual(errors, []);
   results.pageErrors = errors;

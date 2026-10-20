@@ -40,6 +40,8 @@ Razorpay loads only when a customer chooses Pay Online. Browser signatures never
 
 ## Performance
 
+The storefront hamburger opens a left drawer adapted from the supplied Sidebar 5 reference. Its reusable component and scoped styles live in `src/components/ui/sidebar-5.tsx` and `sidebar-5.css`, using the existing React/TypeScript, CSS variables and Lucide icons. It loads only when opened. Profile links to `/account`, orders to `/account/orders`, and search uses the existing shop route. The native modal makes the background inert; explicit keyboard wrapping, Escape/backdrop closing, scroll locking and focus restoration are covered by browser checks. `BROWSER_TEST_DRAWER_ONLY=1 npm run test:browser` runs just the drawer scenarios against a fixture build.
+
 See [FINAL_REVIEW.md](FINAL_REVIEW.md) for the 20 October security review, applied profile-permission fix, resource measurements and current hosting-plan constraints. CI enforces the build/media budgets with `npm run check:budgets`.
 
 - Home uses 60 WebP frames per device variant: **1,151,800 bytes desktop**, **607,944 bytes mobile**, versus 15,498,851 bytes of GIFs previously.
