@@ -24,7 +24,9 @@ The renderer is a separate dynamic chunk, loaded only when a product companion i
 
 ## Resend setup
 
-On 20 October 2026, the store owner confirmed that custom SMTP was saved in Supabase and `calvac.in` shows **Verified** in Resend. Public DNS lookup also confirmed the `resend._domainkey` TXT and the `send` / `rsend` CNAME records. Inbox delivery has not yet been tested with a real email.
+On 20 October 2026, the store owner confirmed that custom SMTP was saved in Supabase and `calvac.in` shows **Verified** in Resend. Public DNS lookup also confirmed the `resend._domainkey` TXT and the `send` / `rsend` CNAME records.
+
+The owner then authorized one password-reset test email to their existing account. Exactly one recovery request was submitted through the live website on 20 October 2026; Supabase accepted it with HTTP 200 and no sending error. No password was changed. Inbox receipt is awaiting the owner's confirmation.
 
 Configuration reference for [Supabase SMTP settings](https://supabase.com/dashboard/project/jjyysdxkoarjlxwttiak/auth/smtp):
 
