@@ -647,14 +647,17 @@ try {
     assert.equal(await drawer.evaluate(element=>getComputedStyle(element).backgroundColor===getComputedStyle(element.querySelector('.store-drawer-curve')).fill),true,'Curved edge matches the drawer theme');
     await animatedPage.setViewportSize({width,height:640});
     assert.equal(await drawer.evaluate(element=>element.querySelector('.store-drawer-curve').getBoundingClientRect().height===element.getBoundingClientRect().height),true,'Curve follows viewport resizing');
-    await animatedPage.keyboard.press('Escape');
-    await animatedPage.waitForFunction(()=>document.querySelector('.store-drawer')?.dataset.state==='closing');
-    assert.deepEqual(await animatedPage.evaluate(()=>[document.body.style.overflow,document.documentElement.style.overflow]),['hidden','hidden'],'Keep scroll locked throughout the closing animation');
-    assert.equal(await drawer.evaluate(element=>element.matches(':modal')),true,'Drawer stays modal until its exit finishes');
-    await animatedPage.waitForFunction(()=>{
+    // Observe before triggering the short exit; round trips can otherwise miss it.
+    const exitFrame=animatedPage.waitForFunction(()=>{
       const drawer=document.querySelector('.store-drawer');
-      return drawer&&drawer.getBoundingClientRect().x< -20&&drawer.getBoundingClientRect().x> -300&&drawer.querySelector('.store-drawer-curve path').getBBox().width>1;
+      if(drawer?.dataset.state==='closing'&&drawer.getBoundingClientRect().x< -20&&drawer.getBoundingClientRect().x> -300&&drawer.querySelector('.store-drawer-curve path').getBBox().width>1)
+        return {modal:drawer.matches(':modal'),overflow:[document.body.style.overflow,document.documentElement.style.overflow]};
+      return false;
     },null,{polling:'raf',timeout:5000});
+    const [exitSnapshot]=await Promise.all([exitFrame,animatedPage.keyboard.press('Escape')]);
+    const exit=await exitSnapshot.jsonValue();await exitSnapshot.dispose();
+    assert.deepEqual(exit.overflow,['hidden','hidden'],'Keep scroll locked throughout the closing animation');
+    assert.equal(exit.modal,true,'Drawer stays modal until its exit finishes');
     await animatedPage.screenshot({path:resolve(artifact,`navigation-drawer-closing-${width}-${mode}.png`)});
     await animatedPage.keyboard.press('Escape');
     await drawer.waitFor({state:'detached'});
