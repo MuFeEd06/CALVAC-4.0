@@ -1,15 +1,14 @@
 import ThemeSwitch from './ThemeSwitch';
 import { UserRound } from 'lucide-react';
 import { FALLBACK_IMAGE, imageFallback, ikResize } from '@/utils/images';
-import { lazy, Suspense, useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '@/context/CartContext';
 import { searchProducts } from '@/api';
 import { formatPrice } from '@/utils';
 import type { Product } from '@/types';
-
-const Sidebar5 = lazy(() => import('./ui/sidebar-5'));
+import Sidebar5 from './ui/sidebar-5';
 
 export default function Header() {
   const { totalItems } = useCart();
@@ -245,7 +244,7 @@ export default function Header() {
       </header>
 
       <AnimatePresence>
-        {menuOpen && <Suspense key="store-navigation" fallback={null}><Sidebar5 onClose={() => setMenuOpen(false)} triggerRef={menuButtonRef} totalItems={totalItems}/></Suspense>}
+        {menuOpen && <Sidebar5 key="store-navigation" onClose={() => setMenuOpen(false)} triggerRef={menuButtonRef} totalItems={totalItems}/>}
       </AnimatePresence>
     </>
   );

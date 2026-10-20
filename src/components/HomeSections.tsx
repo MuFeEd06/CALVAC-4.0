@@ -7,7 +7,10 @@ import TiltCascadeCarousel from './ui/tilt-cascade-carousel';
 import { ikResize } from '@/api';
 import { FocusRail } from './FocusRail';
 import type { FocusRailItem } from './FocusRail';
+import './brand-tiles.css';
 const MotionLink = motion(Link);
+// These two existing assets have white artwork; the other marks have dark ink.
+const lightBrandMarks = new Set(['On', 'Brik']);
 
 /* ── New Arrivals — FocusRail carousel ── */
 export function NewArrivals({ products }: { products: Product[] }) {
@@ -96,17 +99,17 @@ export function BrandTiles({ hiddenBrands = '' }: { hiddenBrands?: string }) {
                 padding: '18px 10px 14px', borderRadius: 16, border: '1px solid var(--border)',
                 background: 'var(--surface)', cursor: 'pointer', boxShadow: 'var(--shadow)',
               }}>
-              <div style={{ width: 60, height: 60, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1.5px solid ${brand.color}44`, background: 'var(--surface)', padding: 8, overflow: 'hidden' }}>
+              <div className="brand-logo-square" style={{ borderColor: `${brand.color}44` }}>
                 {brand.logo ? (
-                  <img src={brand.logo} alt={brand.name}
+                  <img src={brand.logo} alt={brand.name} data-light-art={lightBrandMarks.has(brand.slug) ? '' : undefined}
                     loading="lazy" decoding="async" width={44} height={44}
                     onError={e => { const el = e.target as HTMLImageElement; el.style.display = 'none'; el.nextElementSibling!.removeAttribute('hidden'); }}
                     style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 ) : null}
-                <span hidden style={{ fontWeight: 900, color: brand.color, fontSize: '1.1rem' }}>{initials}</span>
+                <span hidden={Boolean(brand.logo)} className="brand-logo-initials">{initials}</span>
               </div>
               <span style={{ fontSize: '0.72rem', fontWeight: 600, textAlign: 'center', color: 'var(--text-muted)', lineHeight: 1.2 }}>{brand.name}</span>
-              <span style={{ fontSize: '0.82rem', color: `${brand.color}88` }}>→</span>
+              <span aria-hidden="true" style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>→</span>
             </MotionLink>
           );
         })}

@@ -1,17 +1,18 @@
 .store-drawer {
   position:fixed;inset:0 auto 0 0;margin:0;padding:0;width:min(340px,calc(100vw - 32px));
   max-width:none;height:100vh;height:100dvh;max-height:none;border:0;overflow:visible;
-  background:var(--surface);color:var(--text);
+  background:var(--surface);color:var(--text);will-change:transform;
 }
-.store-drawer::backdrop { background:rgba(0,0,0,.42);backdrop-filter:blur(4px);animation:store-drawer-fade .3s ease both; }
-.store-drawer[data-state="closing"]::backdrop { animation:store-drawer-fade-out .8s ease both; }
+.store-drawer::backdrop { background:rgba(0,0,0,.42);animation:store-drawer-fade .16s ease both; }
+.store-drawer[data-state="closing"]::backdrop { animation:store-drawer-fade-out .4s ease both; }
 .store-drawer-curve { position:absolute;top:0;left:calc(100% - 1px);width:100px;height:100%;fill:var(--surface);pointer-events:none; }
 .store-drawer-panel { display:flex;flex-direction:column;height:100%;min-height:0; }
 .store-drawer-header { flex-shrink:0;padding:22px 20px 20px;border-bottom:1px solid var(--border); }
 .store-drawer-heading { display:flex;align-items:center;justify-content:space-between;gap:10px; }
 .store-drawer-brand { display:flex;align-items:center;gap:11px;font-family:var(--font-display);font-weight:800;font-size:1.15rem;letter-spacing:-.6px; }
 .store-drawer-brand small { display:block;margin-top:3px;font-family:var(--font-body);font-size:.65rem;letter-spacing:.1px;font-weight:400;color:var(--text-muted); }
-.store-drawer-monogram { display:grid;place-items:center;width:38px;height:42px;border-radius:12px;background:var(--primary);color:var(--on-primary);font-size:1.45rem;font-family:var(--font-accent);font-style:italic;font-weight:400; }
+.store-drawer-monogram { display:grid;place-items:center;flex-shrink:0;width:42px;height:42px;border-radius:12px;background:var(--primary);color:var(--on-primary); }
+.store-drawer-monogram svg { display:block;width:32px;height:32px; }
 .store-drawer-close { flex-shrink:0;display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:transparent;color:var(--text-muted); }
 .store-drawer-close:hover { background:var(--surface-2);color:var(--text); }
 .store-drawer-search { display:flex;align-items:center;gap:9px;margin-top:23px;padding:4px 5px 4px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text-muted); }

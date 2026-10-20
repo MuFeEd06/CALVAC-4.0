@@ -1,0 +1,10 @@
+.brand-logo-square {
+  --brand-mark-ink:#FFFFFF;display:flex;align-items:center;justify-content:center;
+  width:60px;height:60px;padding:8px;border:1.5px solid;border-radius:12px;overflow:hidden;background:#151514;
+}
+.brand-logo-square img { filter:invert(1); }
+.brand-logo-square img[data-light-art] { filter:none; }
+.brand-logo-initials { font-weight:900;font-size:1.1rem;color:var(--brand-mark-ink); }
+[data-theme-mode="dark"] .brand-logo-square { --brand-mark-ink:#151514;background:#FFFFFF; }
+[data-theme-mode="dark"] .brand-logo-square img { filter:none; }
+[data-theme-mode="dark"] .brand-logo-square img[data-light-art] { filter:invert(1); }

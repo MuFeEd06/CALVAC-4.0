@@ -59,7 +59,7 @@ export default function HomePage() {
 
       {error && <div role="alert" className="load-error"><p>{error}</p><button onClick={() => setRetry(n => n + 1)}>Try again</button></div>}
       {settings.show_new_arrivals && <NewArrivals products={products} />}
-      {(settings as any).show_brands_section !== false && (
+      {heroReady && (settings as any).show_brands_section !== false && (
         <BrandTiles hiddenBrands={(settings as any).hidden_brands || ''} />
       )}
       {heroReady && <CategoryScroll settings={settings} />}

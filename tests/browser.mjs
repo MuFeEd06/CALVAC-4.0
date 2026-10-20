@@ -563,7 +563,7 @@ try {
   navPage.on('request',request=>navigationRequests.push(request.url()));
   await navPage.goto(origin+'/shop?tag=new');
   await navPage.getByRole('heading',{name:'New Arrivals',exact:true}).waitFor();
-  assert.equal(navigationRequests.some(url=>/\/assets\/sidebar-5-/.test(url)),false,'Drawer must load only when opened');
+  const initialMenuAssets=navigationRequests.filter(url=>/\.(?:js|css)(?:\?|$)/.test(url));
   for(const width of [320,390,1366]){
     await navPage.setViewportSize({width,height:width===320?568:900});
     for(const mode of ['light','dark']){
@@ -573,6 +573,7 @@ try {
       await navPage.getByRole('button',{name:'Open menu',exact:true}).click();
       const drawer=navPage.getByRole('dialog',{name:'CALVAC menu',exact:true});
       await drawer.waitFor();
+      assert.deepEqual(navigationRequests.filter(url=>/\.(?:js|css)(?:\?|$)/.test(url)),initialMenuAssets,'Opening the menu needs no extra script or stylesheet request');
       await navPage.waitForFunction(()=>Math.abs(document.querySelector('.store-drawer').getBoundingClientRect().x)<0.5);
       const bounds=await drawer.boundingBox();
       assert.equal(Math.round(bounds.x),0);assert.equal(Math.round(bounds.y),0);assert.ok(bounds.width<width);
@@ -580,6 +581,12 @@ try {
       assert.equal(await drawer.getByRole('link',{name:'New Arrivals',exact:true}).getAttribute('aria-current'),'page');
       assert.equal(await drawer.getByRole('link',{name:'All Shoes',exact:true}).getAttribute('aria-current'),null);
       assert.equal(await drawer.getByRole('link',{name:'Profile',exact:true}).getAttribute('href'),'/account');
+      assert.equal(await drawer.locator('.store-drawer-monogram svg path').count(),1);
+      assert.equal(await drawer.locator('.store-drawer-monogram img').count(),0,'The CALVAC mark uses inline vector code');
+      const mark=await drawer.locator('.store-drawer-monogram').evaluate(element=>({background:getComputedStyle(element).backgroundColor,ink:getComputedStyle(element.querySelector('svg')).fill}));
+      assert.equal(mark.ink,mode==='light'?'rgb(255, 255, 255)':'rgb(21, 21, 20)');
+      assert.equal(mark.background,mode==='light'?'rgb(21, 21, 20)':'rgb(241, 239, 234)');
+      assert.equal(await drawer.evaluate(element=>getComputedStyle(element,'::backdrop').backdropFilter),'none','Backdrop avoids a full-viewport blur');
       assert.deepEqual(await navPage.evaluate(()=>[document.body.style.overflow,document.documentElement.style.overflow]),['hidden','hidden']);
       assert.deepEqual(await readability(navPage,'.store-drawer'),[],`${width}px ${mode} drawer contrast`);
       assert.equal(await navPage.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
@@ -608,7 +615,7 @@ try {
   await navPage.waitForURL(url=>url.pathname==='/login');
   await navPage.getByRole('dialog').waitFor({state:'detached'});
   assert.equal(new URL(navPage.url()).searchParams.get('redirect'),'/account');
-  results.leftDrawer={responsive:true,lightDarkContrast:true,lazyLoaded:true,activeFilters:true,profileRoute:true,search:true,escapeAndBackdropClose:true,focusTrappedAndRestored:true,backgroundScrollLocked:true};
+  results.leftDrawer={responsive:true,lightDarkContrast:true,noOpenTimeAssetRequests:true,inlineThemeAwareLogo:true,activeFilters:true,profileRoute:true,search:true,escapeAndBackdropClose:true,focusTrappedAndRestored:true,backgroundScrollLocked:true};
   await navigation.close();
 
   const animatedNavigation=await context({viewport:{width:390,height:844},reducedMotion:'no-preference'});
@@ -662,6 +669,43 @@ try {
   assert.deepEqual(await animatedPage.evaluate(()=>[document.body.style.overflow,document.documentElement.style.overflow]),['','']);
   results.curvedDrawer={openingAndClosing:true,mobileAndDesktop:true,themeMatched:true,resizesWithViewport:true,modalDuringExit:true,earlyClose:true,navigationClose:true,reducedMotion:true};
   await animatedNavigation.close();
+
+  const brands=await context({viewport:{width:390,height:844},reducedMotion:'reduce'});
+  let brandSettings={hero_type:'hidden',show_new_arrivals:false,show_categories:false,show_brands_section:true,hidden_brands:''};
+  await brands.route('**/api/site-settings',route=>route.fulfill({contentType:'application/json',body:JSON.stringify(brandSettings)}));
+  await brands.route('**/logos/brands/nike.png?*',route=>route.fulfill({status:404,body:''}));
+  const brandPage=await brands.newPage();await brandPage.goto(origin+'/',{waitUntil:'networkidle'});
+  const brandSection=brandPage.locator('#collections');
+  for(const width of [390,1366]){
+    await brandPage.setViewportSize({width,height:900});
+    for(const mode of ['light','dark']){
+      if(await brandPage.evaluate(()=>document.documentElement.dataset.themeMode)!==mode)await brandPage.getByRole('button',{name:`Switch to ${mode} theme`,exact:true}).click();
+      assert.equal(await brandSection.locator('.brand-logo-square').count(),17);
+      const tiles=await brandSection.locator('.brand-logo-square').evaluateAll(elements=>elements.map(element=>({
+        background:getComputedStyle(element).backgroundColor,filter:getComputedStyle(element.querySelector('img')).filter,
+        lightArtwork:element.querySelector('img').hasAttribute('data-light-art'),
+      })));
+      for(const tile of tiles){
+        assert.equal(tile.background,mode==='light'?'rgb(21, 21, 20)':'rgb(255, 255, 255)');
+        assert.equal(tile.filter,(mode==='light')!==tile.lightArtwork?'invert(1)':'none');
+      }
+      assert.equal(await brandSection.locator('.brand-logo-square img[data-light-art]').count(),2,'On and Brik retain the right artwork polarity');
+      const fallback=brandSection.locator('a[href="/shop?brand=Nike"] .brand-logo-initials');
+      assert.equal(await fallback.isVisible(),true);
+      assert.equal(await fallback.evaluate(element=>getComputedStyle(element).color),mode==='light'?'rgb(255, 255, 255)':'rgb(21, 21, 20)');
+      assert.equal(await brandSection.locator('a[href="/shop?brand=Adidas"]').count(),1);
+      assert.deepEqual(await readability(brandPage,'#collections'),[],`${width}px ${mode} brand contrast`);
+      assert.equal(await brandPage.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+      await brandSection.screenshot({path:resolve(artifact,`brand-tiles-${width}-${mode}.png`)});
+    }
+  }
+  brandSettings={...brandSettings,hidden_brands:'Nike,On'};await brandPage.reload({waitUntil:'networkidle'});
+  assert.equal(await brandSection.locator('.brand-logo-square').count(),15);
+  assert.equal(await brandSection.locator('a[href="/shop?brand=Nike"],a[href="/shop?brand=On"]').count(),0);
+  brandSettings={...brandSettings,show_brands_section:false};await brandPage.reload({waitUntil:'networkidle'});
+  assert.equal(await brandSection.count(),0);
+  results.brandMarks={invertedSquares:true,lightAndDarkArtwork:true,imageFallbacks:true,visibilitySettings:true,responsive:true};
+  await brands.close();
   }
 
   if(process.env.BROWSER_TEST_DRAWER_ONLY!=='1'){

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, useIsPresent, useReducedMotion } from 'framer-motion';
 import { ArrowRight, ArrowUpRight, LayoutGrid, MessageCircle, Package, Search, ShoppingBag, Sparkles, Tag, TrendingUp, UserRound, X } from 'lucide-react';
+import CalvacMark from './CalvacMark';
 import './sidebar-5.css';
 
 const shopLinks = [
@@ -17,7 +18,7 @@ const accountLinks = [
   { to: '/cart', label: 'Shopping Bag', icon: ShoppingBag },
 ];
 const filterKeys = ['brand', 'tag', 'category', 'q', 'sale', 'min_price', 'max_price'];
-const drawerEase: [number, number, number, number] = [0.76, 0, 0.24, 1];
+const drawerEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
 // A normalized viewBox keeps the curved edge fitted to any viewport height.
 const curvedEdge = 'M0 0 L0 1000 Q200 500 0 0 Z';
 const straightEdge = 'M0 0 L0 1000 Q0 500 0 0 Z';
@@ -32,12 +33,12 @@ export default function Sidebar5({ onClose, triggerRef, totalItems }: {
   const reducedMotion = useReducedMotion();
   const isPresent = useIsPresent();
   const slide = {
-    closed: { x: 'calc(-100% - 100px)', transition: { duration: reducedMotion ? 0 : 0.8, ease: drawerEase } },
-    open: { x: 0, transition: { duration: reducedMotion ? 0 : 0.8, ease: drawerEase } },
+    closed: { x: 'calc(-100% - 100px)', transition: { duration: reducedMotion ? 0 : 0.4, ease: drawerEase } },
+    open: { x: 0, transition: { duration: reducedMotion ? 0 : 0.5, ease: drawerEase } },
   };
   const curve = {
-    closed: { d: curvedEdge, transition: { duration: reducedMotion ? 0 : 0.8, ease: drawerEase } },
-    open: { d: straightEdge, transition: { duration: reducedMotion ? 0 : 1, ease: drawerEase } },
+    closed: { d: curvedEdge, transition: { duration: reducedMotion ? 0 : 0.4, ease: drawerEase } },
+    open: { d: straightEdge, transition: { duration: reducedMotion ? 0 : 0.6, ease: drawerEase } },
   };
 
   useLayoutEffect(() => {
@@ -103,7 +104,7 @@ export default function Sidebar5({ onClose, triggerRef, totalItems }: {
       <div className="store-drawer-header">
         <div className="store-drawer-heading">
           <Link to="/" className="store-drawer-brand" onClick={onClose} aria-label="CALVAC home">
-            <span className="store-drawer-monogram" aria-hidden="true">C</span>
+            <span className="store-drawer-monogram" aria-hidden="true"><CalvacMark /></span>
             <span><span id="store-menu-title">CALVAC<span className="sr-only"> menu</span></span><small>Footwear with character</small></span>
           </Link>
           <button type="button" className="store-drawer-close" aria-label="Close menu" onClick={onClose} autoFocus><X size={20} aria-hidden="true" /></button>
