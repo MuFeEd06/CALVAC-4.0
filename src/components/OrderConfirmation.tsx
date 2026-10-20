@@ -47,7 +47,7 @@ export default function OrderConfirmation({order:initial,onChange,autoPoll=false
       })}>Cancel unpaid order</button>
     </>}
     {online&&!paid&&<p><button disabled={busy} onClick={()=>void run(refresh)}>Check payment status</button></p>}
-    {!online&&<a className="primary-link" href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`} target="_blank" rel="noopener noreferrer">Open order in WhatsApp</a>}
+    {!online&&<a className="primary-link" href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`} target="_blank" rel="noopener noreferrer">Confirm Order in WhatsApp</a>}
     {error&&<p role="alert" className="load-error">{error}</p>}{message&&<p role="status">{message}</p>}
     <p><Link to="/account/orders">My orders</Link> · <Link to="/shop">Continue shopping</Link></p>
   </section>;

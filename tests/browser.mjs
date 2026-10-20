@@ -154,7 +154,7 @@ try {
   await page.getByRole('heading', { name: 'Order received', exact: true }).waitFor();
   assert.equal(orderAttempts, 2); assert.equal(orderKeys[0], orderKeys[1]);
   assert.match(await page.locator('main').innerText(), /1,500/);
-  assert.match(await page.getByRole('link', { name: 'Open order in WhatsApp' }).getAttribute('href'), /Order%20%237/);
+  assert.match(await page.getByRole('link', { name: 'Confirm Order in WhatsApp' }).getAttribute('href'), /Order%20%237/);
   await page.screenshot({ path: resolve(artifact, 'checkout-mobile.png'), fullPage: true });
   results.checkout = { retriesReuseKey: true, doubleClickGuard: true, quantityCap: 10, spacesPreserved: true, authoritativeTotal: 1500, adminDownloaded: false };
   await page.goto(origin + '/shop');
