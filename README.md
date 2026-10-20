@@ -44,6 +44,8 @@ The storefront hamburger opens a left drawer adapted from the supplied Sidebar 5
 
 See [FINAL_REVIEW.md](FINAL_REVIEW.md) for the 20 October security review, applied profile-permission fix, resource measurements and current hosting-plan constraints. CI enforces the build/media budgets with `npm run check:budgets`.
 
+Collections uses the supplied Tilt Cascade Carousel motion, adapted in `src/components/ui/tilt-cascade-carousel.tsx` with scoped CSS and existing category artwork. Admin visibility settings and shop-filter links are preserved. It supports drag, touch, horizontal trackpads, arrows, keyboard navigation and reduced motion; vertical gestures still scroll the page. There is no autoplay or added dependency, and animation frames stop when the springs settle. `BROWSER_TEST_COLLECTIONS_ONLY=1 npm run test:browser` checks this section against a fixture build.
+
 - Home uses 60 WebP frames per device variant: **1,151,800 bytes desktop**, **607,944 bytes mobile**, versus 15,498,851 bytes of GIFs previously.
 - Only a window of nearby frames is fetched. At most ten decoded frames are retained, with two concurrent downloads. Skip/navigation aborts pending work and releases bitmaps. Reduced motion/data-saving requests only the first frame.
 - Original GIFs are kept in `assets/source-frames/`, outside the public build. Rebuild WebP files with `python scripts/optimize_frames.py` after installing Pillow in a development environment. Bump the `/frames/v2` version if regenerated assets change because these URLs are immutable.

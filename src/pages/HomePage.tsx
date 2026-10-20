@@ -62,7 +62,7 @@ export default function HomePage() {
       {(settings as any).show_brands_section !== false && (
         <BrandTiles hiddenBrands={(settings as any).hidden_brands || ''} />
       )}
-      <CategoryScroll settings={settings} />
+      {heroReady && <CategoryScroll settings={settings} />}
 
       <section style={{ padding: '0 5% 60px' }}>
         <h2 style={{ fontFamily: 'var(--font-display)', textAlign: 'center', color: 'var(--primary)', margin: '30px 0 10px', fontSize: '1.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px' }}>

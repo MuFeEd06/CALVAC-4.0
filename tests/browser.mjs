@@ -118,7 +118,7 @@ async function readability(page,selector='body'){
   },selector);
 }
 try {
-  if(process.env.BROWSER_TEST_DRAWER_ONLY!=='1'){
+  if(process.env.BROWSER_TEST_DRAWER_ONLY!=='1'&&process.env.BROWSER_TEST_COLLECTIONS_ONLY!=='1'){
   const store = await context({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await store.addInitScript(({ product }) => {
     if (location.protocol !== 'http:') return;
@@ -200,8 +200,11 @@ try {
     return route.fulfill({contentType:'application/json',body:JSON.stringify(data)});
   });
   const fixedPage=await fixes.newPage();
-  for(const category of ['boots','crocs','girls']){
+  for(const [index,category] of ['boots','crocs','girls'].entries()){
     await fixedPage.goto(origin+'/');
+    const carousel=fixedPage.getByRole('region',{name:'Collection carousel',exact:true});
+    await carousel.focus();await fixedPage.keyboard.press('Home');
+    for(let step=0;step<index;step++)await fixedPage.keyboard.press('ArrowRight');
     await fixedPage.locator(`a[href="/shop?category=${category}"]`).first().click();
     await fixedPage.getByRole('heading',{name:category+' collection shoe',exact:true}).waitFor();
     assert.equal(new URL(fixedPage.url()).searchParams.get('category'),category);
@@ -554,6 +557,7 @@ try {
   }
 
   }
+  if(process.env.BROWSER_TEST_COLLECTIONS_ONLY!=='1'){
   const navigation=await context({viewport:{width:390,height:844},reducedMotion:'reduce'});
   const navPage=await navigation.newPage(),navigationRequests=[];
   navPage.on('request',request=>navigationRequests.push(request.url()));
@@ -658,6 +662,102 @@ try {
   assert.deepEqual(await animatedPage.evaluate(()=>[document.body.style.overflow,document.documentElement.style.overflow]),['','']);
   results.curvedDrawer={openingAndClosing:true,mobileAndDesktop:true,themeMatched:true,resizesWithViewport:true,modalDuringExit:true,earlyClose:true,navigationClose:true,reducedMotion:true};
   await animatedNavigation.close();
+  }
+
+  if(process.env.BROWSER_TEST_DRAWER_ONLY!=='1'){
+    const collections=await context({viewport:{width:390,height:844},isMobile:true,hasTouch:true,reducedMotion:'reduce'});
+    const categories=[['boots','Boots','/shop?category=boots'],['crocs','Crocs','/shop?category=crocs'],['girls','Girls','/shop?category=girls'],['sale','Sale','/shop?sale=1'],['under1000','Under 1000','/shop?max_price=1000'],['under1500','Under 1500','/shop?max_price=1500'],['under2500','Under 2500','/shop?max_price=2500'],['new','New','/shop?tag=new'],['premium','Premium','/shop?min_price=2500'],['all','All Shoes','/shop']];
+    let collectionSettings={hero_type:'hidden',show_new_arrivals:false,show_brands_section:false,show_categories:true,...Object.fromEntries(categories.map(([slug])=>['cat_'+slug,true]))};
+    await collections.route('**/api/site-settings',route=>route.fulfill({contentType:'application/json',body:JSON.stringify(collectionSettings)}));
+    await collections.route('**/logos/categories/boots.png?*',route=>route.fulfill({status:404,body:''}));
+    const collectionPage=await collections.newPage();
+    await collectionPage.goto(origin+'/',{waitUntil:'networkidle'});
+    const carousel=collectionPage.getByRole('region',{name:'Collection carousel',exact:true});
+    const settled=()=>collectionPage.waitForFunction(()=>{
+      const root=document.querySelector('.tcc-root');return root&&!root.hasAttribute('data-moving');
+    });
+    const current=()=>carousel.locator('.tcc-slide[data-active]');
+    const apiCalls=calls.filter(path=>path.startsWith('/api/')).length;
+    for(const width of [320,390,1366]){
+      await collectionPage.setViewportSize({width,height:900});
+      for(const mode of ['light','dark']){
+        if(await collectionPage.evaluate(()=>document.documentElement.dataset.themeMode)!==mode)await collectionPage.getByRole('button',{name:`Switch to ${mode} theme`,exact:true}).click();
+        await carousel.focus();await collectionPage.keyboard.press('Home');await settled();
+        assert.equal(await carousel.locator('.tcc-slide').count(),10,'Each collection appears once');
+        for(const [,title,href] of categories)assert.equal(await carousel.locator(`a[aria-label="Shop ${title}"]`).getAttribute('href'),href);
+        assert.equal(await carousel.locator('.tcc-slide[data-active] .tcc-fallback').isVisible(),true,'Failed artwork keeps an accessible collection card');
+        await carousel.getByRole('button',{name:'Next collection',exact:true}).click();await settled();
+        assert.equal(await current().getAttribute('aria-label'),'Shop Crocs');
+        await carousel.getByRole('button',{name:'Previous collection',exact:true}).click();await settled();
+        assert.equal(await current().getAttribute('aria-label'),'Shop Boots');
+        await carousel.focus();await collectionPage.keyboard.press('End');await settled();
+        assert.equal(await current().getAttribute('aria-label'),'Shop All Shoes');
+        await collectionPage.keyboard.press('ArrowRight');await settled();
+        assert.equal(await current().getAttribute('aria-label'),'Shop Boots','Looping wraps at the end');
+        await current().focus();await collectionPage.keyboard.press('ArrowRight');await settled();
+        assert.equal(await current().evaluate(element=>element===document.activeElement),true,'Keyboard focus follows the selected collection');
+        if(width===1366){await carousel.getByRole('button',{name:'Choose collection: Sale',exact:true}).click();await settled();assert.equal(await current().getAttribute('aria-label'),'Shop Sale');}
+        await carousel.focus();await collectionPage.keyboard.press('Home');await settled();
+        assert.deepEqual(await readability(collectionPage,'.tcc-root'),[],`${width}px ${mode} collections contrast`);
+        assert.equal(await collectionPage.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+        await carousel.screenshot({path:resolve(artifact,`collections-tilt-${width}-${mode}.png`)});
+      }
+    }
+    await collectionPage.setViewportSize({width:390,height:600});
+    await carousel.scrollIntoViewIfNeeded();
+    let bounds=await carousel.boundingBox();
+    await collectionPage.mouse.move(bounds.x+bounds.width/2+60,bounds.y+bounds.height/2);
+    await collectionPage.mouse.down();await collectionPage.mouse.move(bounds.x+bounds.width/2-110,bounds.y+bounds.height/2,{steps:8});await collectionPage.mouse.up();await settled();
+    assert.notEqual(await current().getAttribute('aria-label'),'Shop Boots','Dragging changes collections');
+    assert.equal(new URL(collectionPage.url()).pathname,'/','Dragging must not open a collection');
+    await carousel.focus();await collectionPage.keyboard.press('Home');await settled();
+    const touch=await collections.newCDPSession(collectionPage);
+    const swipe=async(horizontal)=>{
+      await carousel.scrollIntoViewIfNeeded();bounds=await carousel.boundingBox();
+      const x=bounds.x+bounds.width/2+40,y=bounds.y+bounds.height/2+40;
+      await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});
+      for(let step=1;step<=8;step++)await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x-(horizontal?step*20:0),y:y-(horizontal?0:step*20)}]});
+      await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    };
+    await swipe(true);await settled();
+    assert.notEqual(await current().getAttribute('aria-label'),'Shop Boots','Touch swipes change collections');
+    assert.equal(new URL(collectionPage.url()).pathname,'/','Swiping must not follow a card link');
+    await carousel.focus();await collectionPage.keyboard.press('Home');await settled();
+    const scrollBefore=await collectionPage.evaluate(()=>scrollY);
+    await swipe(false);
+    await collectionPage.waitForFunction(before=>scrollY>before,scrollBefore);
+    assert.equal(await current().getAttribute('aria-label'),'Shop Boots','Vertical swipes scroll the page without changing collections');
+    await carousel.scrollIntoViewIfNeeded();await carousel.hover();
+    await collectionPage.mouse.wheel(120,0);await settled();
+    await collectionPage.waitForFunction(()=>document.querySelector('.tcc-slide[data-active]')?.getAttribute('aria-label')!=='Shop Boots');
+    assert.equal(calls.filter(path=>path.startsWith('/api/')).length,apiCalls,'Browsing collections requires no extra API requests');
+    await carousel.focus();await collectionPage.keyboard.press('Home');
+    for(let step=0;step<3;step++)await collectionPage.keyboard.press('ArrowRight');
+    await settled();await current().click();
+    await collectionPage.waitForURL(url=>url.pathname==='/shop'&&url.searchParams.get('sale')==='1');
+    collectionSettings={...collectionSettings,...Object.fromEntries(categories.map(([slug])=>['cat_'+slug,slug==='crocs']))};
+    await collectionPage.goto(origin+'/',{waitUntil:'networkidle'});
+    assert.equal(await carousel.locator('.tcc-slide').count(),1);
+    assert.equal(await current().getAttribute('href'),'/shop?category=crocs');
+    assert.equal(await carousel.getByRole('group',{name:'Collection controls',exact:true}).count(),0);
+    collectionSettings={...collectionSettings,show_categories:false};await collectionPage.reload({waitUntil:'networkidle'});
+    assert.equal(await carousel.count(),0);
+    collectionSettings={...collectionSettings,show_categories:true,cat_crocs:false};await collectionPage.reload({waitUntil:'networkidle'});
+    assert.equal(await carousel.count(),0,'An empty collection selection hides the section');
+    await collections.close();
+
+    const movingCollections=await context({viewport:{width:1366,height:900},reducedMotion:'no-preference'});
+    await movingCollections.route('**/api/site-settings',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({hero_type:'hidden',show_new_arrivals:false,show_brands_section:false})}));
+    const movingPage=await movingCollections.newPage();await movingPage.goto(origin+'/',{waitUntil:'networkidle'});
+    const movingCarousel=movingPage.getByRole('region',{name:'Collection carousel',exact:true});
+    await movingCarousel.getByRole('button',{name:'Next collection',exact:true}).click();
+    await movingPage.waitForFunction(()=>document.querySelector('.tcc-root').hasAttribute('data-moving'));
+    await movingPage.waitForFunction(()=>!document.querySelector('.tcc-root').hasAttribute('data-moving'));
+    const matrix=await movingCarousel.locator('.tcc-slide[data-active]').evaluate(element=>Array.from(new DOMMatrixReadOnly(getComputedStyle(element).transform).toFloat64Array()));
+    assert.equal(matrix.every(Number.isFinite),true);assert.ok(Math.abs(matrix[12])<0.5&&Math.abs(matrix[13])<0.5&&Math.abs(matrix[0]-1)<0.001,'Active card settles upright in the center');
+    await movingCollections.close();
+    results.collectionCarousel={responsive:true,lightDarkContrast:true,filtersPreserved:true,adminVisibility:true,singleAndEmptyStates:true,dragAndTouch:true,verticalPageScroll:true,keyboardAndFocus:true,brokenImageFallback:true,looping:true,reducedMotion:true,springsSettle:true,noExtraApiCalls:true};
+  }
 
   assert.deepEqual(errors, []);
   results.pageErrors = errors;

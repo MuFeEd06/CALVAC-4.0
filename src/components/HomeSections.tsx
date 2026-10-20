@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import type { Product, SiteSettings } from '@/types';
 import { BRANDS, CATEGORIES, formatPrice, getDeal } from '@/utils';
-import HorizontalScroll from './HorizontalScroll';
+import TiltCascadeCarousel from './ui/tilt-cascade-carousel';
 import { ikResize } from '@/api';
 import { FocusRail } from './FocusRail';
 import type { FocusRailItem } from './FocusRail';
@@ -115,7 +115,7 @@ export function BrandTiles({ hiddenBrands = '' }: { hiddenBrands?: string }) {
   );
 }
 
-/* ── Category Scroll ── */
+/* ── Collection tilt cascade ── */
 export function CategoryScroll({ settings }: { settings: SiteSettings }) {
   if (!settings.show_categories) return null;
 
@@ -123,34 +123,15 @@ export function CategoryScroll({ settings }: { settings: SiteSettings }) {
   if (visible.length === 0) return null;
 
   return (
-    <section style={{ padding: '40px 0 8px', overflow: 'hidden', position: 'relative' }}>
+    <section aria-labelledby="collections-title" style={{ padding: '40px 0 8px', overflow: 'hidden', position: 'relative' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '0 5%', marginBottom: 16, flexWrap: 'wrap', gap: 6 }}>
-        <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--primary)', fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>Collections</h2>
-        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Swipe to explore</p>
+        <h2 id="collections-title" style={{ fontFamily: 'var(--font-display)', color: 'var(--primary)', fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>Collections</h2>
+        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Swipe, drag or use the arrows to explore</p>
       </div>
-      <HorizontalScroll>
-        {[...visible, ...visible].map((cat, i) => (
-          <MotionLink key={`${cat.slug}-${i}`} to={cat.path}
-            whileHover={{ y: -3, borderColor: 'var(--primary)', boxShadow: '0 8px 24px rgba(0,0,0,0.1)' }}
-            style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center',
-              width: 160, flexShrink: 0, background: 'var(--surface)',
-              border: '1.5px solid var(--border)', borderRadius: 14, overflow: 'hidden',
-              cursor: 'pointer', textDecoration: 'none',
-            }}>
-            <div style={{ width: '100%', aspectRatio: '1/1', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-2)' }}>
-              <img src={`https://ik.imagekit.io/yocxectr4/logos/categories/${cat.slug}.png?tr=w-120,h-120,f-webp,q-80`} alt={cat.label}
-                loading="lazy"
-                onError={e => { const el = e.target as HTMLImageElement; el.style.display = 'none'; el.nextElementSibling!.removeAttribute('hidden'); }}
-                style={{ width: '70%', height: '70%', objectFit: 'contain' }} />
-              <span hidden style={{ fontSize: '2.4rem' }}>{cat.emoji}</span>
-            </div>
-            <span style={{ fontSize: '0.72rem', fontWeight: 700, textAlign: 'center', color: 'var(--text)', letterSpacing: '0.3px', textTransform: 'uppercase', padding: '8px 6px 10px', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {cat.label}
-            </span>
-          </MotionLink>
-        ))}
-      </HorizontalScroll>
+      <TiltCascadeCarousel key={visible.map(category => category.slug).join(',')} loop={visible.length > 3} items={visible.map(category => ({
+        id: category.slug, title: category.label, href: category.path, fallback: category.emoji,
+        src: `https://ik.imagekit.io/yocxectr4/logos/categories/${category.slug}.png?tr=w-400,h-400,f-webp,q-80`,
+      }))} />
     </section>
   );
 }
