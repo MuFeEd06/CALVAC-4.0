@@ -3,24 +3,13 @@ import type { Page, ConfirmedOrder } from '@/types/api';
 import { DEFAULT_THEME_SETTINGS, normalizeSiteSettings } from '@/theme';
 import { normalizeSizeList, normalizeSizeUnit } from '@/utils/sizeUnits';
 import { TimedCache } from './cache';
+import { ikResize } from '@/utils/images';
+export { ikResize, ikSrcSet } from '@/utils/images';
 
 const cache = new TimedCache();
 const SETTINGS_KEY = 'calvac_settings_v8';
 const TTL = 30_000;
 
-export function ikResize(url: string, width: number, quality: number): string {
-  if (!url) return '';
-  try {
-    const parsed = new URL(url, location.origin);
-    if (parsed.hostname !== 'ik.imagekit.io') return url;
-    parsed.search = `tr=w-${width},q-${quality},f-webp,c-at_max,pr-true`;
-    return parsed.toString();
-  } catch { return ''; }
-}
-export function ikSrcSet(url: string, quality = 75): string {
-  if (!url.includes('ik.imagekit.io')) return '';
-  return [320, 480, 640, 800, 1080, 1440].map(w => `${ikResize(url, w, quality)} ${w}w`).join(', ');
-}
 function parseField(value: unknown): unknown {
   if (typeof value !== 'string') return value;
   try { return JSON.parse(value); } catch {

@@ -1,5 +1,5 @@
 import OrderCooldown from '@/components/OrderCooldown';
-import { imageFallback, FALLBACK_IMAGE } from '@/utils/images';
+import { imageFallback, FALLBACK_IMAGE, ikResize } from '@/utils/images';
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -71,7 +71,7 @@ export default function CartPage() {
   };
 
   if (confirmed && totalItems === 0) return (
-    <main className="account-shell"><OrderConfirmation order={confirmed} onChange={order=>{
+    <main className="account-shell"><OrderConfirmation order={confirmed} autoPoll onChange={order=>{
       setConfirmed(order);try{sessionStorage.setItem('calvac_confirmed_order',JSON.stringify({ts:Date.now(),order}));}catch{}
     }}/></main>
   );
@@ -107,7 +107,7 @@ export default function CartPage() {
                 initial={{ opacity:0, x:-20 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:20 }}
                 transition={{ duration:0.25 }}
                 style={{ display:'grid', gridTemplateColumns:'90px 1fr auto', gap:16, alignItems:'center', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:16, boxShadow:'var(--shadow)' }}>
-                <img src={item.image} alt={item.name}
+                <img src={ikResize(item.image,160,75)||FALLBACK_IMAGE} alt={item.name}
                   onError={imageFallback}
                   style={{ width:90, height:90, objectFit:'contain', borderRadius:8, background:'var(--surface-2)', padding:6 }} />
                 <div>

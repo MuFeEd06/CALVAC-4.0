@@ -23,7 +23,7 @@ before(async () => {
     grant usage on schema auth to authenticated;
     insert into auth.users values('${user}'),('${other}');`);
   await db.exec(await readFile(new URL('./fixtures/live-schema.sql', import.meta.url),'utf8'));
-  for (const name of ['20261019111147_checkout_hardening.sql','20261019111159_customer_payments.sql','20261019161008_hero_theme_whatsapp_cooldown.sql'])
+  for (const name of ['20261019111147_checkout_hardening.sql','20261019111159_customer_payments.sql','20261019161008_hero_theme_whatsapp_cooldown.sql','20261020035242_profile_server_writes.sql'])
     await db.exec(await readFile(new URL('../supabase/migrations/' + name, import.meta.url),'utf8'));
 });
 after(async () => { await db?.close(); });
@@ -123,9 +123,19 @@ test('a webhook that precedes binding is retried rather than recorded as process
 test('profiles are private to their owner and payment RPCs are unavailable to browser roles', async () => {
   await db.exec(`insert into profiles(id,full_name) values('${user}','Private Fixture'); set role authenticated; set request.jwt.claim.sub='${other}';`);
   assert.equal((await db.query('select * from profiles')).rows.length,0);
-  await assert.rejects(db.query(`insert into profiles(id) values('${user}')`),/row-level security/);
+  await assert.rejects(db.query(`insert into profiles(id) values('${user}')`),/permission denied/);
+  await db.exec(`set request.jwt.claim.sub='${user}';`);
+  assert.equal((await db.query('select * from profiles')).rows.length,1);
+  await assert.rejects(db.query(`update profiles set full_name='Bypass' where id='${user}'`),/permission denied/);
   await assert.rejects(create(),/permission denied/);
   await assert.rejects(db.query('select * from payment_events'),/permission denied/);
+});
+
+test('validated server profile saves still work after browser writes are revoked', async () => {
+  await db.exec(`set role service_role; insert into profiles(id,full_name,phone) values('${user}','Validated Fixture','9876543210')
+    on conflict(id) do update set full_name=excluded.full_name;
+    update profiles set full_name='Updated Fixture' where id='${user}';`);
+  assert.equal((await db.query('select full_name from profiles')).rows[0].full_name,'Updated Fixture');
 });
 
 test('persistent rate limits recover on expiry and denied hits never extend the window', async () => {

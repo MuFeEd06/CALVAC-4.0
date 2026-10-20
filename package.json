@@ -10,6 +10,7 @@
     "dev": "vite",
     "build": "node scripts/build-theme.mjs && tsc --noEmit && vite build",
     "build:emails": "node scripts/build-auth-emails.mjs",
+    "check:budgets": "node scripts/check-budgets.mjs",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test --test-concurrency=1 tests/*.test.ts",
     "preview": "vite preview",

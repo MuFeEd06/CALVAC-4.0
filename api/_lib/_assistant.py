@@ -54,15 +54,11 @@ def catalog_index():
     with _catalog_lock:
         if time.monotonic() < _catalog_until:
             return _catalog
-        rows, after = [], 0
-        # Bounded keyset reads: the current store is small; never read private tables.
-        for _ in range(10):
-            page = public_rest_request('GET', 'products?select=id,name,brand,category,tag,price,specs,sizes&active=eq.true&order=id.asc&limit=100&id=gt.'+str(after), timeout=5)
-            if not isinstance(page,list):
-                raise ApiError(502, 'The product catalog is temporarily unavailable.')
-            rows.extend(page)
-            if len(page)<100:break
-            after = int(page[-1]['id'])
+        # Same 1,000-product cap as before, in one bounded request. Candidates
+        # are re-read below before reporting prices, stock or active status.
+        rows = public_rest_request('GET', 'products?select=id,name,brand,category,tag,price,specs,sizes&active=eq.true&order=id.asc&limit=1000', timeout=5)
+        if not isinstance(rows,list):
+            raise ApiError(502, 'The product catalog is temporarily unavailable.')
         _catalog, _catalog_until = rows, time.monotonic()+60
         return rows
 

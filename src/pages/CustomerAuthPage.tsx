@@ -4,28 +4,28 @@ import { googleSignInAvailable, supabase } from '@/lib/supabase';
 import { localRedirect } from '@/lib/customerAuth';
 import { GoogleIcon } from '@/components/BrandIcons';
 
-const RESEND_KEY='calvac_verification_resend';
-function resendDeadline(email:string) {
-  try{const saved=JSON.parse(sessionStorage.getItem(RESEND_KEY)||'null');return saved?.email===email.trim().toLowerCase()?Math.min(Date.now()+60000,Number(saved.until)||0):0;}catch{return 0;}
+function resendDeadline(email:string,key:string) {
+  try{const saved=JSON.parse(sessionStorage.getItem(key)||'null');return saved?.email===email.trim().toLowerCase()?Math.min(Date.now()+60000,Number(saved.until)||0):0;}catch{return 0;}
 }
-function saveDeadline(email:string,until:number) {
-  try{sessionStorage.setItem(RESEND_KEY,JSON.stringify({email:email.trim().toLowerCase(),until}));}catch{/* Supabase also enforces its own delivery limits. */}
+function saveDeadline(email:string,until:number,key:string) {
+  try{sessionStorage.setItem(key,JSON.stringify({email:email.trim().toLowerCase(),until}));}catch{/* Supabase also enforces its own delivery limits. */}
 }
 const callbackUrl=(redirect:string)=>`${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirect)}`;
 
 export default function CustomerAuthPage() {
   const location=useLocation(),navigate=useNavigate(),[search]=useSearchParams();
   const mode=location.pathname.slice(1),redirect=localRedirect(search.get('redirect')),verify=mode==='verify-email';
+  const recovery=mode==='forgot-password',cooldownKey=recovery?'calvac_recovery_resend':'calvac_verification_resend';
   const [email,setEmail]=useState<string>(()=>typeof location.state?.email==='string'?location.state.email:''),[name,setName]=useState(''),[password,setPassword]=useState('');
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[google,setGoogle]=useState<boolean|null>(null);
-  const [deadline,setDeadline]=useState(()=>resendDeadline(email)),[now,setNow]=useState(Date.now),working=useRef(false);
+  const [deadline,setDeadline]=useState(()=>resendDeadline(email,cooldownKey)),[now,setNow]=useState(Date.now),working=useRef(false);
   const remaining=Math.max(0,Math.ceil((deadline-now)/1000)),social=mode==='login'||mode==='signup';
   const verifyLink=`/verify-email?redirect=${encodeURIComponent(redirect)}`;
   useEffect(()=>{setError('');setNotice('');setPassword('');},[mode]);
   useEffect(()=>{let active=true;if(social){setGoogle(null);googleSignInAvailable().then(value=>{if(active)setGoogle(value);}).catch(()=>{if(active)setGoogle(false);});}return()=>{active=false;};},[social]);
-  useEffect(()=>{setDeadline(resendDeadline(email));setNow(Date.now());},[email]);
+  useEffect(()=>{setDeadline(resendDeadline(email,cooldownKey));setNow(Date.now());},[email,cooldownKey]);
   useEffect(()=>{if(!deadline)return;const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer);},[deadline]);
-  const coolDown=()=>{const until=Date.now()+60000;saveDeadline(email,until);setDeadline(until);setNow(Date.now());};
+  const coolDown=()=>{const until=Date.now()+60000;saveDeadline(email,until,cooldownKey);setDeadline(until);setNow(Date.now());};
   const title=mode==='signup'?'Create your account':verify?'Verify your email':mode==='forgot-password'?'Reset your password':mode==='reset-password'?'Choose a new password':'Sign in';
   const failure=(err:unknown)=>{
     const authError=err as {status?:number;code?:string};
@@ -49,7 +49,7 @@ export default function CustomerAuthPage() {
       <div className="auth-divider"><span>or continue with email</span></div>
     </div>}
     <form className="account-card" onSubmit={async event=>{
-      event.preventDefault();if(working.current||(verify&&remaining>0))return;working.current=true;setBusy(true);setError('');setNotice('');
+      event.preventDefault();if(working.current||((verify||recovery)&&remaining>0))return;working.current=true;setBusy(true);setError('');setNotice('');
       try {
         if(!supabase)throw new Error('Customer sign-in is not configured yet.');
         if(verify){
@@ -61,7 +61,7 @@ export default function CustomerAuthPage() {
           if(!data.session){coolDown();setNotice('Check your email to confirm your account, then sign in.');return;}
         }else if(mode==='forgot-password'){
           const {error}=await supabase.auth.resetPasswordForEmail(email.trim(),{redirectTo:`${window.location.origin}/reset-password`});
-          if(error)throw error;setNotice('If an account matches this email, you will receive a password reset link.');return;
+          if(error)throw error;coolDown();setNotice('If an account matches this email, you will receive a password reset link.');return;
         }else if(mode==='reset-password'){
           const {data}=await supabase.auth.getSession();if(!data.session)throw new Error('Open the password reset link from your email.');
           const {error}=await supabase.auth.updateUser({password});if(error)throw error;
@@ -76,7 +76,7 @@ export default function CustomerAuthPage() {
       {mode!=='reset-password'&&<label className="account-field">Email<input type="email" autoComplete="email" value={email} maxLength={254} required onChange={event=>setEmail(event.target.value)}/></label>}
       {!verify&&mode!=='forgot-password'&&<label className="account-field">Password<input type="password" autoComplete={mode==='login'?'current-password':'new-password'} value={password} minLength={mode==='login'?1:8} maxLength={128} required onChange={event=>setPassword(event.target.value)}/></label>}
       {error&&<p role="alert" className="load-error">{error}</p>}{notice&&<p role="status">{notice}</p>}
-      <button className="primary-link" disabled={busy||(verify&&remaining>0)}>{busy?'Please wait…':verify?(remaining>0?`Resend available in ${remaining}s`:'Resend verification email'):title}</button>
+      <button className="primary-link" disabled={busy||((verify||recovery)&&remaining>0)}>{busy?'Please wait…':(verify||recovery)&&remaining>0?`Resend available in ${remaining}s`:verify?'Resend verification email':title}</button>
     </form>
     {social&&<p><Link to={verifyLink} state={{email}}>Resend verification email</Link></p>}
     <p><Link to={`${mode==='signup'||verify?'/login':'/signup'}?redirect=${encodeURIComponent(redirect)}`}>{mode==='signup'||verify?'Already registered? Sign in':'Create an account'}</Link></p>

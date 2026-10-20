@@ -30,6 +30,30 @@ class Handler:
 
 
 class ApiTests(unittest.TestCase):
+    def test_invalid_catalog_requests_do_not_run_inventory_maintenance_or_database_reads(self):
+        for query in ({'id':['bad']}, {'limit':['10000']}, {'after':['1&active=eq.false']}, {'max_price':['NaN']}):
+            with self.subTest(query=query), patch.object(store,'refresh_expired_reservations') as maintenance, \
+                 patch.object(store,'public_rest_request') as database:
+                with self.assertRaises(ApiError):store._get_products(Handler({}),query,None)
+                maintenance.assert_not_called();database.assert_not_called()
+
+    def test_catalog_cards_omit_long_details_but_product_pages_keep_them(self):
+        with patch.object(store,'refresh_expired_reservations'), patch.object(store,'public_rest_request',return_value=[]) as database:
+            store._get_products(Handler({}),{'limit':['2']},None)
+            selected=parse_qs(database.call_args.args[1].split('?',1)[1])['select'][0].split(',')
+            self.assertNotIn('specs',selected);self.assertNotIn('stock',selected)
+            self.assertIn('sizes',selected);self.assertIn('colors',selected)
+        with patch.object(store,'refresh_expired_reservations'), patch.object(store,'public_rest_request',return_value=[{'id':1,'specs':'Material: Leather','stock':{'default|8':2}}]):
+            handler=Handler({});store._get_products(handler,{'id':['1']},None)
+            data=json.loads(handler.wfile.getvalue())
+            self.assertEqual(data['specs'],'Material: Leather');self.assertEqual(data['stock'],{'default|8':2})
+
+    def test_sale_links_use_the_sale_flag_including_legacy_tag_links(self):
+        for query in ({'sale':['1']},{'tag':['sale']}):
+            filters=parse_qs('&'.join(store._catalog_filters(query)))
+            self.assertEqual(filters['on_sale'],['eq.true'])
+            self.assertNotIn('tag',filters)
+
     def test_catalog_column_filters_match_without_literal_quotes_and_do_not_inject_parameters(self):
         for field,value in [('category','boots'),('category','crocs'),('category','girls'),('brand','New Balance'),('tag','new'),('brand','x&active=eq.false,or=(id.gt.0)')]:
             with self.subTest(field=field,value=value):

@@ -109,12 +109,15 @@ class AssistantTests(unittest.TestCase):
             with self.subTest(body=body),self.assertRaises(ApiError):guide.validate_question(body)
 
     def test_catalog_reads_are_bounded_and_public_only(self):
-        with patch.object(guide,'_catalog_until',0),patch.object(guide,'public_rest_request',return_value=CATALOG) as database:
+        rows=[dict(CATALOG[0],id=index+1) for index in range(332)]
+        with patch.object(guide,'_catalog_until',0),patch.object(guide,'public_rest_request',return_value=rows) as database:
             guide.catalog_index()
+            self.assertEqual(len(guide.catalog_index()),332)
             self.assertEqual(database.call_count,1)
             self.assertEqual(database.call_args.args[0],'GET')
             path=database.call_args.args[1]
             self.assertIn('products?',path);self.assertIn('active=eq.true',path)
+            self.assertIn('limit=1000',path)
             self.assertNotIn('orders',path);self.assertNotIn('profiles',path)
 
     def test_gemini_requests_are_server_only_and_validate_product_ids_and_prices(self):

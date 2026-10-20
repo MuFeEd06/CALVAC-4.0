@@ -1,6 +1,6 @@
 import ThemeSwitch from './ThemeSwitch';
 import { UserRound } from 'lucide-react';
-import { FALLBACK_IMAGE, imageFallback } from '@/utils/images';
+import { FALLBACK_IMAGE, imageFallback, ikResize } from '@/utils/images';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,7 +13,7 @@ const navLinks = [
   { to: '/shop',              label: 'All Shoes' },
   { to: '/shop?tag=new',      label: 'New Arrivals' },
   { to: '/shop?tag=trending', label: 'Trending' },
-  { to: '/shop?tag=sale',     label: 'Sale' },
+  { to: '/shop?sale=1',       label: 'Sale' },
   { to: '/contact',           label: 'Contact' },
 ];
 
@@ -197,7 +197,7 @@ export default function Header() {
                     onMouseEnter={e=>(e.currentTarget.style.background='var(--surface-2)')}
                     onMouseLeave={e=>(e.currentTarget.style.background='transparent')}
                   >
-                    <img onError={imageFallback} src={p.image||FALLBACK_IMAGE}
+                    <img onError={imageFallback} src={ikResize(p.image,80,75)||FALLBACK_IMAGE}
                       alt="" style={{ width:40, height:40, borderRadius:8, objectFit:'contain',
                         background:'var(--surface-2)', flexShrink:0 }} />
                     <div style={{ minWidth:0 }}>

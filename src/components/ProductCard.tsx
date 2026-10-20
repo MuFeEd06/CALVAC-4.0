@@ -1,4 +1,4 @@
-import { imageFallback, FALLBACK_IMAGE } from '@/utils/images';
+import { imageFallback, FALLBACK_IMAGE, ikResize, ikSrcSet } from '@/utils/images';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import type { Product } from '@/types';
@@ -29,13 +29,9 @@ export default function ProductCard({ product }: { product: Product }) {
       {/* Image — lazy load + srcset for responsive delivery */}
       <div style={{ position: 'relative', background: 'var(--surface-2)', aspectRatio: '4/3', overflow: 'hidden' }}>
         <img
-          src={product.image || FALLBACK_IMAGE}
-          srcSet={product.image?.includes('ik.imagekit.io')
-            ? [220,300,400].map(w =>
-                `${product.image!.split('?')[0]}?tr=w-${w},q-75,f-webp,c-at_max,pr-true ${w}w`
-              ).join(', ')
-            : undefined}
-          sizes="(max-width:767px) 44vw, 220px"
+          src={ikResize(product.image, 400, 75) || FALLBACK_IMAGE}
+          srcSet={ikSrcSet(product.image, 75, [220, 320, 480])}
+          sizes="(max-width:767px) 44vw, (max-width:1100px) 28vw, 240px"
           alt={product.name}
           loading="lazy"
           decoding="async"

@@ -5,6 +5,25 @@ import { cleanInput, cleanStr, isSafeImageUrl, safeLink, sanitizeProductPayload 
 import { migrateCart, MAX_LINE_ITEMS, MAX_QTY } from '../src/utils/cart';
 import { FrameBuffer } from '../src/utils/frameBuffer';
 import { checkoutKey } from '../src/utils/checkout';
+import { ikResize, ikSrcSet } from '../src/utils/images';
+
+test('responsive images preserve metadata and signatures and use only the exact ImageKit host', () => {
+  const source = 'https://ik.imagekit.io/store/shoe.webp?version=2&tr=w-800,q-90';
+  const resized = new URL(ikResize(source, 80, 75));
+  assert.equal(resized.searchParams.get('version'), '2');
+  assert.equal(resized.searchParams.getAll('tr').length, 1);
+  assert.match(resized.searchParams.get('tr')!, /^w-80,q-75,/);
+  const candidates = ikSrcSet(source, 75, [220, 400])!.split(', ');
+  assert.equal(candidates.length, 2);
+  assert.ok(candidates.every(candidate => new URL(candidate.split(' ')[0]).searchParams.get('version') === '2'));
+  const signed = 'https://ik.imagekit.io/store/shoe.webp?tr=w-800&ik-t=9999999999&ik-s=fixture';
+  assert.equal(ikResize(signed, 80, 75), signed);
+  assert.equal(ikSrcSet(signed), undefined);
+  for (const url of ['/product-placeholder.svg','https://ik.imagekit.io.evil.invalid/shoe.webp','https://other.invalid/ik.imagekit.io/shoe.webp']) {
+    assert.equal(ikResize(url, 80, 75), url);
+    assert.equal(ikSrcSet(url), undefined);
+  }
+});
 
 test('image saving preserves ImageKit URLs and rejects deceptive/unsafe hosts', () => {
   const image = 'https://ik.imagekit.io/store/shoe.webp';

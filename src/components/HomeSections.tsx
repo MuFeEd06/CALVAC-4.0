@@ -99,6 +99,7 @@ export function BrandTiles({ hiddenBrands = '' }: { hiddenBrands?: string }) {
               <div style={{ width: 60, height: 60, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1.5px solid ${brand.color}44`, background: 'var(--surface)', padding: 8, overflow: 'hidden' }}>
                 {brand.logo ? (
                   <img src={brand.logo} alt={brand.name}
+                    loading="lazy" decoding="async" width={44} height={44}
                     onError={e => { const el = e.target as HTMLImageElement; el.style.display = 'none'; el.nextElementSibling!.removeAttribute('hidden'); }}
                     style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 ) : null}

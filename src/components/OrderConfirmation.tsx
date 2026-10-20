@@ -4,8 +4,9 @@ import type { ConfirmedOrder } from '@/types/api';
 import { formatPrice, WHATSAPP_NUMBER } from '@/utils';
 import { formatSizeWithUnit } from '@/utils/sizeUnits';
 
-export default function OrderConfirmation({order:initial,onChange}:{order:ConfirmedOrder;onChange?:(order:ConfirmedOrder)=>void}) {
+export default function OrderConfirmation({order:initial,onChange,autoPoll=false}:{order:ConfirmedOrder;onChange?:(order:ConfirmedOrder)=>void;autoPoll?:boolean}) {
   const [order,setOrder]=useState(initial),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
+  const [paymentSubmitted,setPaymentSubmitted]=useState(false);
   useEffect(()=>setOrder(initial),[initial]);
   const online=order.payment_method==='razorpay';
   const paid=order.payment_status==='paid';
@@ -15,16 +16,17 @@ export default function OrderConfirmation({order:initial,onChange}:{order:Confir
     const {fetchCustomerOrder}=await import('@/api/customer');const next=await fetchCustomerOrder(order.id);update(next);return next;
   };
   useEffect(()=>{
-    if(!online||paid||order.status==='Cancelled')return;
+    if((!autoPoll&&!paymentSubmitted)||!online||paid||order.status==='Cancelled')return;
     let stopped=false,attempts=0,timer:ReturnType<typeof setTimeout>;
     const poll=async()=>{
+      if(document.hidden){if(!stopped)timer=setTimeout(poll,5000);return;}
       try{const {fetchCustomerOrder}=await import('@/api/customer');const next=await fetchCustomerOrder(order.id);
         if(stopped)return;update(next);if(next.payment_status==='paid'||next.status==='Cancelled')return;
       }catch{/* Keep the saved order visible; the customer can retry status explicitly. */}
       if(!stopped&&++attempts<12)timer=setTimeout(poll,2500);
     };
     timer=setTimeout(poll,2500);return()=>{stopped=true;clearTimeout(timer);};
-  },[order.id,online,paid,order.status]);
+  },[order.id,online,paid,order.status,autoPoll,paymentSubmitted]);
   const run=async(action:()=>Promise<unknown>)=>{if(busy)return;setBusy(true);setError('');try{await action();}catch(error){setError(error instanceof Error?error.message:'Could not complete this request.');}finally{setBusy(false);}};
   let text=`Order #${order.id} — CALVAC\n\n`;
   for(const item of order.items)text+=`${item.name} × ${item.qty} — ${formatSizeWithUnit(item.size_unit,item.size)}${item.color?' / '+item.color:''}\n`;
@@ -38,7 +40,7 @@ export default function OrderConfirmation({order:initial,onChange}:{order:Confir
     {eligible&&<>
       {order.payment_expires_at&&<p>Complete payment before {new Date(order.payment_expires_at).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}.</p>}
       <button className="primary-link" disabled={busy} onClick={()=>void run(async()=>{
-        const {payOnline}=await import('@/utils/razorpay');await payOnline(order,order.customer);setMessage('Payment submitted. Checking confirmation…');await refresh();
+        const {payOnline}=await import('@/utils/razorpay');await payOnline(order,order.customer);setPaymentSubmitted(true);setMessage('Payment submitted. Checking confirmation…');await refresh();
       })}>{busy?'Please wait…':'Pay online'}</button>{' '}
       <button disabled={busy} onClick={()=>void run(async()=>{
         const {customerRequest}=await import('@/api/customer');await customerRequest('/api/account',{method:'POST',body:JSON.stringify({action:'cancel-unpaid',orderId:order.id})});await refresh();

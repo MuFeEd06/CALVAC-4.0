@@ -13,6 +13,7 @@ from api._lib._validation import clean_size_label, normalize_settings_response, 
 
 
 PUBLIC_PRODUCT_SELECT = "id,name,brand,price,original_price,image,tag,category,size_unit,sizes,colors,stock,specs,out_of_stock,total_stock"
+PUBLIC_PRODUCT_SUMMARY_SELECT = "id,name,brand,price,original_price,image,tag,category,size_unit,sizes,colors,out_of_stock,total_stock"
 DEFAULT_OFFER = {"active": False, "text": "", "bg_color": "#FF6B35", "text_color": "#ffffff", "show_logo": True}
 
 
@@ -145,6 +146,7 @@ def _catalog_filters(qs):
     filters = ['active=eq.true']
     for field in ('brand', 'tag', 'category'):
         value = _first(qs, field).strip()[:100]
+        if field == 'tag' and value.lower() == 'sale': continue
         if value: filters.append(f'{field}=ilike.{column_filter_value(value)}')
     for name, operator in (('max_price', 'lte'), ('min_price', 'gte')):
         value = _first(qs, name)
@@ -154,7 +156,7 @@ def _catalog_filters(qs):
                 if not 0 <= number <= 1000000: raise ValueError()
             except ValueError: raise ApiError(400, 'Invalid price filter')
             filters.append(f'price={operator}.{number}')
-    if _first(qs, 'sale'): filters.append('on_sale=eq.true')
+    if _first(qs, 'sale') or _first(qs, 'tag').strip().lower() == 'sale': filters.append('on_sale=eq.true')
     query = _first(qs, 'q').strip()[:100]
     if query:
         pattern = filter_value('*' + query + '*')
@@ -163,18 +165,19 @@ def _catalog_filters(qs):
 
 
 def _get_products(handler, qs, cors):
-    refresh_expired_reservations()
     pid = _product_id(handler, qs)
     filters = _catalog_filters(qs)
     if pid:
         if not re.fullmatch(r'[1-9][0-9]{0,18}', pid): raise ApiError(400, 'Invalid product ID')
+        refresh_expired_reservations()
         rows = public_rest_request('GET', f'products?select={PUBLIC_PRODUCT_SELECT}&id=eq.{pid}&active=eq.true&limit=1')
         if not rows: raise ApiError(404, 'Product not found')
         body = _fix_product(rows[0])
     else:
         limit, cursor = page_options(qs, 24)
         if cursor: filters.append('id=gt.' + cursor)
-        rows = public_rest_request('GET', f'products?select={PUBLIC_PRODUCT_SELECT}&order=id.asc&limit={limit + 1}&' + '&'.join(filters))
+        refresh_expired_reservations()
+        rows = public_rest_request('GET', f'products?select={PUBLIC_PRODUCT_SUMMARY_SELECT}&order=id.asc&limit={limit + 1}&' + '&'.join(filters))
         body = page_response([_fix_product(row) for row in rows], limit)
     send_json(handler, 200, body, cors, PUBLIC_CACHE)
 
@@ -186,7 +189,7 @@ def _get_search(handler, qs, cors):
         send_json(handler, 200, [], cors, PUBLIC_CACHE)
         return
     pattern = filter_value('*' + query + '*')
-    rows = public_rest_request('GET', f'products?select={PUBLIC_PRODUCT_SELECT}&active=eq.true&or=(name.ilike.{pattern},brand.ilike.{pattern})&order=id&limit=20')
+    rows = public_rest_request('GET', f'products?select={PUBLIC_PRODUCT_SUMMARY_SELECT}&active=eq.true&or=(name.ilike.{pattern},brand.ilike.{pattern})&order=id&limit=20')
     send_json(handler, 200, [_fix_product(row) for row in rows], cors, PUBLIC_CACHE)
 
 

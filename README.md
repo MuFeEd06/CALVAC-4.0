@@ -40,11 +40,13 @@ Razorpay loads only when a customer chooses Pay Online. Browser signatures never
 
 ## Performance
 
+See [FINAL_REVIEW.md](FINAL_REVIEW.md) for the 20 October security review, applied profile-permission fix, resource measurements and current hosting-plan constraints. CI enforces the build/media budgets with `npm run check:budgets`.
+
 - Home uses 60 WebP frames per device variant: **1,151,800 bytes desktop**, **607,944 bytes mobile**, versus 15,498,851 bytes of GIFs previously.
 - Only a window of nearby frames is fetched. At most ten decoded frames are retained, with two concurrent downloads. Skip/navigation aborts pending work and releases bitmaps. Reduced motion/data-saving requests only the first frame.
 - Original GIFs are kept in `assets/source-frames/`, outside the public build. Rebuild WebP files with `python scripts/optimize_frames.py` after installing Pillow in a development environment. Bump the `/frames/v2` version if regenerated assets change because these URLs are immutable.
 - Admin routes, their authentication client, and styles load only when visiting admin. Build output includes a manifest for checking route dependencies.
-- Themes use static defaults and validated `calvac_settings_v7` cached values before rendering, followed by an asynchronous refresh. Public API caching is short; authentication/orders/admin responses are not cacheable.
+- Themes use static defaults and validated `calvac_settings_v8` cached values before rendering, followed by an asynchronous refresh. Public API caching is short; authentication/orders/admin responses are not cacheable.
 - Catalog and order lists use cursor pagination. Catalog filters run on the server. Product prices/stock expire from client caches after 15–30 seconds and are authoritative only inside the checkout transaction.
 
 ## Checks

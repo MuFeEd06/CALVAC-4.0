@@ -1,4 +1,4 @@
-import { imageFallback, FALLBACK_IMAGE } from '@/utils/images';
+import { imageFallback, FALLBACK_IMAGE, ikResize, ikSrcSet } from '@/utils/images';
 "use client";
 
 import * as React from "react";
@@ -375,7 +375,7 @@ export function FocusRail({
             transition={{ duration: 0.9, ease: "easeOut" }}
             style={{ position: "absolute", inset: 0 }}
           >
-            <img src={activeItem.imageSrc} alt="" loading="lazy" decoding="async" style={S.bgImg} />
+            <img src={ikResize(activeItem.imageSrc,80,50)} alt="" loading="lazy" decoding="async" style={S.bgImg} />
             <div style={S.bgGrad} />
           </motion.div>
         </AnimatePresence>
@@ -435,6 +435,8 @@ export function FocusRail({
                   loading="lazy"
                   decoding="async"
                   src={item.imageSrc}
+                  srcSet={ikSrcSet(item.imageSrc, 80, [160, 320, 520])}
+                  sizes="(max-width:767px) 155px, 260px"
                   alt={item.title}
                   style={S.cardImg}
                   onError={imageFallback}

@@ -1,4 +1,4 @@
-import { imageFallback, FALLBACK_IMAGE } from '@/utils/images';
+import { imageFallback, FALLBACK_IMAGE, ikSrcSet } from '@/utils/images';
 import { lazy,Suspense,useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -216,12 +216,11 @@ export default function ProductPage() {
                 initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
                 src={mainImg || FALLBACK_IMAGE}
-                srcSet={mainImg?.includes('ik.imagekit.io')
-                  ? [400,600,800,1080].map(w=>`${mainImg.split('?')[0]}?tr=w-${w},q-85,f-webp,c-at_max,pr-true ${w}w`).join(', ')
-                  : undefined}
+                srcSet={ikSrcSet(mainImg, 85, [400, 600, 800, 1080])}
                 sizes="(max-width:768px) 100vw, 50vw"
                 alt={product.name}
                 loading="eager"
+                fetchPriority="high"
                 decoding="async"
                 onError={imageFallback}
                 style={{ width: '100%', borderRadius: 14, background: 'var(--surface-2)', padding: 16 }} />
@@ -267,6 +266,8 @@ export default function ProductPage() {
                     <motion.button key={c.name} onClick={() => setSelectedColor(c)}
                       whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.95 }}
                       title={c.name}
+                      aria-label={`Colour ${c.name}`}
+                      aria-pressed={selectedColor?.name === c.name}
                       style={{
                         width: 30, height: 30, borderRadius: '50%',
                         background: c.hex, border: `2.5px solid ${selectedColor?.name === c.name ? 'var(--primary)' : 'transparent'}`,
@@ -296,6 +297,8 @@ export default function ProductPage() {
 
                     return (
                       <motion.button key={size} onClick={() => !oos && setSelectedSize(size)}
+                        disabled={oos}
+                        aria-pressed={selectedSize === size}
                         whileHover={!oos ? { scale: 1.06 } : {}}
                         title={oos ? 'Sold Out' : low ? `${qty} left` : formatSizeWithUnit(product.size_unit, size)}
                         style={{

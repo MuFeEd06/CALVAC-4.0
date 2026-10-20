@@ -168,6 +168,8 @@ try {
   // The color buttons carry title attributes rather than visible text.
   await page.locator('[title="Blue"]').click();
   assert.equal(await addButton.isDisabled(), true);
+  assert.equal(await page.locator('[title="Blue"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.getByRole('button', { name: '8', exact: true }).isDisabled(), true);
   results.variantRevalidation = true;
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   const search = page.getByPlaceholder('Search…', { exact: true });
@@ -183,7 +185,7 @@ try {
   await store.close();
 
   const fixes=await context({viewport:{width:390,height:844},isMobile:true,hasTouch:true,reducedMotion:'reduce'});
-  const detail={...product,brand:'Rare brand',category:'boots',specs:'Material: Leather\nCare: '+('Gentle cleaning and air drying. '.repeat(8))};
+  const detail={...product,image:'https://ik.imagekit.io/fixture/shoe.webp?catalog=kept',brand:'Rare brand',category:'boots',specs:'Material: Leather\nCare: '+('Gentle cleaning and air drying. '.repeat(8))};
   const categoryRequests=[];
   await fixes.route('**/api/products?*',route=>{
     const query=new URL(route.request().url()).searchParams;
@@ -204,8 +206,14 @@ try {
     assert.equal(new URL(fixedPage.url()).searchParams.get('category'),category);
   }
   assert.deepEqual(categoryRequests,['boots','crocs','girls']);
+  await fixedPage.getByRole('button',{name:'Open menu',exact:true}).click();
+  await fixedPage.getByRole('link',{name:'Sale',exact:true}).click();
+  assert.equal(new URL(fixedPage.url()).searchParams.get('sale'),'1');
   await fixedPage.goto(origin+'/shop?tag=boots');await fixedPage.getByRole('heading',{name:'boots collection shoe',exact:true}).waitFor();
   await fixedPage.goto(origin+'/product/1');
+  await fixedPage.locator('.product-detail-layout img').first().waitFor();
+  const detailSources=await fixedPage.locator('.product-detail-layout img').first().getAttribute('srcset');
+  assert.ok(detailSources.split(', ').every(candidate=>new URL(candidate.split(' ')[0]).searchParams.get('catalog')==='kept'));
   await fixedPage.getByRole('heading',{name:'You May Also Like',exact:true}).waitFor();
   await fixedPage.getByRole('heading',{name:'Catalog fallback shoe',exact:true}).waitFor();
   assert.equal(await fixedPage.locator('.product-grid a[href="/product/1"]').count(),0);
@@ -372,7 +380,7 @@ try {
   await duplicate.close();results.whatsappCooldown={popup:true,noSecondRequestDuringCooldown:true};
 
   if(process.env.BROWSER_TEST_ADMIN==='1'){
-    const auth=await context({viewport:{width:390,height:844}});let exchanges=0,resends=0,googleEnabled=true,authorizeUrl;
+    const auth=await context({viewport:{width:390,height:844}});let exchanges=0,resends=0,recoveries=0,googleEnabled=true,authorizeUrl;
     await auth.route('https://test-fixture.supabase.co/auth/v1/**',async route=>{
       const url=new URL(route.request().url());
       if(url.pathname.endsWith('/settings'))return route.fulfill({contentType:'application/json',body:JSON.stringify({external:{google:googleEnabled}})});
@@ -385,6 +393,10 @@ try {
       if(url.pathname.endsWith('/resend')){
         resends++;const body=route.request().postDataJSON();assert.equal(body.type,'signup');assert.equal(body.email,customerFixture.email);
         assert.equal(new URL(url.searchParams.get('redirect_to')).searchParams.get('redirect'),'/cart');
+        return route.fulfill({contentType:'application/json',body:'{}'});
+      }
+      if(url.pathname.endsWith('/recover')){
+        recoveries++;assert.equal(route.request().postDataJSON().email,customerFixture.email);
         return route.fulfill({contentType:'application/json',body:'{}'});
       }
       return route.fulfill({contentType:'application/json',body:JSON.stringify(customerFixture)});
@@ -409,6 +421,13 @@ try {
     assert.equal(resends,1);assert.equal(await authPage.getByRole('button',{name:/Resend available in/}).isDisabled(),true);
     await authPage.reload();await authPage.getByLabel('Email',{exact:true}).fill(customerFixture.email);
     assert.equal(await authPage.getByRole('button',{name:/Resend available in/}).isDisabled(),true);assert.equal(resends,1);
+    await authPage.goto(origin+'/forgot-password');await authPage.getByLabel('Email',{exact:true}).fill(customerFixture.email);
+    await authPage.getByRole('button',{name:'Reset your password',exact:true}).click();
+    await authPage.getByRole('status').filter({hasText:'If an account matches'}).waitFor();
+    assert.equal(recoveries,1);assert.equal(await authPage.getByRole('button',{name:/Resend available in/}).isDisabled(),true);
+    await authPage.reload();await authPage.getByLabel('Email',{exact:true}).fill(customerFixture.email);
+    assert.equal(await authPage.getByRole('button',{name:/Resend available in/}).isDisabled(),true);assert.equal(recoveries,1);
+    results.passwordResetCooldown=true;
     googleEnabled=false;await authPage.goto(origin+'/login');
     await authPage.getByText('Google sign-in is currently unavailable. You can continue with email.',{exact:true}).waitFor();
     assert.equal(await authPage.getByRole('button',{name:'Continue with Google',exact:true}).isDisabled(),true);
@@ -450,6 +469,17 @@ try {
     await checkout.getByRole('heading',{name:'Payment confirmed',exact:true}).waitFor();
     assert.equal(await checkout.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
     await checkout.screenshot({path:resolve(artifact,'customer-paid-order-mobile.png'),fullPage:true});
+    let historyReads=0;
+    await customer.route('**/api/account?resource=orders*',route=>{
+      historyReads++;
+      const pending=Array.from({length:20},(_,index)=>({...paymentOrder(),id:index+100,status:'Pending',payment_status:'pending'}));
+      return route.fulfill({contentType:'application/json',body:JSON.stringify({items:pending,nextCursor:null})});
+    });
+    await checkout.goto(origin+'/account/orders');
+    await checkout.getByRole('heading',{name:'Payment pending',exact:true}).first().waitFor();
+    await checkout.waitForTimeout(3100);
+    assert.equal(historyReads,1,'Order history must not start a poller for every unpaid order');
+    results.orderHistoryAvoidsBackgroundPolling=true;
     await checkout.getByRole('button',{name:'Sign out',exact:true}).click();
     await checkout.getByRole('heading',{name:'Sign in',exact:true}).waitFor();
     assert.equal(await checkout.evaluate(()=>sessionStorage.getItem('calvac_address')),null);
