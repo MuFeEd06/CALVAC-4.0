@@ -1,7 +1,8 @@
 type Entry = { expires: number; value: unknown };
 type StorageLike = Pick<Storage, 'getItem' | 'setItem'>;
 export const PUBLIC_CACHE_KEY = 'calvac_public_cache_v1';
-const publicKey = (key: string) => /^\/api\/(products(?:\?|$)|site-settings$|offer$)/.test(key);
+const publicKey = (key: string) => /^\/api\/(products(?:\?|$)|site-settings$|offer$)/.test(key)
+  && !(key.startsWith('/api/products?') && new URLSearchParams(key.split('?')[1]).has('q'));
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 const productValue = (value: unknown) => record(value) && Number.isSafeInteger(value.id) && Number(value.id) > 0
   && typeof value.name === 'string' && typeof value.image === 'string' && typeof value.price === 'number' && Number.isFinite(value.price) && value.price >= 0;
@@ -23,11 +24,15 @@ export class PublicCacheStorage {
       if (!raw || raw.length * 2 > this.maxBytes) return {};
       const entries = JSON.parse(raw);
       if (!entries || typeof entries !== 'object' || Array.isArray(entries)) return {};
-      return Object.fromEntries(Object.entries(entries).filter(([key, value]) => {
+      const allowed = Object.fromEntries(Object.entries(entries).filter(([key, value]) => {
         const entry = value as Entry | null;
         return publicKey(key) && entry && typeof entry === 'object' && Number.isFinite(entry.expires)
           && entry.expires > this.now() && publicValue(key, entry.value);
       })) as Record<string, Entry>;
+      if (Object.keys(allowed).length !== Object.keys(entries).length) {
+        try { this.storage()?.setItem(PUBLIC_CACHE_KEY, JSON.stringify(allowed)); } catch { /* Pruning is best-effort. */ }
+      }
+      return allowed;
     } catch { return {}; }
   }
   get(key: string, ttl: number): Entry | undefined {

@@ -66,10 +66,15 @@ test('public cache survives reloads only until expiry and never persists private
   assert.deepEqual(await create().get('/api/products?limit=24', 60_000, load, true), { items: [item(1)], nextCursor: null });
   now += 60_001;
   assert.deepEqual(await create().get('/api/products?limit=24', 60_000, load, true), { items: [item(2)], nextCursor: null });
-  for (const key of ['/api/account', '/api/orders', '/api/search?q=private-query', '/api/x9k2/products']) {
+  for (const key of ['/api/account', '/api/orders', '/api/search?q=private-query', '/api/x9k2/products', '/api/products?limit=24&q=private-query']) {
     await create().get(key, 60_000, async () => 'private fixture', true);
   }
   assert.doesNotMatch(data.get(PUBLIC_CACHE_KEY)!, /private|account|orders|x9k2/);
+  const saved = JSON.parse(data.get(PUBLIC_CACHE_KEY)!);
+  saved['/api/products?limit=24&q=old-query'] = { expires: now + 60_000, value: { items: [item(3)], nextCursor: null } };
+  data.set(PUBLIC_CACHE_KEY, JSON.stringify(saved));
+  disk.get('/api/products?limit=24', 60_000);
+  assert.doesNotMatch(data.get(PUBLIC_CACHE_KEY)!, /old-query/, 'Existing search keys are pruned on the next public cache read');
   create().invalidate('/api/products');
   assert.deepEqual(JSON.parse(data.get(PUBLIC_CACHE_KEY)!), {});
 });

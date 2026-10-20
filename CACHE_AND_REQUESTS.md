@@ -4,7 +4,8 @@ Public data uses a bounded memory cache with shared pending requests. Catalog qu
 
 | Response | Lifetime | Survives reload |
 | --- | --- | --- |
-| Product collection, filtered page, pagination | 60 seconds | Yes |
+| Product collection, filtered page, pagination | 60 seconds | Yes, except text searches |
+| Submitted catalog text search | 60 seconds | No, memory only |
 | Individual product details | 15 seconds | Yes |
 | Public site settings and policies | 5 minutes | Yes |
 | Offer ribbon | 60 seconds | Yes |

@@ -854,6 +854,12 @@ try {
       await auditPage.getByRole('alert').waitFor();
       assert.equal(apiRequests().length,beforeInvalid,'Invalid bounds never request an unfiltered catalog');
     }
+    const privateQuery='memory-only-search-fixture';
+    await auditPage.goto(origin+'/shop?q='+privateQuery,{waitUntil:'networkidle'});
+    assert.doesNotMatch(await auditPage.evaluate(()=>localStorage.getItem('calvac_public_cache_v1')||''),new RegExp(privateQuery),'Submitted search text must not reach disk');
+    const beforeSearchReload=apiRequests().length;
+    await auditPage.reload({waitUntil:'networkidle'});
+    assert.equal(apiRequests().length,beforeSearchReload+1,'Submitted search results are not restored from disk');
     for(const category of ['boots','crocs','girls']){
       await auditPage.goto(origin+'/shop?category='+category,{waitUntil:'networkidle'});
       assert.equal(await auditPage.locator('.collection-heading-icon svg').count(),1);
@@ -875,7 +881,7 @@ try {
     await auditPage.getByRole('link',{name:'→ Return Policy',exact:true}).click();
     await auditPage.waitForURL('**/return');
     assert.equal(requests.filter(request=>request.type==='document').length,documents,'Policy links use client navigation');
-    results.catalogAudit={priceBounds:true,decimalAndZero:true,invalidRanges:true,vectorCollectionAndContactIcons:true,publicCacheSurvivesReload:true,expiryRefetch:true,canonicalRequestKeys:true,hiddenSectionNoRequests:true,contactResponsiveAndReadable:true};
+    results.catalogAudit={priceBounds:true,decimalAndZero:true,invalidRanges:true,vectorCollectionAndContactIcons:true,publicCacheSurvivesReload:true,submittedSearchMemoryOnly:true,expiryRefetch:true,canonicalRequestKeys:true,hiddenSectionNoRequests:true,contactResponsiveAndReadable:true};
     await audit.close();
     const railAudit=await context({viewport:{width:390,height:844},isMobile:true,hasTouch:true,reducedMotion:'reduce'});
     const railImages=[];
