@@ -36,6 +36,8 @@ No application triggers existed at inspection time. The original two-argument ch
 
 Guests can use WhatsApp/Cash on Delivery. Online payment requires sign-in. Accounts support registration, Google OAuth when the provider is configured, email confirmation/resend, password reset, opt-in saved addresses and owned order history. Supabase redirect URLs and SMTP must be configured for the release domain. See [ACCOUNT_CATALOG_RELEASE.md](ACCOUNT_CATALOG_RELEASE.md) for Google activation and the collection/product-detail fixes.
 
+WhatsApp and Cash on Delivery confirmations include each shoe's saved photo URL and product-page link beside its size, color and quantity. Links reuse the order snapshots without catalog requests or new image variants. WhatsApp click-to-chat supports prefilled text, so photos are shared as links rather than automatic file attachments; WhatsApp controls link previews. Historical orders without a saved photo retain their product link when available.
+
 Razorpay loads only when a customer chooses Pay Online. Browser signatures never mark orders paid: verified webhooks check the stored order, amount and INR currency, and atomically record payment and event deduplication. Unpaid reservations expire after 45 minutes; checkout/catalog activity triggers cleanup. Late captures require manual refund review. Server credentials and the admin payment switch are both required before online checkout becomes available. See `DEPLOYMENT_PLAN.md` for setup and rollout details.
 
 ## Performance

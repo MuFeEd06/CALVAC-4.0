@@ -71,7 +71,7 @@ const server = createServer(async (request, response) => {
         orderKeys.push(request.headers['idempotency-key']); orderAttempts++;
         await new Promise(resolve => setTimeout(resolve, 150));
         if (orderAttempts === 1) { response.statusCode = 503; result = { error: 'Temporary failure. Retry the same order.' }; }
-        else result = { success: true, order: { id: body.paymentMethod==='razorpay'?8:7, total: 150 * body.items[0].quantity, status: 'Pending',payment_method:body.paymentMethod,payment_status:body.paymentMethod==='razorpay'?'pending':'whatsapp_pending', items: [{ product_id: 1, name: product.name, brand: product.brand, price: 150, qty: body.items[0].quantity, size: '8', size_unit: 'UK', color: 'Red' }], customer: body.customer } };
+        else result = { success: true, order: { id: body.paymentMethod==='razorpay'?8:7, total: 150 * body.items[0].quantity, status: 'Pending',payment_method:body.paymentMethod,payment_status:body.paymentMethod==='razorpay'?'pending':'whatsapp_pending', items: [{ product_id: 1, name: product.name, brand: product.brand, image: 'https://ik.imagekit.io/fixture/order-photo.jpg?tr=w-640&catalog=kept', price: 150, qty: body.items[0].quantity, size: '8', size_unit: 'UK', color: 'Red' }], customer: body.customer } };
       }
       response.end(JSON.stringify(result)); return;
     }
@@ -145,6 +145,7 @@ try {
   assert.deepEqual(await readability(page),[],'Dark cart contrast');
   await page.getByRole('button',{name:'Switch to light theme',exact:true}).click();
   assert.deepEqual(await readability(page),[],'Light cart contrast');
+  const productReadsBeforeOrder=calls.filter(path=>path==='/api/products').length;
   await page.evaluate(() => {
     const button = [...document.querySelectorAll('button')].find(button => button.textContent.includes('Order via WhatsApp'));
     button.click(); button.click();
@@ -155,9 +156,34 @@ try {
   await page.getByRole('heading', { name: 'Order received', exact: true }).waitFor();
   assert.equal(orderAttempts, 2); assert.equal(orderKeys[0], orderKeys[1]);
   assert.match(await page.locator('main').innerText(), /1,500/);
-  assert.match(await page.getByRole('link', { name: 'Confirm Order in WhatsApp' }).getAttribute('href'), /Order%20%237/);
+  const whatsappHref=await page.getByRole('link', { name: 'Confirm Order in WhatsApp' }).getAttribute('href');
+  const whatsappText=new URL(whatsappHref).searchParams.get('text');
+  assert.match(whatsappText,/Order #7/);
+  assert.ok(whatsappText.includes('Photo: https://ik.imagekit.io/fixture/order-photo.jpg?tr=w-640&catalog=kept'));
+  assert.ok(whatsappText.includes('Product: '+origin+'/product/1'));
+  assert.equal(calls.filter(path=>path==='/api/products').length,productReadsBeforeOrder,'Photo links use the order snapshot without catalog reads');
   await page.screenshot({ path: resolve(artifact, 'checkout-mobile.png'), fullPage: true });
   results.checkout = { retriesReuseKey: true, doubleClickGuard: true, quantityCap: 10, spacesPreserved: true, authoritativeTotal: 1500, adminDownloaded: false };
+  const codStore=await context({viewport:{width:1366,height:900},reducedMotion:'reduce'});
+  await codStore.addInitScript(({product})=>{
+    if(location.protocol!=='http:'||sessionStorage.getItem('calvac_confirmed_order'))return;
+    localStorage.setItem('calvac_cart',JSON.stringify([{...product,size:'8',size_unit:'UK',color:'Red',qty:1}]));
+    sessionStorage.setItem('calvac_address',JSON.stringify({ts:Date.now(),data:{name:'COD Fixture',phone:'9876543210',line1:'Fixture Street',city:'City',state:'State',pin:'123456'}}));
+  },{product});
+  const codPage=await codStore.newPage();await codPage.goto(origin+'/cart',{waitUntil:'networkidle'});
+  await codPage.getByRole('radio',{name:'Cash on Delivery',exact:true}).check();
+  const codProductReads=calls.filter(path=>path==='/api/products').length,attemptsBeforeCod=orderAttempts;
+  await codPage.getByRole('button',{name:'Place Cash on Delivery Order',exact:true}).click();
+  await codPage.getByRole('heading',{name:'Order received',exact:true}).waitFor();
+  const codHref=await codPage.getByRole('link',{name:'Confirm Order in WhatsApp',exact:true}).getAttribute('href');
+  assert.ok(new URL(codHref).searchParams.get('text').includes('Photo: https://ik.imagekit.io/fixture/order-photo.jpg?tr=w-640&catalog=kept'));
+  await codPage.reload({waitUntil:'networkidle'});
+  await codPage.getByRole('heading',{name:'Order received',exact:true}).waitFor();
+  assert.equal(await codPage.getByRole('link',{name:'Confirm Order in WhatsApp',exact:true}).getAttribute('href'),codHref,'Restoring a saved confirmation keeps the same shoe photo links');
+  assert.equal(orderAttempts,attemptsBeforeCod+1,'Reloading a confirmation must not create another order');
+  assert.equal(calls.filter(path=>path==='/api/products').length,codProductReads,'COD confirmation and recovery need no product lookups');
+  await codStore.close();
+  results.checkout.photoLinks=true;results.checkout.codPhotoLinks=true;results.checkout.restoredPhotoLinks=true;results.checkout.noPhotoLookups=true;
   await page.goto(origin + '/shop');
   await page.getByRole('button', { name: 'Load more shoes', exact: true }).click();
   await page.getByRole('heading', { name: 'Second Sneaker' }).waitFor();

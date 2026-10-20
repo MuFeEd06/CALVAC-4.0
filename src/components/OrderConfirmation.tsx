@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ConfirmedOrder } from '@/types/api';
-import { formatPrice, WHATSAPP_NUMBER } from '@/utils';
-import { formatSizeWithUnit } from '@/utils/sizeUnits';
+import { formatPrice } from '@/utils';
+import { orderWhatsAppUrl } from '@/utils/whatsapp';
 
 export default function OrderConfirmation({order:initial,onChange,autoPoll=false}:{order:ConfirmedOrder;onChange?:(order:ConfirmedOrder)=>void;autoPoll?:boolean}) {
   const [order,setOrder]=useState(initial),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
@@ -28,10 +28,6 @@ export default function OrderConfirmation({order:initial,onChange,autoPoll=false
     timer=setTimeout(poll,2500);return()=>{stopped=true;clearTimeout(timer);};
   },[order.id,online,paid,order.status,autoPoll,paymentSubmitted]);
   const run=async(action:()=>Promise<unknown>)=>{if(busy)return;setBusy(true);setError('');try{await action();}catch(error){setError(error instanceof Error?error.message:'Could not complete this request.');}finally{setBusy(false);}};
-  let text=`Order #${order.id} — CALVAC\n\n`;
-  for(const item of order.items)text+=`${item.name} × ${item.qty} — ${formatSizeWithUnit(item.size_unit,item.size)}${item.color?' / '+item.color:''}\n`;
-  text+=`\nTotal: ${formatPrice(Number(order.total))}\n`;
-  if(order.customer){const a=order.customer;text+=`${a.name} · ${a.phone}\n${a.line1}${a.line2?', '+a.line2:''}, ${a.city}, ${a.state} ${a.pin}`;}
   return <section className="account-card order-confirmation">
     <h1>{online?(paid?'Payment confirmed':order.status==='Cancelled'?'Order cancelled':'Payment pending'):'Order received'}</h1>
     <p>Order #{order.id} · {formatPrice(Number(order.total))} · {online?'Online payment':order.payment_method==='cod'?'Cash on delivery':'WhatsApp'}</p>
@@ -47,7 +43,7 @@ export default function OrderConfirmation({order:initial,onChange,autoPoll=false
       })}>Cancel unpaid order</button>
     </>}
     {online&&!paid&&<p><button disabled={busy} onClick={()=>void run(refresh)}>Check payment status</button></p>}
-    {!online&&<a className="primary-link" href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`} target="_blank" rel="noopener noreferrer">Confirm Order in WhatsApp</a>}
+    {!online&&<a className="primary-link" href={orderWhatsAppUrl(order,window.location.origin)} target="_blank" rel="noopener noreferrer">Confirm Order in WhatsApp</a>}
     {error&&<p role="alert" className="load-error">{error}</p>}{message&&<p role="status">{message}</p>}
     <p><Link to="/account/orders">My orders</Link> · <Link to="/shop">Continue shopping</Link></p>
   </section>;
