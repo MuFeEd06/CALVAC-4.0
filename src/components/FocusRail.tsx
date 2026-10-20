@@ -6,6 +6,7 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import type { PanInfo } from "framer-motion";
 import { ChevronLeft, ChevronRight, ArrowUpRight } from "lucide-react";
 import { Link } from "react-router-dom";
+import { isDrawerOpen } from '@/utils/drawerVisibility';
 
 /* ─────────────────────────────────────────────
    TYPES
@@ -111,7 +112,7 @@ export function FocusRail({
   /* ── Autoplay ── */
   React.useEffect(() => {
     if (!autoPlay || isHovering || reducedMotion) return;
-    const t = setInterval(handleNext, interval);
+    const t = setInterval(() => { if (!document.hidden && !isDrawerOpen()) handleNext(); }, interval);
     return () => clearInterval(t);
   }, [autoPlay, isHovering, handleNext, interval, reducedMotion]);
 

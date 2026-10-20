@@ -358,17 +358,34 @@ try {
   assert.equal(await particlePage.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   await particles.close();
   const desktopParticles=await context({viewport:{width:1440,height:1000}});
+  await desktopParticles.addInitScript(()=>{
+    window.__particleDraws=0;
+    for(const method of ['drawArrays','drawArraysInstanced']){
+      const draw=WebGL2RenderingContext.prototype[method];
+      WebGL2RenderingContext.prototype[method]=function(...args){window.__particleDraws++;return draw.apply(this,args);};
+    }
+  });
   await desktopParticles.route('**/api/site-settings',route=>route.fulfill({contentType:'application/json',body:JSON.stringify(particleConfig)}));
   const desktopHero=await desktopParticles.newPage();await desktopHero.goto(origin+'/');
   await desktopHero.locator('.particle-hero[data-shoe="retro-court-hi"] .sh-fallback').waitFor();
   await desktopHero.waitForFunction(()=>document.querySelector('.sh-root')?.getAttribute('data-gl')==='on');
   await desktopHero.mouse.move(700,330);await desktopHero.mouse.move(900,400,{steps:20});
+  const beforeDraw=await desktopHero.evaluate(()=>window.__particleDraws);
+  await desktopHero.waitForFunction(before=>window.__particleDraws>before,beforeDraw);
+  await desktopHero.getByRole('button',{name:'Open menu',exact:true}).click();
+  await desktopHero.getByRole('dialog',{name:'CALVAC menu',exact:true}).waitFor();
+  await desktopHero.waitForTimeout(100);
+  const pausedDraws=await desktopHero.evaluate(()=>window.__particleDraws);
+  await desktopHero.waitForTimeout(350);
+  assert.equal(await desktopHero.evaluate(()=>window.__particleDraws),pausedDraws,'Background particles stop rendering while the drawer is open');
+  await desktopHero.keyboard.press('Escape');await desktopHero.getByRole('dialog').waitFor({state:'detached'});
+  await desktopHero.waitForFunction(before=>window.__particleDraws>before,pausedDraws);
   await desktopHero.screenshot({path:resolve(artifact,'particles-desktop-light.png'),fullPage:false});
   await desktopHero.getByRole('button',{name:'Switch to dark theme',exact:true}).click();
   await desktopHero.waitForFunction(()=>document.querySelector('.sh-fallback')?.getAttribute('src')?.includes('desktop-dark'));
   await desktopHero.screenshot({path:resolve(artifact,'particles-desktop-dark.png'),fullPage:false});
   await desktopParticles.close();
-  results.particleHero={separateDeviceShoes:true,webglParticles:true,themeAcrossNavigationAndReload:true,noScrollFrameDownloads:true};
+  results.particleHero={separateDeviceShoes:true,webglParticles:true,themeAcrossNavigationAndReload:true,noScrollFrameDownloads:true,pausedBehindDrawer:true};
 
   const duplicate=await context({viewport:{width:390,height:844}});let duplicateRequests=0;
   await duplicate.addInitScript(({product})=>{
@@ -590,7 +607,9 @@ try {
       const mark=await drawer.locator('.store-drawer-monogram').evaluate(element=>({background:getComputedStyle(element).backgroundColor,ink:getComputedStyle(element.querySelector('svg')).fill}));
       assert.equal(mark.ink,mode==='light'?'rgb(255, 255, 255)':'rgb(21, 21, 20)');
       assert.equal(mark.background,mode==='light'?'rgb(21, 21, 20)':'rgb(241, 239, 234)');
-      assert.equal(await drawer.evaluate(element=>getComputedStyle(element,'::backdrop').backdropFilter),'none','Backdrop avoids a full-viewport blur');
+      assert.equal(await navPage.evaluate(()=>getComputedStyle(document.body,'::after').backdropFilter),width<768?'blur(4px)':'blur(6px)','Stationary backdrop uses a small, fixed blur');
+      assert.equal(await drawer.evaluate(element=>getComputedStyle(element,'::backdrop').backdropFilter),'none','Blur stays independent of the fading modal dimmer');
+      assert.equal(await navPage.evaluate(()=>document.documentElement.hasAttribute('data-store-drawer-open')),true);
       assert.deepEqual(await navPage.evaluate(()=>[document.body.style.overflow,document.documentElement.style.overflow]),['hidden','hidden']);
       assert.deepEqual(await readability(navPage,'.store-drawer'),[],`${width}px ${mode} drawer contrast`);
       assert.equal(await navPage.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
@@ -600,6 +619,7 @@ try {
       await drawer.locator('a').first().focus();await navPage.keyboard.press('Shift+Tab');
       assert.equal(await drawer.locator('a').last().evaluate(element=>element===document.activeElement),true,'Reverse Tab wraps inside the drawer');
       await navPage.keyboard.press('Escape');await drawer.waitFor({state:'detached'});
+      assert.equal(await navPage.evaluate(()=>document.documentElement.hasAttribute('data-store-drawer-open')),false,'Closing restores background animation');
       assert.equal(await navPage.getByRole('button',{name:'Open menu',exact:true}).evaluate(element=>element===document.activeElement),true);
       assert.deepEqual(await navPage.evaluate(()=>[document.body.style.overflow,document.documentElement.style.overflow]),overflow);
     }
@@ -650,7 +670,7 @@ try {
     // Observe before triggering the short exit; round trips can otherwise miss it.
     const exitFrame=animatedPage.waitForFunction(()=>{
       const drawer=document.querySelector('.store-drawer');
-      if(drawer?.dataset.state==='closing'&&drawer.getBoundingClientRect().x< -20&&drawer.getBoundingClientRect().x> -300&&drawer.querySelector('.store-drawer-curve path').getBBox().width>1)
+      if(drawer?.dataset.state==='closing'&&drawer.getBoundingClientRect().x<0&&drawer.querySelector('.store-drawer-curve path').getBBox().width>1)
         return {modal:drawer.matches(':modal'),overflow:[document.body.style.overflow,document.documentElement.style.overflow]};
       return false;
     },null,{polling:'raf',timeout:5000});
@@ -676,6 +696,27 @@ try {
   assert.deepEqual(await animatedPage.evaluate(()=>[document.body.style.overflow,document.documentElement.style.overflow]),['','']);
   results.curvedDrawer={openingAndClosing:true,mobileAndDesktop:true,themeMatched:true,resizesWithViewport:true,modalDuringExit:true,earlyClose:true,navigationClose:true,reducedMotion:true};
   await animatedNavigation.close();
+
+  for(const fallback of ['data-saver','low-memory','reduced-transparency','forced-colors']){
+    const simple=await context({viewport:{width:390,height:844},reducedMotion:'reduce',...(fallback==='forced-colors'?{forcedColors:'active'}:{})});
+    if(fallback==='data-saver')await simple.addInitScript(()=>Object.defineProperty(navigator,'connection',{value:{saveData:true},configurable:true}));
+    if(fallback==='low-memory')await simple.addInitScript(()=>Object.defineProperty(navigator,'deviceMemory',{value:2,configurable:true}));
+    const simplePage=await simple.newPage();
+    if(fallback==='reduced-transparency'){
+      const media=await simple.newCDPSession(simplePage);
+      await media.send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'},{name:'prefers-reduced-transparency',value:'reduce'}]});
+    }
+    await simplePage.goto(origin+'/shop',{waitUntil:'networkidle'});
+    const before=calls.filter(path=>path.startsWith('/api/')).length;
+    await simplePage.getByRole('button',{name:'Open menu',exact:true}).click();
+    const simpleDrawer=simplePage.getByRole('dialog',{name:'CALVAC menu',exact:true});await simpleDrawer.waitFor();
+    assert.equal(await simpleDrawer.evaluate(element=>getComputedStyle(element,'::backdrop').backdropFilter),'none',fallback+' uses a dim-only fallback');
+    assert.equal(await simplePage.evaluate(()=>getComputedStyle(document.body,'::after').content),'none',fallback+' creates no blur plane');
+    assert.equal(calls.filter(path=>path.startsWith('/api/')).length,before,'Backdrop requires no API calls');
+    await simplePage.keyboard.press('Escape');await simpleDrawer.waitFor({state:'detached'});
+    await simple.close();
+  }
+  results.drawerBackdrop={fixedBlur:true,mobileRadius:4,desktopRadius:6,dataSaverFallback:true,lowMemoryFallback:true,reducedTransparency:true,forcedColors:true,noExtraRequests:true};
 
   const brands=await context({viewport:{width:390,height:844},reducedMotion:'reduce'});
   let brandSettings={hero_type:'hidden',show_new_arrivals:false,show_categories:false,show_brands_section:true,hidden_brands:''};

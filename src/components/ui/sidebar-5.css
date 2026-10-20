@@ -4,6 +4,19 @@
   background:var(--surface);color:var(--text);will-change:transform;
 }
 .store-drawer::backdrop { background:rgba(0,0,0,.42);animation:store-drawer-fade .16s ease both; }
+/* A stationary plane sits below the native modal. Sliding the drawer and fading
+   its dimmer do not animate or move the expensive backdrop-filter layer. */
+@supports (backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px)) {
+  html[data-store-drawer-open][data-store-drawer-effects="full"] body::after {
+    content:"";position:fixed;inset:0;z-index:2147483646;pointer-events:none;
+    -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  }
+  @media(min-width:768px) {
+    html[data-store-drawer-open][data-store-drawer-effects="full"] body::after { -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px); }
+  }
+}
+.store-drawer[data-effects="simple"]::backdrop { -webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(0,0,0,.48); }
+html[data-store-drawer-open] .page-content * { animation-play-state:paused!important; }
 .store-drawer[data-state="closing"]::backdrop { animation:store-drawer-fade-out .4s ease both; }
 .store-drawer-curve { position:absolute;top:0;left:calc(100% - 1px);width:100px;height:100%;fill:var(--surface);pointer-events:none; }
 .store-drawer-panel { display:flex;flex-direction:column;height:100%;min-height:0; }
@@ -46,4 +59,12 @@
 @media(prefers-reduced-motion:reduce) {
   .store-drawer::backdrop,.store-drawer[data-state="closing"]::backdrop { animation:none; }
   .store-drawer-link,.store-drawer-link-arrow { transition:none; }
+}
+@media(prefers-reduced-transparency:reduce) {
+  html[data-store-drawer-open] body::after { content:none!important; }
+  .store-drawer::backdrop,.store-drawer[data-effects]::backdrop { -webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(0,0,0,.65); }
+}
+@media(forced-colors:active) {
+  html[data-store-drawer-open] body::after { content:none!important; }
+  .store-drawer::backdrop,.store-drawer[data-effects]::backdrop,.store-drawer[data-state="closing"]::backdrop { -webkit-backdrop-filter:none;backdrop-filter:none;background:Canvas;opacity:.9;animation:none; }
 }

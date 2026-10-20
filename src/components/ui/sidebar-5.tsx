@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, useIsPresent, useReducedMotion } from 'framer-motion';
 import { ArrowRight, ArrowUpRight, LayoutGrid, MessageCircle, Package, Search, ShoppingBag, Sparkles, Tag, TrendingUp, UserRound, X } from 'lucide-react';
 import CalvacMark from './CalvacMark';
+import { setDrawerOpen } from '@/utils/drawerVisibility';
 import './sidebar-5.css';
 
 const shopLinks = [
@@ -32,6 +33,8 @@ export default function Sidebar5({ onClose, triggerRef, totalItems }: {
   const location = useLocation(), navigate = useNavigate();
   const reducedMotion = useReducedMotion();
   const isPresent = useIsPresent();
+  const device = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
+  const minimalEffects = Boolean(device.connection?.saveData || (device.deviceMemory && device.deviceMemory <= 2));
   const slide = {
     closed: { x: 'calc(-100% - 100px)', transition: { duration: reducedMotion ? 0 : 0.4, ease: drawerEase } },
     open: { x: 0, transition: { duration: reducedMotion ? 0 : 0.5, ease: drawerEase } },
@@ -50,10 +53,12 @@ export default function Sidebar5({ onClose, triggerRef, totalItems }: {
     document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';
     dialog.showModal();
+    setDrawerOpen(true, minimalEffects);
     return () => {
       dialog.close();
       document.body.style.overflow = bodyOverflow;
       document.documentElement.style.overflow = rootOverflow;
+      setDrawerOpen(false);
       if (trigger?.isConnected) trigger.focus({ preventScroll: true });
     };
   }, [triggerRef]);
@@ -78,6 +83,7 @@ export default function Sidebar5({ onClose, triggerRef, totalItems }: {
 
   return createPortal(<motion.dialog ref={dialogRef} id="store-navigation" className="store-drawer" aria-labelledby="store-menu-title"
     data-state={isPresent ? 'open' : 'closing'}
+    data-effects={minimalEffects ? 'simple' : undefined}
     variants={slide} initial={reducedMotion ? false : 'closed'} animate="open" exit="closed"
     onCancel={event => { event.preventDefault(); onClose(); }}
     onKeyDown={event => {

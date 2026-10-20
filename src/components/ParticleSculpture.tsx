@@ -13,6 +13,7 @@
 
 import * as React from "react"
 import { Link } from "react-router-dom"
+import { DRAWER_VISIBILITY_EVENT, isDrawerOpen } from '@/utils/drawerVisibility'
 
 /* ────────────────────────────────────────────────────────────────────
    Engine (WebGL2 GPGPU particles)
@@ -1525,12 +1526,14 @@ export default function SculptureHero(props: SculptureHeroProps) {
     if (navRef.current) ro.observe(navRef.current)
     if (contentRef.current) ro.observe(contentRef.current)
     let inView = true
+    const onVis = () => engine?.setVisible(inView && !document.hidden && !isDrawerOpen())
     const io = new IntersectionObserver((entries) => {
-      for (const e of entries) { inView = e.isIntersecting; engine?.setVisible(inView && !document.hidden) }
+      for (const e of entries) { inView = e.isIntersecting; onVis() }
     })
     io.observe(root)
-    const onVis = () => engine?.setVisible(inView && !document.hidden)
     document.addEventListener("visibilitychange", onVis)
+    document.addEventListener(DRAWER_VISIBILITY_EVENT, onVis)
+    onVis()
     const onMq = () => engine?.setOptions({ reducedMotion: mq.matches })
     mq.addEventListener?.("change", onMq)
 
@@ -1575,6 +1578,7 @@ export default function SculptureHero(props: SculptureHeroProps) {
       ro.disconnect()
       io.disconnect()
       document.removeEventListener("visibilitychange", onVis)
+      document.removeEventListener(DRAWER_VISIBILITY_EVENT, onVis)
       mq.removeEventListener?.("change", onMq)
       root.removeEventListener("pointermove", onMove)
       root.removeEventListener("pointerdown", onDown)
