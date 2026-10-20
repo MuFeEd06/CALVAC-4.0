@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { motion, useIsPresent, useReducedMotion } from 'framer-motion';
 import { ArrowRight, ArrowUpRight, LayoutGrid, MessageCircle, Package, Search, ShoppingBag, Sparkles, Tag, TrendingUp, UserRound, X } from 'lucide-react';
 import './sidebar-5.css';
 
@@ -16,6 +17,10 @@ const accountLinks = [
   { to: '/cart', label: 'Shopping Bag', icon: ShoppingBag },
 ];
 const filterKeys = ['brand', 'tag', 'category', 'q', 'sale', 'min_price', 'max_price'];
+const drawerEase: [number, number, number, number] = [0.76, 0, 0.24, 1];
+// A normalized viewBox keeps the curved edge fitted to any viewport height.
+const curvedEdge = 'M0 0 L0 1000 Q200 500 0 0 Z';
+const straightEdge = 'M0 0 L0 1000 Q0 500 0 0 Z';
 
 /** Storefront adaptation of the supplied Sidebar 5 layout. */
 export default function Sidebar5({ onClose, triggerRef, totalItems }: {
@@ -24,8 +29,18 @@ export default function Sidebar5({ onClose, triggerRef, totalItems }: {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [query, setQuery] = useState('');
   const location = useLocation(), navigate = useNavigate();
+  const reducedMotion = useReducedMotion();
+  const isPresent = useIsPresent();
+  const slide = {
+    closed: { x: 'calc(-100% - 100px)', transition: { duration: reducedMotion ? 0 : 0.8, ease: drawerEase } },
+    open: { x: 0, transition: { duration: reducedMotion ? 0 : 0.8, ease: drawerEase } },
+  };
+  const curve = {
+    closed: { d: curvedEdge, transition: { duration: reducedMotion ? 0 : 0.8, ease: drawerEase } },
+    open: { d: straightEdge, transition: { duration: reducedMotion ? 0 : 1, ease: drawerEase } },
+  };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
     const trigger = triggerRef.current;
@@ -60,9 +75,14 @@ export default function Sidebar5({ onClose, triggerRef, totalItems }: {
     </li>)}
   </ul>;
 
-  return createPortal(<dialog ref={dialogRef} id="store-navigation" className="store-drawer" aria-labelledby="store-menu-title"
+  return createPortal(<motion.dialog ref={dialogRef} id="store-navigation" className="store-drawer" aria-labelledby="store-menu-title"
+    data-state={isPresent ? 'open' : 'closing'}
+    variants={slide} initial={reducedMotion ? false : 'closed'} animate="open" exit="closed"
     onCancel={event => { event.preventDefault(); onClose(); }}
     onKeyDown={event => {
+      // Handle repeated Escape presses before the browser can close the native
+      // dialog halfway through its exit and expose the still-locked page.
+      if (event.key === 'Escape') { event.preventDefault(); onClose(); return; }
       if (event.key !== 'Tab') return;
       const dialog = event.currentTarget;
       const controls = Array.from(dialog.querySelectorAll<HTMLElement>('a[href],button,input,[tabindex]'))
@@ -118,5 +138,8 @@ export default function Sidebar5({ onClose, triggerRef, totalItems }: {
 
       <div className="store-drawer-footer"><span className="store-drawer-status" aria-hidden="true" /><span>Considered style. Everyday comfort.</span></div>
     </div>
-  </dialog>, document.body);
+    <svg className="store-drawer-curve" viewBox="0 0 100 1000" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <motion.path variants={curve} />
+    </svg>
+  </motion.dialog>, document.body);
 }

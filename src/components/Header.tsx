@@ -244,7 +244,9 @@ export default function Header() {
         </Link>
       </header>
 
-      {menuOpen && <Suspense fallback={null}><Sidebar5 onClose={() => setMenuOpen(false)} triggerRef={menuButtonRef} totalItems={totalItems}/></Suspense>}
+      <AnimatePresence>
+        {menuOpen && <Suspense key="store-navigation" fallback={null}><Sidebar5 onClose={() => setMenuOpen(false)} triggerRef={menuButtonRef} totalItems={totalItems}/></Suspense>}
+      </AnimatePresence>
     </>
   );
 }

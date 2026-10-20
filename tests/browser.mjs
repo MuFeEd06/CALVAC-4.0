@@ -569,6 +569,7 @@ try {
       await navPage.getByRole('button',{name:'Open menu',exact:true}).click();
       const drawer=navPage.getByRole('dialog',{name:'CALVAC menu',exact:true});
       await drawer.waitFor();
+      await navPage.waitForFunction(()=>Math.abs(document.querySelector('.store-drawer').getBoundingClientRect().x)<0.5);
       const bounds=await drawer.boundingBox();
       assert.equal(Math.round(bounds.x),0);assert.equal(Math.round(bounds.y),0);assert.ok(bounds.width<width);
       assert.equal(Math.round(bounds.height),width===320?568:900);
@@ -597,14 +598,66 @@ try {
   await navPage.getByRole('searchbox',{name:'Search shoes',exact:true}).fill('Nike air');
   await navPage.getByRole('button',{name:'Search collection',exact:true}).click();
   await navPage.waitForURL(url=>url.pathname==='/shop'&&url.searchParams.get('q')==='Nike air');
-  assert.equal(await navPage.getByRole('dialog').count(),0);
+  await navPage.getByRole('dialog').waitFor({state:'detached'});
   await navPage.getByRole('button',{name:'Open menu',exact:true}).click();
   await navPage.getByRole('link',{name:'Profile',exact:true}).click();
   await navPage.waitForURL(url=>url.pathname==='/login');
-  assert.equal(await navPage.getByRole('dialog').count(),0);
+  await navPage.getByRole('dialog').waitFor({state:'detached'});
   assert.equal(new URL(navPage.url()).searchParams.get('redirect'),'/account');
   results.leftDrawer={responsive:true,lightDarkContrast:true,lazyLoaded:true,activeFilters:true,profileRoute:true,search:true,escapeAndBackdropClose:true,focusTrappedAndRestored:true,backgroundScrollLocked:true};
   await navigation.close();
+
+  const animatedNavigation=await context({viewport:{width:390,height:844},reducedMotion:'no-preference'});
+  const animatedPage=await animatedNavigation.newPage();
+  await animatedPage.goto(origin+'/shop');
+  for(const [width,mode] of [[390,'dark'],[1366,'light']]){
+    await animatedPage.setViewportSize({width,height:900});
+    const theme=await animatedPage.evaluate(()=>document.documentElement.dataset.themeMode);
+    if(theme!==mode)await animatedPage.getByRole('button',{name:`Switch to ${mode} theme`,exact:true}).click();
+    const overflow=await animatedPage.evaluate(()=>[document.body.style.overflow,document.documentElement.style.overflow]);
+    await animatedPage.getByRole('button',{name:'Open menu',exact:true}).click();
+    const drawer=animatedPage.getByRole('dialog',{name:'CALVAC menu',exact:true});
+    await drawer.waitFor();
+    await animatedPage.waitForFunction(()=>{
+      const drawer=document.querySelector('.store-drawer'),edge=drawer.querySelector('.store-drawer-curve path');
+      const x=drawer.getBoundingClientRect().x;
+      return x< -20&&x> -300&&edge.getBBox().width>1;
+    },null,{polling:'raf',timeout:5000});
+    assert.equal(await drawer.evaluate(element=>element.matches(':modal')),true,'Drawer stays modal while entering');
+    await animatedPage.screenshot({path:resolve(artifact,`navigation-drawer-opening-${width}-${mode}.png`)});
+    await animatedPage.waitForFunction(()=>{
+      const drawer=document.querySelector('.store-drawer');
+      return Math.abs(drawer.getBoundingClientRect().x)<0.5&&drawer.querySelector('.store-drawer-curve path').getBBox().width<0.01;
+    });
+    assert.equal(await drawer.evaluate(element=>getComputedStyle(element).backgroundColor===getComputedStyle(element.querySelector('.store-drawer-curve')).fill),true,'Curved edge matches the drawer theme');
+    await animatedPage.setViewportSize({width,height:640});
+    assert.equal(await drawer.evaluate(element=>element.querySelector('.store-drawer-curve').getBoundingClientRect().height===element.getBoundingClientRect().height),true,'Curve follows viewport resizing');
+    await animatedPage.keyboard.press('Escape');
+    await animatedPage.waitForFunction(()=>document.querySelector('.store-drawer')?.dataset.state==='closing');
+    assert.deepEqual(await animatedPage.evaluate(()=>[document.body.style.overflow,document.documentElement.style.overflow]),['hidden','hidden'],'Keep scroll locked throughout the closing animation');
+    assert.equal(await drawer.evaluate(element=>element.matches(':modal')),true,'Drawer stays modal until its exit finishes');
+    await animatedPage.waitForFunction(()=>{
+      const drawer=document.querySelector('.store-drawer');
+      return drawer&&drawer.getBoundingClientRect().x< -20&&drawer.getBoundingClientRect().x> -300&&drawer.querySelector('.store-drawer-curve path').getBBox().width>1;
+    },null,{polling:'raf',timeout:5000});
+    await animatedPage.screenshot({path:resolve(artifact,`navigation-drawer-closing-${width}-${mode}.png`)});
+    await animatedPage.keyboard.press('Escape');
+    await drawer.waitFor({state:'detached'});
+    assert.deepEqual(await animatedPage.evaluate(()=>[document.body.style.overflow,document.documentElement.style.overflow]),overflow);
+    assert.equal(await animatedPage.getByRole('button',{name:'Open menu',exact:true}).evaluate(element=>element===document.activeElement),true);
+  }
+  await animatedPage.getByRole('button',{name:'Open menu',exact:true}).click();
+  await animatedPage.getByRole('dialog',{name:'CALVAC menu',exact:true}).waitFor();
+  await animatedPage.keyboard.press('Escape');
+  await animatedPage.getByRole('dialog').waitFor({state:'detached'});
+  assert.equal(await animatedPage.evaluate(()=>document.body.style.overflow),'','Closing during entry must release scroll locking');
+  await animatedPage.getByRole('button',{name:'Open menu',exact:true}).click();
+  await animatedPage.getByRole('link',{name:'Profile',exact:true}).click();
+  await animatedPage.waitForURL(url=>url.pathname==='/login');
+  await animatedPage.getByRole('dialog').waitFor({state:'detached'});
+  assert.deepEqual(await animatedPage.evaluate(()=>[document.body.style.overflow,document.documentElement.style.overflow]),['','']);
+  results.curvedDrawer={openingAndClosing:true,mobileAndDesktop:true,themeMatched:true,resizesWithViewport:true,modalDuringExit:true,earlyClose:true,navigationClose:true,reducedMotion:true};
+  await animatedNavigation.close();
 
   assert.deepEqual(errors, []);
   results.pageErrors = errors;
