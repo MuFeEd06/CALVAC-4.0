@@ -26,7 +26,11 @@ The renderer is a separate dynamic chunk, loaded only when a product companion i
 
 On 20 October 2026, the store owner confirmed that custom SMTP was saved in Supabase and `calvac.in` shows **Verified** in Resend. Public DNS lookup also confirmed the `resend._domainkey` TXT and the `send` / `rsend` CNAME records.
 
-The owner then authorized one password-reset test email to their existing account. Exactly one recovery request was submitted through the live website on 20 October 2026; Supabase accepted it with HTTP 200 and no sending error. No password was changed. Inbox receipt is awaiting the owner's confirmation.
+The owner then authorized one password-reset test email to their existing account. Exactly one recovery request was submitted through the live website on 20 October 2026; Supabase accepted it with HTTP 200 and no sending error. No password was changed. The owner subsequently confirmed that the message arrived in Gmail's Spam folder: delivery is confirmed, but Inbox placement is not yet established.
+
+The delivery review found a published DKIM key and SPF delegation through `send.calvac.in` / `rsend.calvac.in`, but no DMARC record. Added `_dmarc.calvac.in` TXT `v=DMARC1; p=none;` with a 300-second TTL and verified the public response through Cloudflare DNS. This initial policy requests no quarantine or rejection; no aggregate-report recipient is configured. The earlier test email predates this policy, and no second test email has been sent. Publishing authentication records does not prove the original message passed its SPF/DKIM checks or guarantee Inbox placement.
+
+The recipient can mark the legitimate message **Not spam** and add `support@calvac.in` to contacts. Further diagnosis of the specific message would require its authentication results (SPF/DKIM/DMARC), not its reset link or account credentials. See [Gmail's sender guidance](https://support.google.com/mail/answer/81126?hl=en), [Resend's initial DMARC policy guidance](https://resend.com/blog/dmarc-policy-modes), and [Resend's new-sender delivery guidance](https://resend.com/guides/email/new-domain-emails-going-to-spam).
 
 Configuration reference for [Supabase SMTP settings](https://supabase.com/dashboard/project/jjyysdxkoarjlxwttiak/auth/smtp):
 
