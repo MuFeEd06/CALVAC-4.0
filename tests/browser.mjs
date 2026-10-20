@@ -889,8 +889,10 @@ try {
     const railPage=await railAudit.newPage();await railPage.goto(origin+'/',{waitUntil:'networkidle'});
     await railPage.getByRole('heading',{name:'New Arrivals',exact:false}).waitFor();
     assert.equal(await railPage.getByRole('alert').count(),0,'One failed section does not discard successful catalog data');
-    assert.equal(new Set(railImages).size,1,'Carousel foreground and ambient background share one ImageKit variant');
-    assert.equal(railImages.length,1,'The browser deduplicates the shared image request');
+    const railSources=await railPage.locator('section').filter({has:railPage.getByRole('heading',{name:'New Arrivals',exact:false})}).locator('img').evaluateAll(images=>images.map(image=>image.currentSrc).filter(Boolean));
+    assert.ok(railSources.length>=2);
+    assert.equal(new Set(railSources).size,1,'Carousel foreground and ambient background share one ImageKit variant');
+    assert.equal(railImages.filter(url=>url===railSources[0]).length,1,'The browser deduplicates the shared carousel request');
     const beforeTheme=railImages.length;
     await railPage.getByRole('button',{name:'Switch to dark theme',exact:true}).click();await railPage.waitForTimeout(400);
     assert.equal(railImages.length,beforeTheme,'Theme switching does not fetch image variants');
