@@ -50,7 +50,7 @@ References: [Resend’s Supabase SMTP instructions](https://resend.com/docs/send
 
 ## CALVAC-branded email designs
 
-The signup confirmation and password-reset designs are in `supabase/templates/`, with their subjects and activation steps in that folder's README. They retain Supabase's generated confirmation links and match the store's monochrome palette. This is separate from SMTP delivery configuration. Hosted activation is still pending: save the two finished HTML bodies and subjects in Supabase's Email Templates dashboard. The connected MCP server cannot edit those settings, and browser automation failed to initialize. Website deployment alone does not activate these templates.
+The signup confirmation and password-reset designs are in `supabase/templates/`, with their subjects and activation steps in that folder's README. They retain Supabase's generated confirmation links and match the store's monochrome palette. This is separate from SMTP delivery configuration. On 20 October 2026, the owner confirmed saving both finished templates in Supabase's Email Templates dashboard. The connected MCP server cannot inspect or edit those settings, and browser automation failed to initialize, so hosted activation is owner-confirmed. Website deployment alone does not activate these templates. Both designs passed 12 browser layout checks across desktop/mobile widths and light/dark themes; generated files, action links, contrast, keyboard access and overflow checks passed. The repository checks passed for commit `ee7472d`, and its production deployment is ready on `calvac.in`. No further real email has been sent, so the new design's appearance in a received email and Inbox placement remain unverified.
 
 ## Release checks
 

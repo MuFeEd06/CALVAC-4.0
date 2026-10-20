@@ -9,7 +9,7 @@ These replace the default-looking signup verification and password-reset emails 
 
 ## Activate in the hosted project
 
-The files are ready for activation. Committing or deploying the website does **not** update Supabase's hosted email templates.
+On 20 October 2026, the store owner confirmed saving both templates in the hosted Supabase project. The designs passed 12 browser layout checks; their appearance in a newly delivered email has not been verified. Committing or deploying the website does **not** update Supabase's hosted email templates. Use these steps for future changes:
 
 1. Open the [project's email templates](https://supabase.com/dashboard/project/jjyysdxkoarjlxwttiak/auth/templates) in Supabase: Authentication → Email → Templates.
 2. Open **Confirm signup**, set the subject from the table, replace the HTML body with the complete contents of `confirm-signup.html`, preview it, and save.
@@ -19,7 +19,7 @@ Both templates retain `{{ .ConfirmationURL }}` in the button and backup link. Ke
 
 The existing Resend SMTP configuration handles delivery separately. These designs do not change SMTP credentials, email delivery limits, Google sign-in, redirect allowlists, other templates, or security notification settings. Branded design does not guarantee Inbox placement.
 
-`auth-email-templates.json` is a reviewable Management API payload containing only the two subjects and two HTML bodies. It contains no credentials or SMTP settings. The connected MCP server has no email-template editing operation; the browser connection also failed during this task, so the files have **not** been saved into hosted Supabase automatically. Use the dashboard steps above.
+`auth-email-templates.json` is a reviewable Management API payload containing only the two subjects and two HTML bodies. It contains no credentials or SMTP settings. The connected MCP server has no email-template editing operation; the browser connection also failed during this task. The owner saved the templates through the dashboard and confirmed completion; that hosted activation has not been independently inspected.
 
 ## Maintain and verify
 
