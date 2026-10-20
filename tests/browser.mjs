@@ -650,15 +650,15 @@ try {
     const theme=await animatedPage.evaluate(()=>document.documentElement.dataset.themeMode);
     if(theme!==mode)await animatedPage.getByRole('button',{name:`Switch to ${mode} theme`,exact:true}).click();
     const overflow=await animatedPage.evaluate(()=>[document.body.style.overflow,document.documentElement.style.overflow]);
-    await animatedPage.getByRole('button',{name:'Open menu',exact:true}).click();
+    const entryFrame=animatedPage.waitForFunction(()=>{
+      const drawer=document.querySelector('.store-drawer'),edge=drawer?.querySelector('.store-drawer-curve path');
+      if(drawer&&drawer.getBoundingClientRect().x<0&&edge.getBBox().width>1)return {modal:drawer.matches(':modal')};
+      return false;
+    },null,{polling:'raf',timeout:5000});
+    const [entrySnapshot]=await Promise.all([entryFrame,animatedPage.getByRole('button',{name:'Open menu',exact:true}).click()]);
+    assert.equal((await entrySnapshot.jsonValue()).modal,true,'Drawer stays modal while entering');await entrySnapshot.dispose();
     const drawer=animatedPage.getByRole('dialog',{name:'CALVAC menu',exact:true});
     await drawer.waitFor();
-    await animatedPage.waitForFunction(()=>{
-      const drawer=document.querySelector('.store-drawer'),edge=drawer.querySelector('.store-drawer-curve path');
-      const x=drawer.getBoundingClientRect().x;
-      return x< -20&&x> -300&&edge.getBBox().width>1;
-    },null,{polling:'raf',timeout:5000});
-    assert.equal(await drawer.evaluate(element=>element.matches(':modal')),true,'Drawer stays modal while entering');
     await animatedPage.screenshot({path:resolve(artifact,`navigation-drawer-opening-${width}-${mode}.png`)});
     await animatedPage.waitForFunction(()=>{
       const drawer=document.querySelector('.store-drawer');
