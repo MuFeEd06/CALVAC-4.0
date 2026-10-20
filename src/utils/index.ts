@@ -44,14 +44,14 @@ export function getDeal(price: number, original_price?: number): Deal | null {
 export const WHATSAPP_NUMBER = '919645087584';
 
 export const CATEGORIES = [
-  { label: 'Boots',      slug: 'boots',     emoji: '👢', path: '/shop?category=boots'  },
-  { label: 'Crocs',      slug: 'crocs',     emoji: '🥿', path: '/shop?category=crocs'  },
-  { label: 'Girls',      slug: 'girls',     emoji: '👟', path: '/shop?category=girls'  },
-  { label: 'Sale',       slug: 'sale',      emoji: '🏷️', path: '/shop?sale=1'          },
-  { label: 'Under 1000', slug: 'under1000', emoji: '💰', path: '/shop?max_price=1000'  },
-  { label: 'Under 1500', slug: 'under1500', emoji: '💸', path: '/shop?max_price=1500'  },
-  { label: 'Under 2500', slug: 'under2500', emoji: '🛍️', path: '/shop?max_price=2500'  },
-  { label: 'New',        slug: 'new',       emoji: '✨', path: '/shop?tag=new'          },
-  { label: 'Premium',    slug: 'premium',   emoji: '💎', path: '/shop?min_price=2500'  },
-  { label: 'All Shoes',  slug: 'all',       emoji: '👟', path: '/shop'                 },
+  { label: 'Boots',      slug: 'boots',     path: '/shop?category=boots'  },
+  { label: 'Crocs',      slug: 'crocs',     path: '/shop?category=crocs'  },
+  { label: 'Girls',      slug: 'girls',     path: '/shop?category=girls'  },
+  { label: 'Sale',       slug: 'sale',      path: '/shop?sale=1'          },
+  { label: 'Under 1000', slug: 'under1000', path: '/shop?max_price=1000'  },
+  { label: 'Under 1500', slug: 'under1500', path: '/shop?max_price=1500'  },
+  { label: 'Under 2500', slug: 'under2500', path: '/shop?max_price=2500'  },
+  { label: 'New',        slug: 'new',       path: '/shop?tag=new'          },
+  { label: 'Premium',    slug: 'premium',   path: '/shop?min_price=2500'  },
+  { label: 'All Shoes',  slug: 'all',       path: '/shop'                 },
 ];

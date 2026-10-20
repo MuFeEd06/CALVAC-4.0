@@ -38,7 +38,8 @@ export default function CartPage() {
   const [configError,setConfigError]=useState('');
   const [method,setMethod]=useState<PaymentMethod>(()=>new URLSearchParams(window.location.search).get('payment')==='razorpay'?'razorpay':'whatsapp');
   const loadMethods=()=>{setConfigError('');requestJson<{methods:Record<PaymentMethod,boolean>}>('/api/checkout-config').then(data=>setMethods(data.methods)).catch(()=>setConfigError('Payment options could not load. Please try again.'));};
-  useEffect(loadMethods,[]);
+  const hasItems = totalItems > 0;
+  useEffect(()=>{if(hasItems)loadMethods();},[hasItems]);
 
   const handleOrder = async () => {
     if (orderLock.current) return;

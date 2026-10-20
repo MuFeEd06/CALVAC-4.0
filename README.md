@@ -53,7 +53,7 @@ Collections uses the supplied Tilt Cascade Carousel motion, adapted in `src/comp
 - Original GIFs are kept in `assets/source-frames/`, outside the public build. Rebuild WebP files with `python scripts/optimize_frames.py` after installing Pillow in a development environment. Bump the `/frames/v2` version if regenerated assets change because these URLs are immutable.
 - Admin routes, their authentication client, and styles load only when visiting admin. Build output includes a manifest for checking route dependencies.
 - Themes use static defaults and validated `calvac_settings_v8` cached values before rendering, followed by an asynchronous refresh. Public API caching is short; authentication/orders/admin responses are not cacheable.
-- Catalog and order lists use cursor pagination. Catalog filters run on the server. Product prices/stock expire from client caches after 15–30 seconds and are authoritative only inside the checkout transaction.
+- Catalog and order lists use cursor pagination. Catalog filters run on the server. Public catalog pages expire after 60 seconds and product details after 15 seconds; price/stock are authoritative inside checkout. See [CACHE_AND_REQUESTS.md](CACHE_AND_REQUESTS.md) for cache lifetimes, invalidation, and request reductions.
 
 ## Checks
 

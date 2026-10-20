@@ -30,6 +30,30 @@ class Handler:
 
 
 class ApiTests(unittest.TestCase):
+    def test_integer_price_filters_and_decimal_bounds_match_the_live_column_type(self):
+        for query, expected in [
+            ({'max_price':['1500']}, ['lte.1500']),
+            ({'max_price':['0']}, ['lte.0']),
+            ({'min_price':['2500']}, ['gte.2500']),
+            ({'min_price':['999.1'], 'max_price':['1499.9']}, ['lte.1499', 'gte.1000']),
+            ({'min_price':['1500.0'], 'max_price':['1500.0']}, ['lte.1500', 'gte.1500']),
+        ]:
+            with self.subTest(query=query), patch.object(store,'refresh_expired_reservations'), patch.object(store,'public_rest_request',return_value=[]) as database:
+                handler=Handler({});store._get_products(handler,query,None)
+                filters=parse_qs(database.call_args.args[1].split('?',1)[1])
+                self.assertEqual(filters['price'],expected)
+                self.assertEqual(handler.status,200)
+        for query in [{'max_price':[v]} for v in ['NaN','Infinity','-1','1000001','1e3','1500&active=eq.false','9'*100]] + [{'min_price':['2000'],'max_price':['1000']}]:
+            with self.subTest(query=query), patch.object(store,'refresh_expired_reservations') as maintenance, patch.object(store,'public_rest_request') as database:
+                with self.assertRaises(ApiError):store._get_products(Handler({}),query,None)
+                maintenance.assert_not_called();database.assert_not_called()
+
+    def test_short_search_does_not_spend_database_requests_on_rate_limits_or_catalog(self):
+        with patch.object(store,'require_rate_limit') as rate, patch.object(store,'public_rest_request') as database:
+            handler=Handler({});store._get_search(handler,{'q':['a']},None)
+            self.assertEqual(json.loads(handler.wfile.getvalue()),[])
+            rate.assert_not_called();database.assert_not_called()
+
     def test_invalid_catalog_requests_do_not_run_inventory_maintenance_or_database_reads(self):
         for query in ({'id':['bad']}, {'limit':['10000']}, {'after':['1&active=eq.false']}, {'max_price':['NaN']}):
             with self.subTest(query=query), patch.object(store,'refresh_expired_reservations') as maintenance, \

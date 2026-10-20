@@ -13,7 +13,7 @@ async function fetchAdmin<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = { ...await getAdminAuthHeaders(), ...(init?.headers as Record<string, string> ?? {}) };
   const result = await requestJson<T>(`${BASE}${path}`, { ...init, headers });
   if (init?.method && init.method !== 'GET') {
-    if (path.includes('/products')) clearProductsCache();
+    if (path.includes('/products') || (path.includes('/orders') && path.includes('action=status'))) clearProductsCache();
     if (path.includes('/site-settings')) clearSettingsCache();
     if (path.includes('/offer')) clearOfferCache();
   }

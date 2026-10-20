@@ -2,13 +2,17 @@ import type { Product, SiteSettings, Offer } from '@/types';
 import type { Page, ConfirmedOrder } from '@/types/api';
 import { DEFAULT_THEME_SETTINGS, normalizeSiteSettings } from '@/theme';
 import { normalizeSizeList, normalizeSizeUnit } from '@/utils/sizeUnits';
-import { TimedCache } from './cache';
+import { TimedCache, PublicCacheStorage, PUBLIC_CACHE_KEY } from './cache';
 import { ikResize } from '@/utils/images';
 export { ikResize, ikSrcSet } from '@/utils/images';
 
-const cache = new TimedCache();
+const cache = new TimedCache(() => Date.now(), 100, new PublicCacheStorage(() => localStorage));
 const SETTINGS_KEY = 'calvac_settings_v8';
-const TTL = 30_000;
+const CATALOG_TTL = 60_000, SETTINGS_TTL = 300_000, OFFER_TTL = 60_000, SEARCH_TTL = 30_000;
+let searchGeneration = 0;
+if (typeof window !== 'undefined') window.addEventListener('storage', event => {
+  if (event.key === PUBLIC_CACHE_KEY || event.key === null) { cache.invalidateMemory(); searchGeneration++; }
+});
 
 function parseField(value: unknown): unknown {
   if (typeof value !== 'string') return value;
@@ -45,7 +49,7 @@ export async function requestJson<T>(url: string, options: RequestInit = {}, tim
     if (body === null) throw new Error('The server returned an invalid response.');
     return body as T;
   } catch (error) {
-    if (controller.signal.aborted && !options.signal?.aborted) throw new ApiError('The request timed out. Retry to check the same order.', 408);
+    if (controller.signal.aborted && !options.signal?.aborted) throw new ApiError('The request timed out. Please try again.', 408);
     throw error;
   } finally {
     clearTimeout(timer);
@@ -62,17 +66,19 @@ export async function fetchProductsPage(filters: ProductFilters = {}): Promise<P
   Object.entries({ limit: 24, ...filters }).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
   });
+  params.sort();
   const url = `/api/products?${params}`;
-  return cache.get(url, TTL, async () => {
+  return cache.get(url, CATALOG_TTL, async () => {
     const page = await requestJson<Page<Product>>(url);
     if (!Array.isArray(page.items)) throw new Error('Invalid product response.');
     return { items: page.items.map(normalizeProduct), nextCursor: page.nextCursor ?? null };
-  });
+  }, true);
 }
 export async function fetchProducts(filters: ProductFilters = {}): Promise<Product[]> {
   return (await fetchProductsPage(filters)).items;
 }
 export function clearProductsCache(): void {
+  searchGeneration++;
   cache.invalidate('/api/products'); cache.invalidate('/api/search');
   try {
     for (const key of Object.keys(localStorage)) {
@@ -86,7 +92,7 @@ export async function fetchProduct(id: number): Promise<Product | null> {
   return cache.get(key, 15_000, async () => {
     try { return normalizeProduct(await requestJson<Product>(key)); }
     catch (error) { if (error instanceof ApiError && error.status === 404) return null; throw error; }
-  });
+  }, true);
 }
 
 export const DEFAULT_SETTINGS: SiteSettings = {
@@ -99,7 +105,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
 };
 export function setCachedSiteSettings(settings: Partial<SiteSettings> & Record<string, unknown>, invalidate = true): SiteSettings & Record<string, unknown> {
   const normalized = normalizeSiteSettings({ ...DEFAULT_SETTINGS, ...settings });
-  if (invalidate) cache.invalidate('/api/site-settings');
+  if (invalidate) { cache.invalidate('/api/site-settings'); cache.set('/api/site-settings', SETTINGS_TTL, normalized, true); }
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ts: Date.now(), data: normalized }));
     localStorage.removeItem('calvac_settings_v4'); localStorage.removeItem('calvac_settings_v5'); localStorage.removeItem('calvac_settings_v6'); localStorage.removeItem('calvac_settings_v7');
@@ -109,22 +115,28 @@ export function setCachedSiteSettings(settings: Partial<SiteSettings> & Record<s
 export function clearSettingsCache() { cache.invalidate('/api/site-settings'); }
 export async function fetchSiteSettings(options: { force?: boolean } = {}): Promise<SiteSettings> {
   if (options.force) clearSettingsCache();
-  return cache.get('/api/site-settings', TTL, async () => {
+  return cache.get('/api/site-settings', SETTINGS_TTL, async () => {
     const data = await requestJson<Partial<SiteSettings> & Record<string, unknown>>('/api/site-settings');
     return setCachedSiteSettings(data, false);
-  });
+  }, true);
 }
 export function refreshSiteSettings() { return fetchSiteSettings({ force: true }); }
 export function clearOfferCache() { cache.invalidate('/api/offer'); }
 export function fetchOffer(): Promise<Offer> {
-  return cache.get('/api/offer', TTL, () => requestJson<Offer>('/api/offer'));
+  return cache.get('/api/offer', OFFER_TTL, () => requestJson<Offer>('/api/offer'), true);
 }
 export async function searchProducts(q: string, signal?: AbortSignal): Promise<Product[]> {
   const safe = q.replace(/<[^>]*>/g, '').slice(0, 100).trim();
   if (safe.length < 2) return [];
-  const url = `/api/search?q=${encodeURIComponent(safe)}`;
+  if (signal?.aborted) throw new DOMException('Search cancelled', 'AbortError');
+  const url = `/api/search?q=${encodeURIComponent(safe.toLowerCase())}`;
+  const cached = cache.peek<Product[]>(url);
+  if (cached) return cached;
+  const generation = searchGeneration;
   const data = await requestJson<Product[]>(url, { signal });
-  return Array.isArray(data) ? data.map(normalizeProduct) : [];
+  const products = Array.isArray(data) ? data.map(normalizeProduct) : [];
+  if (!signal?.aborted && generation === searchGeneration) cache.set(url, SEARCH_TTL, products);
+  return products;
 }
 export interface OrderPayload {
   items: Array<{ productId: number | string; quantity: number; size: string; sizeUnit: 'UK' | 'EU'; color?: string }>;

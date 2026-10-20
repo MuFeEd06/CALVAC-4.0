@@ -32,12 +32,21 @@ export default function HomePage() {
   useEffect(() => {
     let active = true;
     setLoading(true); setError('');
-    const catalog = Promise.all([fetchProducts({ tag: 'new', limit: 12 }), fetchProducts({ tag: 'trending', limit: 12 })])
-      .then(async ([fresh, trending]) => {
-        const items = [...new Map([...fresh, ...trending].map(p => [p.id, p])).values()];
+    const settingsRequest = fetchSiteSettings().then(value => {
+      if (active) { setSettings(value); setHeroReady(true); }
+      return value;
+    }).catch(() => { if (active) setHeroReady(true); return DEFAULT_SETTINGS; });
+    const freshRequest = settingsRequest.then(config => config.show_new_arrivals ? fetchProducts({ tag: 'new', limit: 12 }) : []);
+    const catalog = Promise.allSettled([freshRequest, fetchProducts({ tag: 'trending', limit: 12 })])
+      .then(results => {
+        const items = [...new Map(results.flatMap(result => result.status === 'fulfilled' ? result.value : []).map(p => [p.id, p])).values()];
+        if (!items.length) {
+          const failed = results.find(result => result.status === 'rejected');
+          if (failed?.status === 'rejected') throw failed.reason;
+        }
         return items.length ? items : fetchProducts({ limit: 12 });
       });
-    Promise.allSettled([catalog, fetchSiteSettings().then(value=>{if(active){setSettings(value);setHeroReady(true);}return value;}).catch(error=>{if(active)setHeroReady(true);throw error;}), fetchOffer()]).then(([products, settings, offer]) => {
+    Promise.allSettled([catalog, settingsRequest, fetchOffer()]).then(([products, settings, offer]) => {
       if (!active) return;
       if (products.status === 'fulfilled') setProducts(products.value);
       else setError('Could not load the catalog. Please try again.');

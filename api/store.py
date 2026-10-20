@@ -1,5 +1,6 @@
 import json
 import re
+from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
@@ -148,14 +149,20 @@ def _catalog_filters(qs):
         value = _first(qs, field).strip()[:100]
         if field == 'tag' and value.lower() == 'sale': continue
         if value: filters.append(f'{field}=ilike.{column_filter_value(value)}')
-    for name, operator in (('max_price', 'lte'), ('min_price', 'gte')):
-        value = _first(qs, name)
+    prices = {}
+    for name, operator, rounding in (('max_price', 'lte', ROUND_FLOOR), ('min_price', 'gte', ROUND_CEILING)):
+        value = _first(qs, name).strip()
         if value:
-            try:
-                number = float(value)
-                if not 0 <= number <= 1000000: raise ValueError()
-            except ValueError: raise ApiError(400, 'Invalid price filter')
-            filters.append(f'price={operator}.{number}')
+            if len(value) > 40 or not re.fullmatch(r'[0-9]+(?:\.[0-9]+)?', value):
+                raise ApiError(400, 'Invalid price filter')
+            number = Decimal(value)
+            if not 0 <= number <= 1000000: raise ApiError(400, 'Invalid price filter')
+            prices[name] = number
+            # products.price is an integer; PostgREST rejects "1500.0".
+            # Round decimal bounds without changing which integer prices match.
+            filters.append(f'price={operator}.{int(number.to_integral_value(rounding=rounding))}')
+    if prices.get('min_price', 0) > prices.get('max_price', 1000000):
+        raise ApiError(400, 'Minimum price must not exceed maximum price')
     if _first(qs, 'sale') or _first(qs, 'tag').strip().lower() == 'sale': filters.append('on_sale=eq.true')
     query = _first(qs, 'q').strip()[:100]
     if query:
@@ -183,11 +190,11 @@ def _get_products(handler, qs, cors):
 
 
 def _get_search(handler, qs, cors):
-    require_rate_limit(handler, 'search')
     query = _first(qs, 'q').strip()[:100]
     if len(query) < 2:
         send_json(handler, 200, [], cors, PUBLIC_CACHE)
         return
+    require_rate_limit(handler, 'search')
     pattern = filter_value('*' + query + '*')
     rows = public_rest_request('GET', f'products?select={PUBLIC_PRODUCT_SUMMARY_SELECT}&active=eq.true&or=(name.ilike.{pattern},brand.ilike.{pattern})&order=id&limit=20')
     send_json(handler, 200, [_fix_product(row) for row in rows], cors, PUBLIC_CACHE)

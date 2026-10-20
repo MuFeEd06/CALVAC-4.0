@@ -1,4 +1,4 @@
-import { imageFallback, FALLBACK_IMAGE, ikResize, ikSrcSet } from '@/utils/images';
+import { imageFallback, FALLBACK_IMAGE, ikSrcSet } from '@/utils/images';
 "use client";
 
 import * as React from "react";
@@ -375,7 +375,9 @@ export function FocusRail({
             transition={{ duration: 0.9, ease: "easeOut" }}
             style={{ position: "absolute", inset: 0 }}
           >
-            <img src={ikResize(activeItem.imageSrc,80,50)} alt="" loading="lazy" decoding="async" style={S.bgImg} />
+            {/* Share the card's exact responsive URL; no extra ambient-image transform. */}
+            <img src={activeItem.imageSrc} srcSet={ikSrcSet(activeItem.imageSrc,80,[160,320,520])}
+              sizes="(max-width:767px) 155px, 260px" alt="" loading="lazy" decoding="async" style={S.bgImg} onError={imageFallback} />
             <div style={S.bgGrad} />
           </motion.div>
         </AnimatePresence>

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { TimedCache } from '../src/api/cache';
+import { TimedCache, PublicCacheStorage, PUBLIC_CACHE_KEY } from '../src/api/cache';
+import { priceBound, priceFilterError } from '../src/utils/priceFilters';
 import { cleanInput, cleanStr, isSafeImageUrl, safeLink, sanitizeProductPayload } from '../src/utils/validation';
 import { migrateCart, MAX_LINE_ITEMS, MAX_QTY } from '../src/utils/cart';
 import { FrameBuffer } from '../src/utils/frameBuffer';
@@ -51,6 +52,58 @@ test('cache deduplicates only pending work, expires, and does not retain invalid
   await Promise.resolve();
   cache.invalidate('product/'); release(99); await pending;
   assert.equal(await cache.get('product/1', 30, load), 3);
+});
+
+test('public cache survives reloads only until expiry and never persists private responses or search text', async () => {
+  let now = 1000, calls = 0;
+  const data = new Map<string, string>();
+  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); } };
+  const disk = new PublicCacheStorage(() => storage, () => now);
+  const create = () => new TimedCache(() => now, 3, disk);
+  const item = (id: number) => ({ id, name: 'Fixture', price: 100, image: '' });
+  const load = async () => ({ items: [item(++calls)], nextCursor: null });
+  await create().get('/api/products?limit=24', 60_000, load, true);
+  assert.deepEqual(await create().get('/api/products?limit=24', 60_000, load, true), { items: [item(1)], nextCursor: null });
+  now += 60_001;
+  assert.deepEqual(await create().get('/api/products?limit=24', 60_000, load, true), { items: [item(2)], nextCursor: null });
+  for (const key of ['/api/account', '/api/orders', '/api/search?q=private-query', '/api/x9k2/products']) {
+    await create().get(key, 60_000, async () => 'private fixture', true);
+  }
+  assert.doesNotMatch(data.get(PUBLIC_CACHE_KEY)!, /private|account|orders|x9k2/);
+  create().invalidate('/api/products');
+  assert.deepEqual(JSON.parse(data.get(PUBLIC_CACHE_KEY)!), {});
+});
+
+test('cache handles denied/corrupt/full storage, bounds memory, and keeps unrelated in-flight results', async () => {
+  let now = 0;
+  const data = new Map<string, string>();
+  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); } };
+  const disk = new PublicCacheStorage(() => storage, () => now, 1000);
+  const cache = new TimedCache(() => now, 2, disk);
+  data.set(PUBLIC_CACHE_KEY, '{broken');
+  assert.equal(await cache.get('/api/offer', 10, async () => 1, true), 1);
+  data.set(PUBLIC_CACHE_KEY,JSON.stringify({'/api/products?limit=24':{expires:10,value:{items:'corrupt',nextCursor:null}},'/api/offer':{expires:1000,value:{active:true}}}));
+  assert.equal(disk.get('/api/products?limit=24',10),undefined);
+  assert.equal(disk.get('/api/offer',10),undefined,'Future timestamps cannot extend the TTL');
+  await cache.get('/api/products?id=1', 10, async () => 'x'.repeat(2000), true);
+  assert.ok(data.get(PUBLIC_CACHE_KEY)!.length * 2 <= 1000);
+  const denied = new TimedCache(() => now, 2, new PublicCacheStorage(() => { throw new Error('Storage denied'); }));
+  assert.equal(await denied.get('/api/offer', 10, async () => 2, true), 2);
+  let release!: (value: number) => void;
+  const pending = cache.get('/api/site-settings', 10, () => new Promise<number>(resolve => { release = resolve; }));
+  await Promise.resolve(); cache.invalidate('/api/products'); release(3); await pending;
+  assert.equal(await cache.get('/api/site-settings', 10, async () => 99), 3);
+  cache.set('a', 10, 1); cache.set('b', 10, 2); cache.peek('a'); cache.set('c', 10, 3);
+  assert.equal(cache.peek('b'), undefined); assert.equal(cache.peek('a'), 1);
+  now = 11; assert.equal(cache.peek('a'), undefined);
+});
+
+test('price filters preserve zero and decimal precision and reject malformed or reversed ranges', () => {
+  assert.equal(priceBound(null), undefined); assert.equal(priceBound('0'), 0);
+  assert.equal(priceBound('1499.99'), 1499.99);
+  assert.equal(priceFilterError(1000, 1500), '');
+  assert.ok(priceFilterError(2000, 1000));
+  for (const value of ['NaN', '-1', 'Infinity', '1000001', '10x', '1e3']) assert.ok(priceFilterError(undefined, priceBound(value)));
 });
 
 test('cart migration caps quantities and line count, merges duplicate variants, and rejects bad IDs', () => {

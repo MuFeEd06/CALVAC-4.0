@@ -1,11 +1,13 @@
 import { motion } from 'framer-motion';
 import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
+import { Link } from 'react-router-dom';
+import { Clock3, MessageCircle, Package, RotateCcw, Ruler, Truck } from 'lucide-react';
 
 const cards = [
-  { icon: '📦', title: 'Track Your Order', desc: 'Got your order ID? WhatsApp us for a real-time delivery update.', link: null },
-  { icon: '↩️', title: 'Returns & Exchanges', desc: 'Not the right fit? We accept returns within 7 days.', link: { label: '→ Return Policy', href: '/return' } },
-  { icon: '📏', title: 'Size Help', desc: 'Send us your foot length in cm and we\'ll recommend the right fit.', link: null },
-  { icon: '🚚', title: 'Shipping Info', desc: 'We ship across India. Free shipping on all orders. 3–7 business days.', link: { label: '→ Shipping Policy', href: '/shipping' } },
+  { icon: Package, title: 'Track Your Order', desc: 'Got your order ID? WhatsApp us for a real-time delivery update.', link: null },
+  { icon: RotateCcw, title: 'Returns & Exchanges', desc: 'Not the right fit? We accept returns within 7 days.', link: { label: '→ Return Policy', href: '/return' } },
+  { icon: Ruler, title: 'Size Help', desc: 'Send us your foot length in cm and we\'ll recommend the right fit.', link: null },
+  { icon: Truck, title: 'Shipping Info', desc: 'We ship across India. Free shipping on all orders. 3–7 business days.', link: { label: '→ Shipping Policy', href: '/shipping' } },
 ];
 
 const hours = [
@@ -36,7 +38,7 @@ export default function ContactPage() {
             Fastest way to reach us. Ask about stock, sizing, custom orders, or track your delivery.
           </p>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.2)', color: 'var(--text)', fontWeight: 700, fontSize: '0.88rem', padding: '8px 18px', borderRadius: 'var(--button-radius)' }}>
-            💬 Start Chat →
+            <MessageCircle size={17} aria-hidden="true" /> Start Chat →
           </span>
         </div>
       </motion.a>
@@ -61,10 +63,10 @@ export default function ContactPage() {
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 + i * 0.05 }}
             whileHover={{ y: -4, borderColor: 'var(--primary)', boxShadow: 'var(--shadow-hover)' }}
             style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 18, padding: '32px 28px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, boxShadow: 'var(--shadow)' }}>
-            <div style={{ width: 56, height: 56, borderRadius: 16, background: 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.6rem' }}>{c.icon}</div>
+            <div className="contact-card-icon" style={{ width: 56, height: 56, borderRadius: 16, background: 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><c.icon size={26} strokeWidth={1.6} aria-hidden="true" /></div>
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 700 }}>{c.title}</h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>{c.desc}</p>
-            {c.link && <a href={c.link.href} style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--primary)' }}>{c.link.label}</a>}
+            {c.link && <Link to={c.link.href} style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--primary)' }}>{c.link.label}</Link>}
           </motion.div>
         ))}
       </div>
@@ -72,7 +74,7 @@ export default function ContactPage() {
       {/* Hours */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
         style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 18, padding: 28, boxShadow: 'var(--shadow)' }}>
-        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 700, marginBottom: 16 }}>⏰ Response Hours</h3>
+        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}><Clock3 size={20} aria-hidden="true" /> Response Hours</h3>
         {hours.map(h => (
           <div key={h.day} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)', fontSize: '0.9rem' }}>
             <span style={{ fontWeight: 600 }}>{h.day}</span>

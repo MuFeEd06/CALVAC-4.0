@@ -8,6 +8,7 @@ import { ikResize } from '@/api';
 import { FocusRail } from './FocusRail';
 import type { FocusRailItem } from './FocusRail';
 import './brand-tiles.css';
+import CollectionIcon from './CollectionIcon';
 const MotionLink = motion(Link);
 // These two existing assets have white artwork; the other marks have dark ink.
 const lightBrandMarks = new Set(['On', 'Brik']);
@@ -132,7 +133,7 @@ export function CategoryScroll({ settings }: { settings: SiteSettings }) {
         <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Swipe, drag or use the arrows to explore</p>
       </div>
       <TiltCascadeCarousel key={visible.map(category => category.slug).join(',')} loop={visible.length > 3} items={visible.map(category => ({
-        id: category.slug, title: category.label, href: category.path, fallback: category.emoji,
+        id: category.slug, title: category.label, href: category.path, fallback: <CollectionIcon kind={category.slug} size={64} />,
         src: `https://ik.imagekit.io/yocxectr4/logos/categories/${category.slug}.png?tr=w-400,h-400,f-webp,q-80`,
       }))} />
     </section>

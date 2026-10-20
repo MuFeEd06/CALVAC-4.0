@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, type PointerEvent, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type PointerEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import './tilt-cascade-carousel.css';
 
-export type TiltCascadeItem = { id: string; title: string; src: string; href: string; fallback: string };
+export type TiltCascadeItem = { id: string; title: string; src: string; href: string; fallback: ReactNode };
 type Props = { items: TiltCascadeItem[]; ariaLabel?: string; loop?: boolean; defaultIndex?: number };
 type Drag = { id: number; x: number; y: number; position: number; moved: boolean; samples: { time: number; x: number }[] };
 

@@ -118,7 +118,7 @@ async function readability(page,selector='body'){
   },selector);
 }
 try {
-  if(process.env.BROWSER_TEST_DRAWER_ONLY!=='1'&&process.env.BROWSER_TEST_COLLECTIONS_ONLY!=='1'){
+  if(process.env.BROWSER_TEST_DRAWER_ONLY!=='1'&&process.env.BROWSER_TEST_COLLECTIONS_ONLY!=='1'&&process.env.BROWSER_TEST_CATALOG_ONLY!=='1'){
   const store = await context({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await store.addInitScript(({ product }) => {
     if (location.protocol !== 'http:') return;
@@ -182,6 +182,10 @@ try {
   assert.equal(await page.getByText('Old Search Result', { exact: true }).count(), 0);
   await search.fill('');
   await page.getByText('Latest Search Result', { exact: true }).waitFor({ state: 'detached' });
+  const completedSearchCalls=calls.filter(path=>path==='/api/search').length;
+  await search.fill('LATEST');await page.getByText('Latest Search Result',{exact:true}).waitFor();
+  assert.equal(calls.filter(path=>path==='/api/search').length,completedSearchCalls,'Repeated searches reuse the short memory cache');
+  await search.fill('');
   results.searchIgnoresOldRequests = true;
   await store.close();
 
@@ -557,7 +561,7 @@ try {
   }
 
   }
-  if(process.env.BROWSER_TEST_COLLECTIONS_ONLY!=='1'){
+  if(process.env.BROWSER_TEST_COLLECTIONS_ONLY!=='1'&&process.env.BROWSER_TEST_CATALOG_ONLY!=='1'){
   const navigation=await context({viewport:{width:390,height:844},reducedMotion:'reduce'});
   const navPage=await navigation.newPage(),navigationRequests=[];
   navPage.on('request',request=>navigationRequests.push(request.url()));
@@ -699,16 +703,16 @@ try {
       await brandSection.screenshot({path:resolve(artifact,`brand-tiles-${width}-${mode}.png`)});
     }
   }
-  brandSettings={...brandSettings,hidden_brands:'Nike,On'};await brandPage.reload({waitUntil:'networkidle'});
+  brandSettings={...brandSettings,hidden_brands:'Nike,On'};await brandPage.evaluate(()=>localStorage.removeItem('calvac_public_cache_v1'));await brandPage.reload({waitUntil:'networkidle'});
   assert.equal(await brandSection.locator('.brand-logo-square').count(),15);
   assert.equal(await brandSection.locator('a[href="/shop?brand=Nike"],a[href="/shop?brand=On"]').count(),0);
-  brandSettings={...brandSettings,show_brands_section:false};await brandPage.reload({waitUntil:'networkidle'});
+  brandSettings={...brandSettings,show_brands_section:false};await brandPage.evaluate(()=>localStorage.removeItem('calvac_public_cache_v1'));await brandPage.reload({waitUntil:'networkidle'});
   assert.equal(await brandSection.count(),0);
   results.brandMarks={invertedSquares:true,lightAndDarkArtwork:true,imageFallbacks:true,visibilitySettings:true,responsive:true};
   await brands.close();
   }
 
-  if(process.env.BROWSER_TEST_DRAWER_ONLY!=='1'){
+  if(process.env.BROWSER_TEST_DRAWER_ONLY!=='1'&&process.env.BROWSER_TEST_CATALOG_ONLY!=='1'){
     const collections=await context({viewport:{width:390,height:844},isMobile:true,hasTouch:true,reducedMotion:'reduce'});
     const categories=[['boots','Boots','/shop?category=boots'],['crocs','Crocs','/shop?category=crocs'],['girls','Girls','/shop?category=girls'],['sale','Sale','/shop?sale=1'],['under1000','Under 1000','/shop?max_price=1000'],['under1500','Under 1500','/shop?max_price=1500'],['under2500','Under 2500','/shop?max_price=2500'],['new','New','/shop?tag=new'],['premium','Premium','/shop?min_price=2500'],['all','All Shoes','/shop']];
     let collectionSettings={hero_type:'hidden',show_new_arrivals:false,show_brands_section:false,show_categories:true,...Object.fromEntries(categories.map(([slug])=>['cat_'+slug,true]))};
@@ -780,13 +784,14 @@ try {
     await settled();await current().click();
     await collectionPage.waitForURL(url=>url.pathname==='/shop'&&url.searchParams.get('sale')==='1');
     collectionSettings={...collectionSettings,...Object.fromEntries(categories.map(([slug])=>['cat_'+slug,slug==='crocs']))};
+    await collectionPage.evaluate(()=>localStorage.removeItem('calvac_public_cache_v1'));
     await collectionPage.goto(origin+'/',{waitUntil:'networkidle'});
     assert.equal(await carousel.locator('.tcc-slide').count(),1);
     assert.equal(await current().getAttribute('href'),'/shop?category=crocs');
     assert.equal(await carousel.getByRole('group',{name:'Collection controls',exact:true}).count(),0);
-    collectionSettings={...collectionSettings,show_categories:false};await collectionPage.reload({waitUntil:'networkidle'});
+    collectionSettings={...collectionSettings,show_categories:false};await collectionPage.evaluate(()=>localStorage.removeItem('calvac_public_cache_v1'));await collectionPage.reload({waitUntil:'networkidle'});
     assert.equal(await carousel.count(),0);
-    collectionSettings={...collectionSettings,show_categories:true,cat_crocs:false};await collectionPage.reload({waitUntil:'networkidle'});
+    collectionSettings={...collectionSettings,show_categories:true,cat_crocs:false};await collectionPage.evaluate(()=>localStorage.removeItem('calvac_public_cache_v1'));await collectionPage.reload({waitUntil:'networkidle'});
     assert.equal(await carousel.count(),0,'An empty collection selection hides the section');
     await collections.close();
 
@@ -803,6 +808,92 @@ try {
     results.collectionCarousel={responsive:true,lightDarkContrast:true,filtersPreserved:true,adminVisibility:true,singleAndEmptyStates:true,dragAndTouch:true,verticalPageScroll:true,keyboardAndFocus:true,brokenImageFallback:true,looping:true,reducedMotion:true,springsSettle:true,noExtraApiCalls:true};
   }
 
+  if(process.env.BROWSER_TEST_DRAWER_ONLY!=='1'&&process.env.BROWSER_TEST_COLLECTIONS_ONLY!=='1'){
+    const audit=await context({viewport:{width:390,height:844},isMobile:true,hasTouch:true,reducedMotion:'reduce'});
+    const requests=[];
+    audit.on('request',request=>requests.push({url:new URL(request.url()),type:request.resourceType()}));
+    await audit.route('**/api/site-settings',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({hero_type:'hidden',show_new_arrivals:false,show_brands_section:false})}));
+    const prices=[0,999,1000,1499,1500,2499,2500,3000];
+    await audit.route('**/api/products?*',async route=>{
+      const query=new URL(route.request().url()).searchParams;
+      const items=prices.filter(price=>(!query.has('min_price')||price>=Number(query.get('min_price')))&&(!query.has('max_price')||price<=Number(query.get('max_price'))))
+        .map((price,index)=>({...product,id:index+10,name:`Price fixture ${price}`,price}));
+      await route.fulfill({contentType:'application/json',body:JSON.stringify({items,nextCursor:null})});
+    });
+    const auditPage=await audit.newPage();
+    const apiRequests=()=>requests.filter(request=>request.url.pathname.startsWith('/api/'));
+    await auditPage.goto(origin+'/',{waitUntil:'networkidle'});
+    assert.equal(apiRequests().filter(request=>request.url.pathname==='/api/site-settings').length,1,'Layout and home share one settings request');
+    assert.equal(apiRequests().filter(request=>request.url.searchParams.get('tag')==='new').length,0,'Hidden New Arrivals must not fetch products');
+    assert.equal(apiRequests().length,3,'Home needs only settings, offer, and visible trending products');
+    const beforeReload=apiRequests().length;
+    await auditPage.reload({waitUntil:'networkidle'});
+    assert.equal(apiRequests().length,beforeReload,'Fresh public cache survives a page reload');
+    for(const query of ['max_price=1000','max_price=1500','max_price=2500','min_price=2500','min_price=1000&max_price=1500','min_price=999.1&max_price=1499.9','max_price=0']){
+      await auditPage.goto(origin+'/shop?'+query,{waitUntil:'networkidle'});
+      const params=new URLSearchParams(query);
+      const expected=prices.filter(price=>(!params.has('min_price')||price>=Number(params.get('min_price')))&&(!params.has('max_price')||price<=Number(params.get('max_price'))));
+      assert.equal(await auditPage.locator('.product-grid h3').count(),expected.length,query);
+      for(const price of expected)await auditPage.getByRole('heading',{name:`Price fixture ${price}`,exact:true}).waitFor();
+      assert.equal(await auditPage.locator('.collection-heading-icon svg').count(),1);
+      assert.equal(/\p{Extended_Pictographic}/u.test(await auditPage.locator('main').innerText()),false,'Collection UI uses vectors');
+    }
+    await auditPage.goto(origin+'/shop?max_price=1500&min_price=1000',{waitUntil:'networkidle'});
+    const beforeEquivalent=apiRequests().length;
+    await auditPage.goto(origin+'/shop?min_price=1000&max_price=1500',{waitUntil:'networkidle'});
+    assert.equal(apiRequests().length,beforeEquivalent,'Equivalent filters reuse a canonical cache key');
+    await auditPage.addInitScript(()=>{const realNow=Date.now;Date.now=()=>realNow()+60_001;});
+    await auditPage.reload({waitUntil:'networkidle'});
+    assert.equal(apiRequests().length,beforeEquivalent+1,'Expired catalog refetches while settings remain cached');
+    for(const query of ['max_price=NaN','min_price=2000&max_price=1000']){
+      const beforeInvalid=apiRequests().length;
+      await auditPage.goto(origin+'/shop?'+query,{waitUntil:'networkidle'});
+      await auditPage.getByRole('alert').waitFor();
+      assert.equal(apiRequests().length,beforeInvalid,'Invalid bounds never request an unfiltered catalog');
+    }
+    for(const category of ['boots','crocs','girls']){
+      await auditPage.goto(origin+'/shop?category='+category,{waitUntil:'networkidle'});
+      assert.equal(await auditPage.locator('.collection-heading-icon svg').count(),1);
+      assert.equal(await auditPage.locator('.collection-heading-icon img').count(),0);
+    }
+    await auditPage.goto(origin+'/contact',{waitUntil:'networkidle'});
+    assert.equal(await auditPage.locator('.contact-card-icon svg').count(),4);
+    assert.equal(/\p{Extended_Pictographic}/u.test(await auditPage.locator('main').innerText()),false,'Contact UI uses vectors');
+    for(const width of [320,1366]){
+      await auditPage.setViewportSize({width,height:900});
+      for(const mode of ['light','dark']){
+        if(await auditPage.evaluate(()=>document.documentElement.dataset.themeMode)!==mode)await auditPage.getByRole('button',{name:`Switch to ${mode} theme`,exact:true}).click();
+        assert.deepEqual(await readability(auditPage),[],`${width}px ${mode} contact contrast`);
+        assert.equal(await auditPage.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+        await auditPage.screenshot({path:resolve(artifact,`contact-vectors-${width}-${mode}.png`),fullPage:true});
+      }
+    }
+    const documents=requests.filter(request=>request.type==='document').length;
+    await auditPage.getByRole('link',{name:'→ Return Policy',exact:true}).click();
+    await auditPage.waitForURL('**/return');
+    assert.equal(requests.filter(request=>request.type==='document').length,documents,'Policy links use client navigation');
+    results.catalogAudit={priceBounds:true,decimalAndZero:true,invalidRanges:true,vectorCollectionAndContactIcons:true,publicCacheSurvivesReload:true,expiryRefetch:true,canonicalRequestKeys:true,hiddenSectionNoRequests:true,contactResponsiveAndReadable:true};
+    await audit.close();
+    const railAudit=await context({viewport:{width:390,height:844},isMobile:true,hasTouch:true,reducedMotion:'reduce'});
+    const railImages=[];
+    railAudit.on('request',request=>{if(request.url().startsWith('https://ik.imagekit.io/'))railImages.push(request.url());});
+    await railAudit.route('**/api/site-settings',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({hero_type:'hidden',show_new_arrivals:true,show_brands_section:false,show_categories:false})}));
+    await railAudit.route('**/api/products?*',route=>{
+      const query=new URL(route.request().url()).searchParams;
+      if(query.get('tag')==='trending')return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Fixture trending failure'})});
+      return route.fulfill({contentType:'application/json',body:JSON.stringify({items:[{...product,image:'https://ik.imagekit.io/fixture/rail.webp?catalog=kept'}],nextCursor:null})});
+    });
+    const railPage=await railAudit.newPage();await railPage.goto(origin+'/',{waitUntil:'networkidle'});
+    await railPage.getByRole('heading',{name:'New Arrivals',exact:false}).waitFor();
+    assert.equal(await railPage.getByRole('alert').count(),0,'One failed section does not discard successful catalog data');
+    assert.equal(new Set(railImages).size,1,'Carousel foreground and ambient background share one ImageKit variant');
+    assert.equal(railImages.length,1,'The browser deduplicates the shared image request');
+    const beforeTheme=railImages.length;
+    await railPage.getByRole('button',{name:'Switch to dark theme',exact:true}).click();await railPage.waitForTimeout(400);
+    assert.equal(railImages.length,beforeTheme,'Theme switching does not fetch image variants');
+    results.catalogAudit.sharedCarouselImage=true;results.catalogAudit.partialCatalogRecovery=true;
+    await railAudit.close();
+  }
   assert.deepEqual(errors, []);
   results.pageErrors = errors;
   await writeFile(resolve(artifact, 'browser-results.json'), JSON.stringify(results, null, 2));
