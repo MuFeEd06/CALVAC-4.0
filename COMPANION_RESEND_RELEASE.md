@@ -48,6 +48,10 @@ Do not use the Gemini key as the SMTP password. Never commit the Resend key or p
 
 References: [Resend’s Supabase SMTP instructions](https://resend.com/docs/send-with-supabase-smtp), [Gemini model documentation](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite).
 
+## CALVAC-branded email designs
+
+The signup confirmation and password-reset designs are in `supabase/templates/`, with their subjects and activation steps in that folder's README. They retain Supabase's generated confirmation links and match the store's monochrome palette. This is separate from SMTP delivery configuration. Hosted activation is still pending: save the two finished HTML bodies and subjects in Supabase's Email Templates dashboard. The connected MCP server cannot edit those settings, and browser automation failed to initialize. Website deployment alone does not activate these templates.
+
 ## Release checks
 
 Application release `e7120a8` was deployed to `calvac.in` on 20 October 2026. All 31 Node tests, 38 Python tests, and browser regressions passed. Live checks confirmed real Gemini sizing replies, source product references, desktop 3D rendering, one active character renderer, mobile layout, both themes, and no browser or content-policy errors.

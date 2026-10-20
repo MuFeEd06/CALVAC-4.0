@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <title>Confirm your email for CALVAC</title>
+  <style>
+    :root{color-scheme:light dark;supported-color-schemes:light dark}
+    body{margin:0!important;padding:0!important;width:100%!important;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}
+    table{border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt}
+    a{color:inherit}a:focus-visible{outline:2px solid #62615e;outline-offset:4px}
+    @media only screen and (max-width:620px){.outer-pad{padding:20px 12px!important}.content-pad{padding-left:24px!important;padding-right:24px!important}.headline{font-size:30px!important;line-height:36px!important}.brand{font-size:26px!important}.section-pad{padding-top:30px!important;padding-bottom:30px!important}}
+    @media (prefers-color-scheme:dark){.email-bg{background-color:#111110!important}.email-card{background-color:#1c1c1a!important;border-color:#3d3d38!important}.ink{color:#f1efea!important}.muted{color:#b7b6b0!important}.rule{border-color:#3d3d38!important}.button-bg{background-color:#f1efea!important}.button-label{color:#151514!important}.url-box{background-color:#111110!important;border-color:#3d3d38!important}.focus-link:focus-visible{outline-color:#b7b6b0!important}}
+    [data-ogsc] .email-bg{background-color:#111110!important}[data-ogsc] .email-card{background-color:#1c1c1a!important;border-color:#3d3d38!important}[data-ogsc] .ink{color:#f1efea!important}[data-ogsc] .muted{color:#b7b6b0!important}[data-ogsc] .rule{border-color:#3d3d38!important}[data-ogsc] .button-bg{background-color:#f1efea!important}[data-ogsc] .button-label{color:#151514!important}[data-ogsc] .url-box{background-color:#111110!important;border-color:#3d3d38!important}
+  </style>
+  <!--[if mso]><style>body,table,td,a{font-family:Arial,Helvetica,sans-serif!important}</style><![endif]-->
+</head>
+<body class="email-bg" style="margin:0;padding:0;background-color:#ebe9e5;font-family:Arial,Helvetica,sans-serif;color:#151514;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">Verify your email address to finish creating your CALVAC account.</div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="email-bg" bgcolor="#ebe9e5" style="width:100%;background-color:#ebe9e5;">
+    <tr><td class="outer-pad" align="center" style="padding:40px 16px;">
+      <!--[if mso]><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0"><tr><td><![endif]-->
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="email-card" bgcolor="#f8f7f4" style="width:100%;max-width:600px;table-layout:fixed;border-collapse:separate;border-spacing:0;background-color:#f8f7f4;border:1px solid #cccac4;border-radius:20px;">
+        <tr><td class="content-pad rule" style="padding:28px 40px;border-bottom:1px solid #cccac4;">
+          <a class="brand ink focus-link" href="https://calvac.in" aria-label="CALVAC website" style="font-family:Arial,Helvetica,sans-serif;font-size:28px;line-height:34px;font-weight:700;letter-spacing:-1.5px;color:#151514;text-decoration:none;">CALVAC</a>
+        </td></tr>
+        <tr><td class="content-pad section-pad" style="padding:38px 40px 36px;">
+          <p class="muted" style="margin:0 0 16px;color:#62615e;font-size:11px;line-height:17px;font-weight:700;letter-spacing:1.7px;text-transform:uppercase;">Confirm your email</p>
+          <h1 class="headline ink" style="margin:0 0 20px;color:#151514;font-size:36px;line-height:42px;letter-spacing:-1.3px;font-weight:500;">Welcome to CALVAC.</h1>
+          <p class="ink" style="margin:0 0 28px;color:#151514;font-size:16px;line-height:26px;">Welcome to CALVAC. Confirm your email address to finish setting up your account.</p>
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 26px;">
+            <tr><td class="button-bg" bgcolor="#151514" align="center" style="background-color:#151514;border-radius:999px;mso-padding-alt:16px 28px;">
+              <a class="button-label focus-link" data-auth-action href="{{ .ConfirmationURL }}" style="display:inline-block;padding:16px 28px;border-radius:999px;color:#ffffff;text-decoration:none;font-size:15px;line-height:20px;font-weight:700;">Verify email&nbsp; &#8599;</a>
+            </td></tr>
+          </table>
+          <p class="muted" style="margin:0 0 24px;color:#62615e;font-size:13px;line-height:21px;">Open this link in the browser where you created your account. If you did not sign up for CALVAC, you can ignore this email.</p>
+          <p class="muted" style="margin:0 0 10px;color:#62615e;font-size:12px;line-height:19px;">Button not working? Copy this link into your browser:</p>
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="url-box" bgcolor="#ebe9e5" style="width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;background-color:#ebe9e5;border:1px solid #cccac4;border-radius:10px;">
+            <tr><td style="padding:12px 14px;word-break:break-all;overflow-wrap:anywhere;">
+              <a class="muted focus-link" data-auth-fallback href="{{ .ConfirmationURL }}" style="color:#62615e;text-decoration:underline;font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:18px;word-break:break-all;overflow-wrap:anywhere;">{{ .ConfirmationURL }}</a>
+            </td></tr>
+          </table>
+          <p class="muted" style="margin:16px 0 0;color:#62615e;font-size:12px;line-height:19px;">For your security, this link expires and can only be used once. If it no longer works, request a new email on calvac.in.</p>
+        </td></tr>
+        <tr><td class="content-pad rule" style="padding:24px 40px;border-top:1px solid #cccac4;">
+          <p class="muted" style="margin:0 0 6px;color:#62615e;font-size:12px;line-height:19px;">Need a hand? <a class="ink focus-link" href="https://calvac.in/contact" style="color:#151514;text-decoration:underline;">Contact CALVAC</a></p>
+          <p class="muted" style="margin:0;color:#62615e;font-size:11px;line-height:18px;">CALVAC &nbsp;/&nbsp; Account access &nbsp;/&nbsp; <a class="muted focus-link" href="https://calvac.in" style="color:#62615e;text-decoration:none;">calvac.in</a></p>
+        </td></tr>
+      </table>
+      <!--[if mso]></td></tr></table><![endif]-->
+    </td></tr>
+  </table>
+</body>
+</html>
